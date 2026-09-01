@@ -487,7 +487,7 @@ const commentEmpty = computed(() => {
 
 // Block sending while an image is still uploading — its content carries a
 // transient blob:/data: src that the backend strips, which would drop the image.
-const commentHasPendingUpload = computed(() => hasPendingImageUpload(draftData.value.content))
+const commentHasPendingUpload = computed(() => hasPendingImageUpload(editorObject.value?.getHTML()))
 
 const editorObject = computed<Editor | null>(() => {
   return newCommentEditor.value?.editor || null

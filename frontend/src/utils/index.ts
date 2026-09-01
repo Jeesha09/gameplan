@@ -22,7 +22,7 @@ export function getImgDimensions(
  */
 export function hasPendingImageUpload(html: string | null | undefined): boolean {
   if (!html) return false
-  return /<img\b[^>]*\ssrc\s*=\s*["'](?:blob:|data:)/i.test(html)
+  return /<img\b[^>]*(?:loading\s*=\s*["']true["']|\buploadid\s*=|src\s*=\s*["'](?:blob:|data:))/i.test(html)
 }
 
 export async function copyToClipboard(text: string): Promise<void> {
