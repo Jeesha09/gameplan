@@ -34,6 +34,59 @@ html {
   }
 }
 
+/*
+  frappe-ui's date pickers scroll their year and month columns in plain overflow
+  divs, which on a desktop browser draw the full-width native scrollbar inside a
+  208px popover. Thin, muted bars until the picker ships them itself
+  (frappe/frappe-ui: thin scrollbars on CalendarPanel's year/month lists); drop this then.
+*/
+[role='listbox'][aria-label='Select year'],
+[role='listbox'][aria-label='Select month'] {
+  scrollbar-width: thin;
+  scrollbar-color: var(--outline-gray-2) transparent;
+}
+
+/*
+  frappe-ui's SettingsHeader / SettingsBody inset their content by 4.4rem on every
+  screen; on a phone that is 140px of a 360px width gone to margins. Page-like insets
+  below the dialog's own breakpoint, until the library carries them itself
+  (frappe/frappe-ui: phone padding for SettingsHeader/SettingsBody); drop this then.
+*/
+@media (max-width: 639px) {
+  [role='tabpanel'] .px-\[4\.4rem\] {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  [role='tabpanel'] > .pt-10 {
+    padding-top: 1.25rem;
+  }
+
+  /*
+    Dialog wraps its content in px-4/py-4 plus my-8, while SettingsDialog's phone mode
+    sizes itself w-screen / h-[100dvh] inside that box and the box clips overflow: the
+    right 2rem and the bottom of every panel are cut off. Zero the wrapper for the
+    settings dialog only (the one whose content holds the tab list), until
+    SettingsDialog neutralises it itself (frappe/frappe-ui: full-bleed SettingsDialog on
+    phones); drop this then.
+  */
+  .dialog-scroll-container:has(.dialog-content [role='tablist']) > div {
+    padding: 0;
+  }
+  .dialog-content:has([role='tablist']) {
+    margin: 0;
+    border-radius: 0;
+  }
+}
+
+/*
+  Active hours (Settings → Notifications): native time inputs give hour / minute / am-pm
+  as steppable segments, which is the control wanted there; the browser's clock popup
+  behind the little icon is not, so the icon goes.
+*/
+.active-hours-time input::-webkit-calendar-picker-indicator {
+  display: none;
+}
+
 /* Flash on the source passage when navigating from a rich quote back to it.
    Duration matches the 2.5s class-removal timeout in useRichQuotes. */
 .highlighted-quote-target {
@@ -147,6 +200,6 @@ body {
   }
 }
 
-.ProseMirror table col[style*="min-width"] {
+.ProseMirror table col[style*='min-width'] {
   width: 120px;
 }
