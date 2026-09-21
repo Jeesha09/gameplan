@@ -1,15 +1,15 @@
 # Copyright (c) 2026, Frappe Technologies Pvt Ltd and contributors
 # For license information, please see license.txt
 
-"""The email channel: one mail an hour, per user who asked for email, with everything
-that arrived since the last one — and a closing mail as the user's active hours end, so
-nothing that arrived inside the window is left for the next day.
+"""The batch: one mail (or one summary push) an hour, per user who asked for email or
+push, with everything that arrived since the last one — and a closing one as the user's
+active hours end, so nothing that arrived inside the window is left for the next day.
 
 Every notification is a `GP Notification` row first; this only decides which rows also
-go out by mail. A row is sent once (`email_sent_at`), and a row that no longer needs
-sending — read in the app already, written while the user was away (the card covers
-those), older than the horizon, or pointing at something the user can no longer open —
-is stamped without a mail so the next run does not pick it up again.
+go out. A row is sent once per channel (`email_sent_at` / `push_sent_at`), and a row that
+no longer needs sending — read in the app already, written while the user was away (the
+card covers those), older than the horizon, or pointing at something the user can no
+longer open — is stamped without a send so the next run does not pick it up again.
 """
 
 from datetime import timedelta
@@ -25,21 +25,26 @@ from gameplan.email_digest import (
 	get_user_avatar_map,
 )
 from gameplan.notifications.away import is_away, profile_prefs, scheduled_off_window, user_timezone
+from gameplan.notifications.push import send_batch_push
 from gameplan.permissions import can_view_space
 
 HORIZON_HOURS = 24
 MENTION_TYPES = ("Mention", "Rich Quote")
+# Which stamp says "this row went out on that channel".
+STAMP_FIELD = {"Email": "email_sent_at", "Push": "push_sent_at"}
 # How often the scheduler calls send_batches (hooks.py); the closing mail lands in the
 # first tick after the window ends, so this is also how late it can be.
 TICK_MINUTES = 5
 
 
 def send_batches(now=None):
-	"""Scheduler entry, every TICK_MINUTES: a batch for every Email user whose clock says
-	it is time (`should_send`)."""
+	"""Scheduler entry, every TICK_MINUTES: a batch for every Email or Push user whose
+	clock says it is time (`should_send`)."""
 	now = now or now_datetime()
 	users = frappe.get_all(
-		"GP User Profile", filters={"notification_channel": "Email", "enabled": 1}, pluck="user"
+		"GP User Profile",
+		filters={"notification_channel": ["in", list(STAMP_FIELD)], "enabled": 1},
+		pluck="user",
 	)
 	for user in users:
 		if not frappe.db.get_value("User", user, "enabled"):
@@ -65,16 +70,24 @@ def should_send(user: str, now) -> bool:
 
 
 def send_batch(user: str) -> list:
-	"""Send `user` their pending rows in one mail. Returns the rows that were sent."""
-	rows = deliverable_rows(user)
+	"""Send `user` their pending rows in one mail or one summary push, whichever channel
+	they chose. Returns the rows that were sent."""
+	channel = profile_prefs(user).get("notification_channel")
+	stamp = STAMP_FIELD.get(channel)
+	if not stamp:
+		return []
+	rows = deliverable_rows(user, stamp)
 	if rows:
-		send_batch_email(user, rows)
-		_stamp(rows)
+		if channel == "Push":
+			send_batch_push(user, rows)
+		else:
+			send_batch_email(user, rows)
+		_stamp(rows, stamp)
 	return rows
 
 
-def pending_rows(user: str) -> list:
-	"""Unsent, unread rows that did not arrive during an away stretch."""
+def pending_rows(user: str, stamp: str = "email_sent_at") -> list:
+	"""Unsent (on this channel), unread rows that did not arrive during an away stretch."""
 	return frappe.qb.get_query(
 		"GP Notification",
 		fields=[
@@ -101,7 +114,7 @@ def pending_rows(user: str) -> list:
 		filters={
 			"to_user": user,
 			"read": 0,
-			"email_sent_at": ["is", "not set"],
+			stamp: ["is", "not set"],
 			"away_period": ["is", "not set"],
 		},
 		order_by="last_event_at desc",
@@ -109,14 +122,14 @@ def pending_rows(user: str) -> list:
 	).run(as_dict=True)
 
 
-def deliverable_rows(user: str) -> list:
-	"""`pending_rows` minus the ones not worth a mail, which are stamped on the way out:
+def deliverable_rows(user: str, stamp: str = "email_sent_at") -> list:
+	"""`pending_rows` minus the ones not worth sending, which are stamped on the way out:
 	too old to be news, or pointing at nothing the user can open (target deleted, access
 	lost)."""
 	horizon = add_to_date(now_datetime(), hours=-HORIZON_HOURS)
 	keep, drop = [], []
 	viewable = {}
-	for row in pending_rows(user):
+	for row in pending_rows(user, stamp):
 		if row.last_event_at and row.last_event_at < horizon:
 			drop.append(row)
 			continue
@@ -130,9 +143,9 @@ def deliverable_rows(user: str) -> list:
 				drop.append(row)
 				continue
 		keep.append(row)
-	_stamp(drop)
+	_stamp(drop, stamp)
 	# Read rows are not pending any more either; stamp them so the query stays small.
-	_stamp_read(user)
+	_stamp_read(user, stamp)
 	return keep
 
 
@@ -165,23 +178,21 @@ def batch_context(user: str, rows: list) -> dict:
 	}
 
 
-def _stamp(rows: list):
+def _stamp(rows: list, stamp: str = "email_sent_at"):
 	if not rows:
 		return
 	Notification = frappe.qb.DocType("GP Notification")
 	(
 		frappe.qb.update(Notification)
-		.set(Notification.email_sent_at, now_datetime())
+		.set(Notification[stamp], now_datetime())
 		.where(Notification.name.isin([row.name for row in rows]))
 	).run()
 
 
-def _stamp_read(user: str):
+def _stamp_read(user: str, stamp: str = "email_sent_at"):
 	Notification = frappe.qb.DocType("GP Notification")
 	(
 		frappe.qb.update(Notification)
-		.set(Notification.email_sent_at, now_datetime())
-		.where(
-			(Notification.to_user == user) & (Notification.read == 1) & Notification.email_sent_at.isnull()
-		)
+		.set(Notification[stamp], now_datetime())
+		.where((Notification.to_user == user) & (Notification.read == 1) & Notification[stamp].isnull())
 	).run()

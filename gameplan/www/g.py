@@ -10,6 +10,7 @@ from frappe.core.api.file import get_max_file_size
 from frappe.utils import get_system_timezone
 from frappe.utils.telemetry import capture
 
+from gameplan.notifications.push import push_enabled
 from gameplan.roles import has_app_access
 
 no_cache = 1
@@ -46,6 +47,10 @@ def get_boot():
 			"max_file_size": get_max_file_size(),
 			"app_version": get_app_version(),
 			"system_timezone": get_system_timezone(),
+			# The Push channel is offered only where a push can actually be delivered; the
+			# browser fetches the Firebase settings from the relay itself (data/push.ts).
+			"push_relay_enabled": push_enabled(),
+			"push_relay_server_url": frappe.conf.push_relay_server_url if push_enabled() else None,
 		}
 	)
 

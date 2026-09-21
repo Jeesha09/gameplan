@@ -6,6 +6,7 @@
 import frappe
 
 from gameplan.notifications.away import get_active_away_period
+from gameplan.notifications.push import queue_realtime_push
 
 # The link columns that make up a row's identity for merging. `from_user` and `message`
 # are deliberately not part of it: a second commenter merges into the first one's row.
@@ -74,6 +75,7 @@ def write_or_merge(
 			doc.away_period = get_active_away_period(to_user)
 		doc.flags.ignore_permissions = True
 		doc.save()
+		queue_realtime_push(doc)
 		return doc
 
 	doc = frappe.get_doc(doctype="GP Notification")
@@ -86,6 +88,7 @@ def write_or_merge(
 	doc.event_count = 1
 	doc.away_period = get_active_away_period(to_user)
 	doc.insert(ignore_permissions=True)
+	queue_realtime_push(doc)
 	return doc
 
 
