@@ -10,7 +10,7 @@ import { h, computed } from 'vue'
 import { Dropdown } from 'frappe-ui'
 import { settingsShortcutLabel, showSettingsDialog } from '@/components/Settings'
 import { useUser } from '@/data/users'
-import { session } from '@/data/session'
+import { logOut, session } from '@/data/session'
 import { useTheme } from '@/utils/useTheme'
 
 const user = useUser()
@@ -89,7 +89,7 @@ const dropdownItems = computed(() => [
   {
     icon: 'lucide-log-out',
     label: 'Log out',
-    onClick: () => session.logout.submit(),
+    onClick: () => logOut(),
   },
 ])
 

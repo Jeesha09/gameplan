@@ -72,7 +72,7 @@
 import { computed } from 'vue'
 import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { useSessionUser } from '@/data/users'
-import { session } from '@/data/session'
+import { logOut, session } from '@/data/session'
 import { useTheme, type Theme } from '@/utils/useTheme'
 
 interface MoreItem {
@@ -136,7 +136,7 @@ const itemGroups = computed<MoreItemGroup[]>(() => {
           onClick: cycleTheme,
           value: THEME_META[currentTheme.value].label,
         },
-        { label: 'Log out', icon: 'lucide-log-out', onClick: () => session.logout.submit() },
+        { label: 'Log out', icon: 'lucide-log-out', onClick: () => logOut() },
       ],
     },
   ]

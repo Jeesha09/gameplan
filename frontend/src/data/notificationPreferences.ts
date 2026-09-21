@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import { toast, useDoctype } from 'frappe-ui'
+import { disablePush, enablePush } from './push'
 import type { GPUserProfile } from '@/types/doctypes'
 
 export type NotificationLevel = 'Mentions only' | 'Mute'
@@ -112,12 +113,18 @@ export function setActivityNotifications(reactions: boolean, pollVotes: boolean)
   )
 }
 
-export function setNotificationChannel(value: unknown) {
+/**
+ * Push is the one channel with a device side: choosing it registers this browser first,
+ * and the choice is saved only once that worked; leaving it unregisters the browser.
+ */
+export async function setNotificationChannel(value: unknown) {
   const next = normalizeChannel(value)
   const previous = channel.value
   if (next === previous) return
+  if (next === 'Push' && !(await enablePush())) return
   channel.value = next
-  void persist({ notification_channel: next }, () => (channel.value = previous))
+  await persist({ notification_channel: next }, () => (channel.value = previous))
+  if (previous === 'Push' && channel.value !== 'Push') void disablePush()
 }
 
 export function setReceiveNotifications(value: boolean) {

@@ -95,11 +95,23 @@
             title="Reach me by"
             :description="channelDescription"
           >
-            <Select
-              :options="channelOptions"
-              :model-value="notificationChannel"
-              @update:model-value="setNotificationChannel"
-            />
+            <div class="flex flex-col items-end gap-1.5">
+              <Select
+                :options="channelOptions"
+                :model-value="notificationChannel"
+                @update:model-value="onChannelChange"
+              />
+              <!-- The choice is per user, the registration per browser: a second device
+                   picks Push up here. -->
+              <Button
+                v-if="notificationChannel === 'Push' && !pushOnThisDevice"
+                variant="ghost"
+                size="sm"
+                icon-left="lucide-bell-ring"
+                label="Turn on in this browser"
+                @click="enableHere"
+              />
+            </div>
           </SettingsRow>
         </div>
       </section>
@@ -194,6 +206,7 @@ import {
 } from 'frappe-ui'
 import { showCommunitiesSettings } from '@/components/Settings'
 import { communityState } from '@/data/communityState'
+import { enablePush, isPushEnabledOnDevice } from '@/data/push'
 import { useSessionUser, type EmailDigestDayOfWeek, type EmailDigestFrequency } from '@/data/users'
 import {
   allDayEnd,
@@ -235,10 +248,15 @@ const notificationLevelDescription = computed(() =>
     ? "Nothing reaches you from discussions you haven't set a bell on — not even mentions."
     : 'Mentions reach you from every discussion.',
 )
-// Push joins this list once the relay exists (Phase 5); until then it is not offered.
+// Push is offered only where a push can be delivered: the page is told so at boot
+// (`push_relay_enabled`, gameplan/www/g.py), the same way it learns read_only_mode.
+const pushRelayEnabled = Boolean(
+  (window as Window & { push_relay_enabled?: boolean }).push_relay_enabled,
+)
 const channelOptions: Array<{ value: NotificationChannel; label: string }> = [
   { value: 'In-app', label: 'In-app only' },
   { value: 'Email', label: 'Email' },
+  ...(pushRelayEnabled ? [{ value: 'Push' as const, label: 'Push' }] : []),
 ]
 type ActivityChoice = 'both' | 'reactions' | 'polls' | 'none'
 const activityOptions: Array<{ label: string; value: ActivityChoice }> = [
@@ -260,11 +278,24 @@ function setActivityChoice(value: ActivityChoice) {
   )
 }
 
-const channelDescription = computed(() =>
-  notificationChannel.value === 'Email'
-    ? 'One email an hour with everything new since the last one'
-    : 'The inbox and the bell only',
-)
+const channelDescription = computed(() => {
+  if (notificationChannel.value === 'Email')
+    return 'One email an hour with everything new since the last one'
+  if (notificationChannel.value === 'Push')
+    return pushOnThisDevice.value
+      ? 'Mentions and comments as they happen, the rest in an hourly summary'
+      : 'Chosen on another device; this browser is not receiving pushes yet'
+  return 'The inbox and the bell only'
+})
+
+const pushOnThisDevice = ref(isPushEnabledOnDevice())
+async function onChannelChange(value: unknown) {
+  await setNotificationChannel(value)
+  pushOnThisDevice.value = isPushEnabledOnDevice()
+}
+async function enableHere() {
+  if (await enablePush()) pushOnThisDevice.value = true
+}
 
 // The schedule runs in the timezone from Preferences (User.time_zone), falling back to the
 // site's when none is set — the same rule the server applies.

@@ -22,6 +22,7 @@ import { loadRouteLocation, useRoute, useRouter } from 'vue-router'
 import { FrappeUIProvider } from 'frappe-ui'
 import { users, usersReady } from '@/data/users'
 import { session } from '@/data/session'
+import { refreshPushRegistration } from '@/data/push'
 import { useIsMobile } from '@/utils/useIsMobile'
 import { useTheme } from '@/utils/useTheme'
 import { useCursorStyle } from '@/utils/useCursorStyle'
@@ -32,6 +33,13 @@ import { getHomeRoute } from '@/router'
 
 const isMobileViewport = useIsMobile()
 const route = useRoute()
+
+// A device with push on re-checks its token once per visit; tokens rotate.
+watch(
+  () => session.isLoggedIn,
+  (loggedIn) => loggedIn && void refreshPushRegistration(),
+  { immediate: true },
+)
 const router = useRouter()
 useTheme()
 useCursorStyle()

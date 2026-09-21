@@ -1,6 +1,7 @@
 import { computed, MaybeRef, reactive, ref } from 'vue'
 import { useCall } from 'frappe-ui'
 import { users } from './users'
+import { disablePush } from './push'
 import router from '@/router'
 
 interface LoginResponse {
@@ -40,6 +41,12 @@ export let session = reactive({
   user: sessionUser,
   isLoggedIn: computed(() => sessionUser.value != null),
 })
+
+/** Log out, after telling the relay to forget this browser (needs the session to do so). */
+export async function logOut() {
+  await disablePush()
+  await session.logout.submit()
+}
 
 export function isSessionUser(user: string) {
   return session.user === user
