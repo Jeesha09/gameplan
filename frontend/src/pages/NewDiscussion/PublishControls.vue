@@ -1,16 +1,13 @@
 <template>
   <div class="flex items-center gap-2">
     <div class="flex items-center gap-px">
-      <Tooltip
-        :text="isDraftLoading ? 'Draft is loading' : 'You cannot publish this draft'"
-        :disabled="isComposerEditable"
-      >
+      <Tooltip :text="blockedReason" :disabled="!blockedReason">
         <Button
           variant="solid"
           :size="size"
           class="rounded-r-none"
           :loading="publishing"
-          :disabled="!isComposerEditable || scheduling"
+          :disabled="Boolean(blockedReason) || scheduling"
           @click="publish"
         >
           Publish
@@ -18,7 +15,7 @@
       </Tooltip>
       <div
         ref="menuHost"
-        class="[&_[data-slot=group]]:!p-0 [&_[data-slot=item]]:!rounded-6 [&_[data-slot=item-list-row]]:!px-3 [&_[data-slot=item-list-row]]:!py-2"
+        class="flex [&_[data-slot=group]]:!p-0 [&_[data-slot=item]]:!rounded-6 [&_[data-slot=item-list-row]]:!px-3 [&_[data-slot=item-list-row]]:!py-2"
       >
         <Dropdown :options="options" align="end" :portal-to="menuHost ?? undefined">
           <Button
@@ -27,7 +24,7 @@
             class="rounded-l-none"
             icon="lucide-chevron-down"
             label="More publish options"
-            :disabled="!isComposerEditable || publishing || scheduling"
+            :disabled="Boolean(blockedReason) || publishing || scheduling"
           />
         </Dropdown>
       </div>
@@ -57,7 +54,16 @@ const {
   sessionUser,
   author,
   deleteDraft,
+  draftData,
 } = useNewDiscussionContext()
+
+const blockedReason = computed(() => {
+  if (isDraftLoading.value) return 'Draft is loading'
+  if (!isComposerEditable.value) return 'You cannot publish this draft'
+  if (!draftData.value?.title?.trim()) return 'Add a title to publish'
+  if (!draftData.value?.project) return 'Pick a space to publish'
+  return ''
+})
 
 const menuHost = ref<HTMLElement | null>(null)
 const showSchedule = ref(false)

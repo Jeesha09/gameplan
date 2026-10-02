@@ -10,16 +10,13 @@
 
   <PageHeader class="hidden sm:flex">
     <div class="flex min-w-0 items-center gap-2">
-      <Breadcrumbs
-        class="h-7"
-        :items="[
-          { label: 'Drafts', route: { name: 'Drafts' } },
-          {
-            label: isPersisted ? draftData?.title : 'New Discussion',
-            route: discussionRoute,
-          },
-        ]"
-      />
+      <div class="flex h-7 min-w-0 items-center">
+        <DiscussionSpaceSelector crumb />
+        <span class="mx-0.5 text-base text-ink-gray-4" aria-hidden="true">/</span>
+        <span class="min-w-0 truncate rounded-4 px-0.5 py-1 text-lg-medium text-ink-gray-9">
+          {{ isPersisted ? draftData?.title : 'New Discussion' }}
+        </span>
+      </div>
       <Badge v-if="scheduledAt" :title="`Scheduled for ${scheduledAtLabel}`">
         <template #prefix>
           <span class="lucide-calendar-clock size-3.5" aria-hidden="true" />
@@ -28,7 +25,6 @@
       </Badge>
     </div>
     <div class="flex shrink-0 items-center space-x-2">
-      <DiscussionSpaceSelector />
       <PublishControls />
     </div>
   </PageHeader>
@@ -37,7 +33,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, type RouteLocationRaw } from 'vue-router'
-import { PageHeaderBackButton, PageHeaderMobile, PageHeader, Breadcrumbs, Badge } from 'frappe-ui'
+import { PageHeaderBackButton, PageHeaderMobile, PageHeader, Badge } from 'frappe-ui'
 import { useNewDiscussionContext } from './useNewDiscussion'
 import DiscussionSpaceSelector from './DiscussionSpaceSelector.vue'
 import PublishControls from './PublishControls.vue'
@@ -67,15 +63,4 @@ function routeParam(value: unknown): string | undefined {
   const resolved = Array.isArray(value) ? value[0] : value
   return typeof resolved === 'string' && resolved ? resolved : undefined
 }
-
-const discussionRoute = computed(() => {
-  if (!route.params.communityId) {
-    return { name: 'LegacyNewDiscussion' }
-  }
-
-  return {
-    name: 'NewDiscussion',
-    params: { communityId: route.params.communityId },
-  }
-})
 </script>
