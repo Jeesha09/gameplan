@@ -16,7 +16,6 @@
   "readme",
   "members",
   "section_break_14",
-  "tasks_count",
   "discussions_count",
   "archived_at",
   "archived_by"
@@ -72,11 +71,6 @@
    "fieldtype": "Section Break"
   },
   {
-   "fieldname": "tasks_count",
-   "fieldtype": "Int",
-   "label": "Tasks Count"
-  },
-  {
    "fieldname": "discussions_count",
    "fieldtype": "Int",
    "label": "Discussions Count"
@@ -102,15 +96,11 @@
  "index_web_pages_for_search": 1,
  "links": [
   {
-   "link_doctype": "GP Task",
-   "link_fieldname": "project"
-  },
-  {
    "link_doctype": "GP Discussion",
    "link_fieldname": "project"
   }
  ],
- "modified": "2024-12-15 00:46:16.394764",
+ "modified": "2026-10-20 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gameplan",
  "name": "GP Project",

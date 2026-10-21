@@ -34,7 +34,6 @@ describe('Search page', () => {
 
     selectFilter('Type', 'Discussion')
     cy.contains('2 matches').should('contain', '4 filter(s) applied')
-    cy.contains('Engineering roadmap page').should('not.exist')
 
     selectFilter('Tags', 'launch')
     cy.contains('p', /^1 match \(/).should('contain', '5 filter(s) applied')

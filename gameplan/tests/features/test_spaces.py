@@ -28,9 +28,7 @@ from gameplan.tests.fixtures import (
 	create_community,
 	create_discussion,
 	create_member,
-	create_page,
 	create_space,
-	create_task,
 	declared_http_methods,
 	grant_guest_access,
 )
@@ -170,7 +168,7 @@ class TestSpaceCommunityMove(GameplanTestCase):
 		self.sibling = create_space("Staying Space", self.origin)
 
 	def _content(self, space):
-		"""A discussion, a task and a page in `space`, each tagged with its Community.
+		"""A discussion in `space`, tagged with its Community.
 
 		Seeded directly because nothing writes `team` on insert — the column is only
 		ever filled by the move under test and by GP Discussion's own move — so without
@@ -179,8 +177,6 @@ class TestSpaceCommunityMove(GameplanTestCase):
 		"""
 		rows = {
 			"GP Discussion": create_discussion(f"{space.title} Discussion", space).name,
-			"GP Task": create_task(f"{space.title} Task", space).name,
-			"GP Page": create_page(f"{space.title} Page", space).name,
 		}
 		for doctype, name in rows.items():
 			frappe.db.set_value(doctype, name, "team", space.team, update_modified=False)
@@ -875,7 +871,7 @@ class TestSpaceMerge(GameplanTestCase):
 		)
 
 	def test_manager_of_only_the_source_cannot_merge_into_a_space_they_dont_manage(self):
-		"""The merge moves every discussion, task and page into the target, so managing
+		"""The merge moves every discussion into the target, so managing
 		the source alone is not enough — without a gate on the target it is a way to
 		push content into a space the user has no rights over."""
 		community = create_community("Merge Target Gate Community", members=[self.member, self.second_member])

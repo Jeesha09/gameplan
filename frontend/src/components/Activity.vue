@@ -15,7 +15,6 @@
         class="lucide-corner-up-right h-4 w-4"
         v-else-if="activity.action === 'Discussion Moved'"
       />
-      <span class="lucide-edit-3 h-4 w-4" v-else-if="activity.action === 'Task Value Changed'" />
     </div>
     <p>
       <UserProfileLink class="font-medium text-ink-gray-7 hover:text-ink-gray-5" :user="user.name">
@@ -56,59 +55,7 @@
           class="text-ink-gray-8 hover:text-ink-gray-5"
         >
           {{ spaceTitle(activity.data.new_project) }}
-        </router-link>
-      </span>
-      <span class="text-ink-gray-5" v-if="activity.action == 'Task Value Changed'">
-        <template v-if="activity.data.field === 'assigned_to'">
-          <template v-if="assignedUser">
-            assigned this to
-            <UserProfileLink
-              class="font-medium text-ink-gray-7 hover:text-ink-gray-5"
-              :user="assignedUser.name"
-            >
-              {{ assignedUser.full_name }}
-            </UserProfileLink>
-          </template>
-          <template v-else>unassigned this</template>
-        </template>
-        <template v-else-if="activity.data.field === 'description'">
-          updated the description
-        </template>
-        <template v-else-if="activity.data.field === 'project'">
-          changed project
-          <span v-if="activity.data.old_value">from&nbsp;</span>
-          <router-link
-            :to="{
-              name: 'Space',
-              params: {
-                communityId: getSpace(activity.data.old_value)?.team,
-                spaceId: activity.data.old_value,
-              },
-            }"
-            class="text-ink-gray-8 hover:text-ink-gray-5"
-          >
-            {{ spaceTitle(activity.data.old_value) }}
-          </router-link>
-          to
-          <router-link
-            :to="{
-              name: 'Space',
-              params: {
-                communityId: getSpace(activity.data.new_value)?.team,
-                spaceId: activity.data.new_value,
-              },
-            }"
-            class="text-ink-gray-8 hover:text-ink-gray-5"
-          >
-            {{ spaceTitle(activity.data.new_value) }}
-          </router-link>
-        </template>
-        <template v-else>
-          changed {{ activity.data.field_label }}
-          <span v-if="activity.data.old_value">from&nbsp;</span>
-          <span class="text-ink-gray-7">{{ activity.data.old_value }}</span> to
-          <span class="text-ink-gray-7">{{ activity.data.new_value }}</span>
-        </template> </span
+        </router-link> </span
       >&nbsp;<Tooltip :text="dayjsLocal(activity.creation).format('D MMM YYYY [at] h:mm A')">
         <time class="text-ink-gray-5" :datetime="activity.creation">
           {{ dayjsLocal(activity.creation).fromNow() }}
@@ -134,10 +81,6 @@ interface Activity {
     new_title?: string
     old_project?: string
     new_project?: string
-    field?: string
-    field_label?: string
-    old_value?: string
-    new_value?: string
   }
 }
 
@@ -146,9 +89,4 @@ const props = defineProps<{
 }>()
 
 const user = computed(() => useUser(props.activity.user))
-// Clearing an assignee logs the same activity with an empty new_value, so there is no
-// user to name — the template renders "unassigned this" instead.
-const assignedUser = computed(() =>
-  props.activity.data?.new_value ? useUser(props.activity.data.new_value) : null,
-)
 </script>

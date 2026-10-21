@@ -216,7 +216,6 @@ const discussionTitles = useLinkedTitles('GP Discussion', () =>
   linkedIds(loadedNotifications.value, 'discussion'),
 )
 const pollTitles = useLinkedTitles('GP Poll', () => linkedIds(loadedNotifications.value, 'poll'))
-const taskTitles = useLinkedTitles('GP Task', () => linkedIds(loadedNotifications.value, 'task'))
 
 const markAllAsRead = useCall({
   // `useCall` takes the URL verbatim (unlike the legacy `resources` API, it does not
@@ -299,17 +298,6 @@ function notificationRoute(notification: NotificationRow): RouteLocationRaw | nu
           : undefined,
     }
   }
-  if (notification.task) {
-    return {
-      name: 'SpaceTask',
-      params: {
-        communityId: notification.team,
-        spaceId: notification.project,
-        taskId: notification.task,
-      },
-      query: notification.comment ? { comment: notification.comment } : undefined,
-    }
-  }
   return null
 }
 
@@ -321,7 +309,6 @@ function notificationIcon(notification: NotificationRow) {
 function notificationTargetTitle(notification: NotificationRow) {
   if (notification.poll) return pollTitles.value.get(String(notification.poll))
   if (notification.discussion) return discussionTitles.value.get(String(notification.discussion))
-  if (notification.task) return taskTitles.value.get(String(notification.task))
   return null
 }
 
@@ -331,7 +318,7 @@ function notificationLocation(notification: NotificationRow) {
   return [community, space].filter(Boolean).join(' / ')
 }
 
-function linkedIds(notifications: NotificationRow[], field: 'discussion' | 'poll' | 'task') {
+function linkedIds(notifications: NotificationRow[], field: 'discussion' | 'poll') {
   // Sorted because order is meaningless to an `in` filter but not to `useList`, which
   // refetches whenever the request URL changes. Marking a notification read reorders the
   // list without changing which documents it points at; sorting keeps that a no-op.
@@ -339,7 +326,7 @@ function linkedIds(notifications: NotificationRow[], field: 'discussion' | 'poll
 }
 
 /**
- * Titles of the discussions, polls, and tasks the notifications point at.
+ * Titles of the discussions and polls the notifications point at.
  *
  * These used to be joined into the notification query itself
  * (`discussion.title as discussion_title`), which silently emptied the whole
@@ -351,7 +338,7 @@ function linkedIds(notifications: NotificationRow[], field: 'discussion' | 'poll
  * not `version-16`; keep the separate queries until the hotfix merges forward
  * and this bench moves to a frappe version that carries it.
  */
-function useLinkedTitles(doctype: 'GP Discussion' | 'GP Poll' | 'GP Task', ids: () => string[]) {
+function useLinkedTitles(doctype: 'GP Discussion' | 'GP Poll', ids: () => string[]) {
   // `queryIds` only ever holds a settled, non-empty id set, and that is what the lookup is
   // keyed on. The unread and read lists resolve a beat apart, so the ids arrive in more than
   // one step: fetching on each step fired a query for the empty set on mount and then a

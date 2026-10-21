@@ -41,7 +41,6 @@ class GPComment(HasAttachments, HasMentions, HasReactions, HasTags, Document):
 
 	def after_insert(self):
 		self.update_discussion_meta()
-		self.update_task_meta()
 		if self.reference_doctype == "GP Discussion":
 			GPUnreadRecord.create_unread_records_for_comment(self)
 
@@ -61,7 +60,6 @@ class GPComment(HasAttachments, HasMentions, HasReactions, HasTags, Document):
 			# which is exactly how GP Poll broke. Do not rely on the ordering.
 			return
 		self.update_discussion_meta()
-		self.update_task_meta()
 
 	def before_save(self):
 		self.set_edited_at()
@@ -77,11 +75,6 @@ class GPComment(HasAttachments, HasMentions, HasReactions, HasTags, Document):
 		discussion.save(ignore_permissions=True)
 		# track_visit reloads the stored discussion, so save the counters first.
 		discussion.track_visit()
-
-	def update_task_meta(self):
-		if self.reference_doctype != "GP Task":
-			return
-		frappe.get_doc("GP Task", self.reference_name).update_comments_count()
 
 	def validate(self):
 		# Gate the content itself, not every save, as discussions do: they only guard

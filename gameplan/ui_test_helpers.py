@@ -182,13 +182,6 @@ def _create_discussion(title, space, *, content="Seed content", owner=MEMBER):
 		)
 
 
-def _create_page(title, space, *, content="Seed content", owner=MEMBER):
-	with _as_user(owner):
-		return frappe.get_doc(doctype="GP Page", title=title, project=space, content=content).insert(
-			ignore_permissions=True
-		)
-
-
 def _onboarded():
 	community = _create_community("Acme")
 	return {"community": community.name, "space": _general_space(community)}
@@ -294,13 +287,19 @@ def _search_page():
 		general,
 		content=f"<p>A roadmap in another space.</p>{launch_tag}",
 	)
-	_create_page("Engineering roadmap page", engineering.name)
 	_create_discussion(
 		"Untagged roadmap",
 		engineering.name,
 		content='<p>A roadmap with a different tag.</p><span class="tag-item" '
 		'data-tag-label="planning">#planning</span>',
 	)
+	with _as_user(MEMBER):
+		frappe.get_doc(
+			doctype="GP Comment",
+			reference_doctype="GP Discussion",
+			reference_name=target.name,
+			content="<p>Comment on the roadmap timeline.</p>",
+		).insert(ignore_permissions=True)
 
 	return {
 		"community": acme.name,

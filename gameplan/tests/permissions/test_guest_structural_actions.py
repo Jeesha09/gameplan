@@ -5,7 +5,7 @@
 
 Rule (Faris, 2026-09-19): in the spaces they are granted, guests comment, reply, react,
 vote, start discussions, and edit the content they wrote. They do not archive, move or manage anything.
-That means no moving a space to another community, no moving a discussion, page, task,
+That means no moving a space to another community, no moving a discussion,
 comment or poll to another space or thread, no archive or unarchive, no space settings,
 no member changes and no pinning.
 
@@ -25,10 +25,8 @@ from gameplan.tests.fixtures import (
 	create_community,
 	create_discussion,
 	create_guest,
-	create_page,
 	create_poll,
 	create_space,
-	create_task,
 	grant_guest_access,
 )
 
@@ -205,16 +203,6 @@ class TestGuestCannotMoveContent(GuestInJoinedSpacesTestCase):
 
 		self.assertEqual(str(self.stored(self.guest_discussion).project), str(self.space.name))
 
-	def test_guest_cannot_move_own_page_or_task(self):
-		page = create_page("Guest page", self.space, owner=self.guest)
-		task = create_task("Guest task", self.space, owner=self.guest)
-
-		for doc in (page, task):
-			with self.subTest(doctype=doc.doctype):
-				with self.as_user(self.guest), self.assertRaises(frappe.PermissionError):
-					set_value(doc.doctype, doc.name, "project", self.second_space.name)
-				self.assertEqual(str(self.stored(doc).project), str(self.space.name))
-
 	def test_guest_cannot_move_own_comment_to_another_thread(self):
 		comment = create_comment(self.guest_discussion, owner=self.guest)
 
@@ -308,12 +296,6 @@ class TestGuestStillParticipates(GuestInJoinedSpacesTestCase):
 				doctype="GP Discussion", title="Blocked", content="<p>No</p>", project=ungranted.name
 			).insert()
 
-	def test_guest_still_cannot_create_a_page_or_task(self):
-		for doctype in ("GP Page", "GP Task"):
-			with self.subTest(doctype=doctype):
-				with self.as_user(self.guest), self.assertRaises(frappe.PermissionError):
-					frappe.get_doc(doctype=doctype, title="Blocked", project=self.space.name).insert()
-
 	def test_guest_can_react_to_a_discussion_and_a_comment(self):
 		comment = create_comment(self.member_discussion, owner=self.member)
 		with self.as_user(self.guest):
@@ -406,15 +388,6 @@ class TestGuestStillParticipates(GuestInJoinedSpacesTestCase):
 			frappe.delete_doc("GP Discussion", self.member_discussion.name)
 
 		self.assertTrue(frappe.db.exists("GP Discussion", self.member_discussion.name))
-
-	def test_guest_still_cannot_delete_own_page_or_task(self):
-		page = create_page("Guest page", self.space, owner=self.guest)
-		task = create_task("Guest task", self.space, owner=self.guest)
-		for doc in (page, task):
-			with self.subTest(doctype=doc.doctype):
-				with self.as_user(self.guest), self.assertRaises(frappe.PermissionError):
-					frappe.delete_doc(doc.doctype, doc.name)
-				self.assertTrue(frappe.db.exists(doc.doctype, doc.name))
 
 	def test_guest_can_bookmark_and_mark_read_or_unread(self):
 		with self.as_user(self.guest):

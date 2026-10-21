@@ -16,17 +16,13 @@ refuse to hand over a document by name and still list it.
 
 import frappe
 
-from gameplan.gameplan.doctype.gp_task.gp_task import get_list as get_task_list
 from gameplan.tests.base import GameplanTestCase
 from gameplan.tests.fixtures import (
 	create_comment,
 	create_community,
 	create_discussion,
-	create_page,
 	create_poll,
 	create_space,
-	create_task,
-	grant_guest_access,
 	set_owner,
 )
 
@@ -44,9 +40,9 @@ class ListScopingTestCase(GameplanTestCase):
 class TestPersonalRowListScoping(ListScopingTestCase):
 	"""Rows that belong to exactly one user.
 
-	A space-less page and a discussion-less poll have no space to inherit visibility
-	from, and a draft or a bookmark never had one: for all four the owner is the whole
-	audience, so enumeration must stop at them.
+	A discussion-less poll has no space to inherit visibility from, and a draft or a
+	bookmark never had one: for all three the owner is the whole audience, so
+	enumeration must stop at them.
 	"""
 
 	def setUp(self):
@@ -65,12 +61,6 @@ class TestPersonalRowListScoping(ListScopingTestCase):
 		return frappe.get_doc(doctype="GP Bookmark", user=user.name, discussion=self.discussion.name).insert(
 			ignore_permissions=True
 		)
-
-	def test_a_space_less_page_is_listed_only_for_its_owner(self):
-		mine = create_page("My Personal Page", owner=self.member)
-		theirs = create_page("Their Personal Page", owner=self.second_member)
-
-		self.assert_listed_for("GP Page", self.member, visible=mine, hidden=theirs)
 
 	def test_a_discussion_less_poll_is_listed_only_for_its_owner(self):
 		mine = create_poll("My Loose Poll", None, owner=self.member)
@@ -94,12 +84,7 @@ class TestPersonalRowListScoping(ListScopingTestCase):
 
 
 class TestCommentListScoping(ListScopingTestCase):
-	"""A comment is listed from the space of whatever it hangs off.
-
-	Discussions and tasks are two separate branches of the filter, and a comment reaches
-	the list through exactly one of them, so both are asserted: a filter that lost the
-	task branch would still look correct measured on discussion comments alone.
-	"""
+	"""A comment is listed from the space of the discussion it hangs off."""
 
 	def setUp(self):
 		super().setUp()
@@ -118,17 +103,6 @@ class TestCommentListScoping(ListScopingTestCase):
 		)
 		hidden = create_comment(
 			create_discussion("Hidden Comment Thread", self.hidden_space, owner=self.second_member),
-			owner=self.second_member,
-		)
-
-		self.assert_listed_for("GP Comment", self.member, visible=visible, hidden=hidden)
-
-	def test_a_task_comment_is_listed_only_from_a_space_the_user_can_see(self):
-		visible = create_comment(
-			create_task("Visible Comment Task", self.visible_space, owner=self.member), owner=self.member
-		)
-		hidden = create_comment(
-			create_task("Hidden Comment Task", self.hidden_space, owner=self.second_member),
 			owner=self.second_member,
 		)
 
@@ -156,58 +130,3 @@ class TestMembershipListScoping(ListScopingTestCase):
 		theirs = create_space("Their Private Space", community, is_private=1, members=[self.second_member])
 
 		self.assert_listed_for("GP Project", self.member, visible=mine, hidden=theirs)
-
-
-class TestTaskListEndpointScoping(GameplanTestCase):
-	"""`GP Task.get_list`, the endpoint behind every task list in the SPA.
-
-	It builds its own query with `frappe.qb.get_query`, which applies the GP Task
-	`permission_query_conditions`, and then applies the same task access filter itself.
-	Both must list a space-less task for its owner.
-	"""
-
-	def setUp(self):
-		super().setUp()
-		self.community = create_community("Task List Community", members=[self.member, self.second_member])
-		self.public_space = create_space("Task List Public Space", self.community)
-		self.private_space = create_space(
-			"Task List Private Space", self.community, is_private=1, members=[self.second_member]
-		)
-		self.public_task = create_task("Public Space Task", self.public_space, owner=self.member)
-		self.private_task = create_task("Private Space Task", self.private_space, owner=self.second_member)
-
-	def listed_for(self, user):
-		# The same fields TaskList.vue asks for: the join on GP Project must not upset the
-		# space filter's subquery, which reads GP Project too.
-		fields = frappe.as_json(["name", "project.title as project_title"])
-		with self.as_user(user):
-			return {str(task.name) for task in get_task_list(fields=fields, limit=1000)}
-
-	def test_a_private_space_task_is_not_listed_for_a_non_member(self):
-		listed = self.listed_for(self.member)
-
-		self.assertIn(str(self.public_task.name), listed)
-		self.assertNotIn(str(self.private_task.name), listed)
-
-	def test_a_private_space_task_is_listed_for_a_member(self):
-		self.assertIn(str(self.private_task.name), self.listed_for(self.second_member))
-
-	def test_a_guest_is_listed_only_the_tasks_of_granted_spaces(self):
-		granted_space = create_space("Task List Granted Space", self.community, is_private=1)
-		granted_task = create_task("Granted Space Task", granted_space, owner=self.member)
-		grant_guest_access(self.guest, granted_space)
-
-		listed = self.listed_for(self.guest)
-
-		self.assertIn(str(granted_task.name), listed)
-		self.assertNotIn(str(self.private_task.name), listed)
-		self.assertNotIn(str(self.public_task.name), listed)
-
-	def test_a_space_less_task_is_listed_only_for_its_owner(self):
-		mine = create_task("My Space-less Task", owner=self.member)
-		theirs = create_task("Their Space-less Task", owner=self.second_member)
-
-		listed = self.listed_for(self.member)
-
-		self.assertIn(str(mine.name), listed)
-		self.assertNotIn(str(theirs.name), listed)

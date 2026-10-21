@@ -31,7 +31,7 @@ class GameplanSearch(SQLiteSearch):
 
 	Provides full-text search for Gameplan documents with:
 	- Permission filtering based on project access
-	- Gameplan-specific document types (GP Discussion, GP Task, GP Page, GP Comment)
+	- Gameplan-specific document types (GP Discussion, GP Comment)
 	- Custom scoring for different document types
 	- Filter options for search interface
 	"""
@@ -46,12 +46,6 @@ class GameplanSearch(SQLiteSearch):
 	INDEXABLE_DOCTYPES = {
 		"GP Discussion": {
 			"fields": ["name", "title", "content", {"modified": "last_post_at"}, "project", "team", "owner"],
-		},
-		"GP Task": {
-			"fields": ["name", "title", {"content": "description"}, "modified", "project", "team", "owner"],
-		},
-		"GP Page": {
-			"fields": ["name", "title", "content", "modified", "project", "team", "owner"],
 		},
 		"GP Comment": {
 			"fields": ["name", "content", "modified", "reference_doctype", "reference_name", "owner"],

@@ -12,7 +12,6 @@ from gameplan.tests.fixtures import (
 	create_comment,
 	create_community,
 	create_space,
-	create_task,
 	drain_search_index_queue,
 	grant_guest_access,
 )
@@ -68,8 +67,6 @@ class TestSearchRanking(IsolatedSearchIndex, FrappeTestCase):
 		self.guard_real_search_index()
 		frappe.flags.gameplan_search_test_docnames = {
 			"GP Discussion": [],
-			"GP Task": [],
-			"GP Page": [],
 			"GP Comment": [],
 		}
 		self.search = TestableGameplanSearch()
@@ -99,16 +96,6 @@ class TestSearchRanking(IsolatedSearchIndex, FrappeTestCase):
 		).insert(ignore_permissions=True)
 		self.track_doc(discussion)
 		return discussion
-
-	def create_page(self, title, content):
-		page = frappe.get_doc(
-			doctype="GP Page",
-			title=title,
-			project=self.project.name,
-			content=content,
-		).insert(ignore_permissions=True)
-		self.track_doc(page)
-		return page
 
 	def create_comment(self, discussion, content):
 		with patch(
@@ -221,19 +208,6 @@ class TestSearchRanking(IsolatedSearchIndex, FrappeTestCase):
 
 		self.assertGreater(len(results), 1)
 		self.assertEqual(results[0]["id"], f"GP Discussion:{discussion.name}")
-
-	def test_exact_page_title_beats_dense_comment_match(self):
-		page = self.create_page("Canonanchor Release Notes", "canonanchor release notes")
-		discussion = self.create_discussion(
-			"Comment Container",
-			"container for noisy comments",
-		)
-		self.create_comment(discussion, "canonanchor release notes " * 80)
-
-		results = self.search_results("canonanchor release notes")
-
-		self.assertGreater(len(results), 1)
-		self.assertEqual(results[0]["id"], f"GP Page:{page.name}")
 
 	def test_large_corpus_orders_canonical_and_dense_matches_before_noise(self):
 		exact = self.create_discussion(
@@ -585,36 +559,6 @@ class TestSearchIndexLifecycle(IsolatedSearchIndex, GameplanTestCase):
 		def comment_ids_in(space):
 			results = self.search_as(
 				self.member, "movedcommentneedle", filters={"project": [str(space.name)]}
-			)
-			return [result["id"] for result in results]
-
-		self.assertEqual(comment_ids_in(other_space), [f"GP Comment:{comment.name}"])
-		self.assertEqual(comment_ids_in(self.space), [])
-
-	def test_moving_a_task_moves_its_comments_to_the_new_space_in_the_index(self):
-		other_space = create_space(
-			"Search Task Move Target Space",
-			self.community,
-			is_private=1,
-			members=[self.member, self.second_member],
-		)
-		task = create_task("Moving task", self.space)
-		comment = frappe.get_doc(
-			doctype="GP Comment",
-			reference_doctype="GP Task",
-			reference_name=task.name,
-			content="movedtaskcommentneedle follows its task",
-		).insert(ignore_permissions=True)
-		drain_search_index_queue()
-
-		task.reload()
-		task.project = other_space.name
-		task.save(ignore_permissions=True)
-		drain_search_index_queue()
-
-		def comment_ids_in(space):
-			results = self.search_as(
-				self.member, "movedtaskcommentneedle", filters={"project": [str(space.name)]}
 			)
 			return [result["id"] for result in results]
 

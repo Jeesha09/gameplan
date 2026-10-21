@@ -18,7 +18,7 @@ class GPNotification(Document):
 			notify_notification_count_changed(self.to_user)
 
 	@staticmethod
-	def clear_notifications(discussion=None, comment=None, poll=None, task=None, user=None):
+	def clear_notifications(discussion=None, comment=None, poll=None, user=None):
 		if not user:
 			user = frappe.session.user
 		filters = {"to_user": user}
@@ -28,8 +28,6 @@ class GPNotification(Document):
 			filters["comment"] = str(comment)
 		if poll:
 			filters["poll"] = str(poll)
-		if task:
-			filters["task"] = str(task)
 
 		Notification = frappe.qb.DocType("GP Notification")
 		query = frappe.qb.update(Notification).set(Notification.read, 1)

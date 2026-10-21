@@ -76,29 +76,13 @@ def create_discussion(title, space, *, content="Test content", owner=None):
 
 
 def create_comment(reference, *, content="Test comment", owner=None):
-	"""Comment on `reference`: a GP Discussion or GP Task document, or a discussion name."""
+	"""Comment on `reference`: a GP Discussion document, or a discussion name."""
 	doc = frappe.get_doc(
 		doctype="GP Comment",
 		reference_doctype=reference.doctype if isinstance(reference, Document) else "GP Discussion",
 		reference_name=_name(reference),
 		content=content,
 	)
-	doc.insert(ignore_permissions=True)
-	if owner:
-		set_owner(doc, owner)
-	return doc
-
-
-def create_task(title, space=None, *, owner=None):
-	doc = frappe.get_doc(doctype="GP Task", title=title, project=space and _name(space))
-	doc.insert(ignore_permissions=True)
-	if owner:
-		set_owner(doc, owner)
-	return doc
-
-
-def create_page(title, space=None, *, content="Test content", owner=None):
-	doc = frappe.get_doc(doctype="GP Page", title=title, project=space and _name(space), content=content)
 	doc.insert(ignore_permissions=True)
 	if owner:
 		set_owner(doc, owner)

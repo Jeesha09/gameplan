@@ -10,7 +10,7 @@ def on_trash(doc, method):
 	for doctype in to_delete:
 		for record in get_linked_records(doc.doctype, doc.name, doctype):
 			# Child-level delete guards must not block the parent operation that owns
-			# this cascade, such as deleting an archived Space with pages and tasks.
+			# this cascade, such as deleting an archived Space with discussions.
 			frappe.delete_doc(
 				doctype,
 				record.name,

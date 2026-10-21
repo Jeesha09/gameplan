@@ -498,8 +498,6 @@ const doctypesFilterOptions = computed(() => {
   // Static mapping of doctypes with their display labels
   const doctypeMapping = [
     { value: 'GP Discussion', label: 'Discussion' },
-    { value: 'GP Task', label: 'Task' },
-    { value: 'GP Page', label: 'Page' },
     { value: 'GP Comment', label: 'Comment' },
   ]
 
@@ -727,24 +725,6 @@ function getItemRoute(item: SearchResultItem) {
           comment: 'first_post',
         },
       }
-    case 'GP Task':
-      return {
-        name: 'SpaceTask',
-        params: {
-          communityId: item.team || getSpace(item.project)?.team,
-          spaceId: item.project,
-          taskId: item.name,
-        },
-      }
-    case 'GP Page':
-      return {
-        name: 'SpacePage',
-        params: {
-          communityId: item.team || getSpace(item.project)?.team,
-          spaceId: item.project,
-          pageId: item.name,
-        },
-      }
     case 'GP Comment':
       if (item.reference_doctype === 'GP Discussion') {
         return {
@@ -753,17 +733,6 @@ function getItemRoute(item: SearchResultItem) {
             communityId: item.team || getSpace(item.project)?.team,
             spaceId: item.project,
             postId: item.reference_name,
-          },
-          query: { comment: item.name },
-        }
-      }
-      if (item.reference_doctype === 'GP Task') {
-        return {
-          name: 'SpaceTask',
-          params: {
-            communityId: item.team || getSpace(item.project)?.team,
-            spaceId: item.project,
-            taskId: item.reference_name,
           },
           query: { comment: item.name },
         }

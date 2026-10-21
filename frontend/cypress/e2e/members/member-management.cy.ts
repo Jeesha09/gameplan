@@ -41,9 +41,9 @@ describe('Member management', () => {
     // frappe-ui DialogOverlay's `@pointerdown.left.prevent` cancels it, which makes
     // Cypress suppress the synthetic `mousedown` the trigger needs — so a `.click()`
     // silently fails to switch tabs. Real users are unaffected (a native mousedown
-    // still fires), and this is the same upstream frappe-ui overlay bug tracked in
-    // tasks/task-actions.cy.ts. Enter is a legitimate real activation path and works
-    // both now and after the frappe-ui fix lands.
+    // still fires), and this is an upstream frappe-ui overlay bug. Enter is a
+    // legitimate real activation path and works both now and after the frappe-ui fix
+    // lands.
     cy.scope('dialog').contains('button', 'Users').focus().type('{enter}')
     cy.scope('dialog').contains('button', 'Invite').click()
 

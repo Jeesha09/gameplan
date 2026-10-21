@@ -80,7 +80,6 @@ import { visibilityLabel } from '@/utils/visibility'
 
 const props = defineProps<{
   space: Space
-  pagesCount: number
   guestsCount: number
   showGuests: boolean
 }>()
@@ -97,11 +96,9 @@ const canManageSpaceSettings = computed(
 )
 const canEditSpace = computed(() => canManageSpaceSettings.value && !props.space.archived_at)
 const contentLabel = computed(() => {
-  const counts = [
-    formatNonZeroCount(props.space.discussions_count ?? 0, 'post'),
-    formatNonZeroCount(props.pagesCount, 'page'),
-    formatNonZeroCount(props.space.tasks_count ?? 0, 'task'),
-  ].filter((count): count is string => Boolean(count))
+  const counts = [formatNonZeroCount(props.space.discussions_count ?? 0, 'post')].filter(
+    (count): count is string => Boolean(count),
+  )
 
   return counts.length ? counts.join(' / ') : 'No content'
 })

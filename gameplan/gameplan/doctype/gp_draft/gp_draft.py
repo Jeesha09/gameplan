@@ -12,8 +12,8 @@ from frappe.utils import get_datetime, now_datetime
 from gameplan.utils.document import with_stored_document
 
 # Edit drafts finish on the post or comment they edit; new-comment drafts finish on the
-# discussion or task they reply to.
-COMMIT_TARGET_DOCTYPES = ("GP Discussion", "GP Task", "GP Comment")
+# discussion they reply to.
+COMMIT_TARGET_DOCTYPES = ("GP Discussion", "GP Comment")
 
 
 class GPDraft(Document):

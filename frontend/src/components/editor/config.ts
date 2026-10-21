@@ -54,7 +54,7 @@ export function suggestionConfig(suggestions = true) {
  * Both the inserted quote's click handler and the "quoted by" badges talk to the
  * single RichQuoteController directly — no event re-emitting. Pass the controller
  * (and the surface's `sourceId`) inside a discussion; omit it for rich editors
- * outside one (Pages/Tasks), where quotes still render but aren't interactive.
+ * outside one, where quotes still render but aren't interactive.
  * The floating Reply button is a component (QuoteReplyButton.vue), not an extension.
  */
 export function richQuoteExtensions(controller?: RichQuoteController | null, sourceId?: string) {

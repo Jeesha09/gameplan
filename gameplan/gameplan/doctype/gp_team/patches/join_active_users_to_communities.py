@@ -25,11 +25,7 @@ def execute():
 
 
 def get_activity_memberships():
-	return (
-		get_discussion_author_memberships()
-		| get_discussion_comment_memberships()
-		| get_task_comment_memberships()
-	)
+	return get_discussion_author_memberships() | get_discussion_comment_memberships()
 
 
 def get_discussion_author_memberships():
@@ -57,24 +53,6 @@ def get_discussion_comment_memberships():
 		.where(Comment.reference_doctype == "GP Discussion")
 		.where(Discussion.team.isnotnull())
 		.where(Discussion.team != "")
-		.where(Comment.owner.isnotnull())
-		.where(Comment.owner.notin(["", "Guest"]))
-	).run(as_dict=True)
-
-	return memberships_from_rows(rows, "team", "owner")
-
-
-def get_task_comment_memberships():
-	Comment = frappe.qb.DocType("GP Comment")
-	Task = frappe.qb.DocType("GP Task")
-	rows = (
-		frappe.qb.from_(Comment)
-		.inner_join(Task)
-		.on(Task.name == Comment.reference_name)
-		.select(Task.team, Comment.owner)
-		.where(Comment.reference_doctype == "GP Task")
-		.where(Task.team.isnotnull())
-		.where(Task.team != "")
 		.where(Comment.owner.isnotnull())
 		.where(Comment.owner.notin(["", "Guest"]))
 	).run(as_dict=True)

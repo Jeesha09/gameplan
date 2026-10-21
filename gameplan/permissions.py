@@ -144,10 +144,7 @@ def can_view_content(user, doc):
 
 
 def get_content_owner(doc):
-	"""The user that space-less content belongs to. A comment or activity row on a task
-	belongs to the task's owner, so it is visible wherever that task is."""
-	if doc.doctype in {"GP Comment", "GP Activity"} and doc.reference_doctype == "GP Task":
-		return frappe.db.get_value("GP Task", doc.reference_name, "owner")
+	"""The user that space-less content belongs to."""
 	return get_doc_value(doc, "owner")
 
 
@@ -225,7 +222,7 @@ def can_create_content(user, doc):
 	if gameplan.is_guest(user):
 		# Guests participate in the spaces they can reach: starting a discussion,
 		# replying with a comment, and adding a poll to a discussion are all
-		# participation. Tasks and pages stay closed to them.
+		# participation.
 		return doc.doctype in GUEST_CREATABLE_DOCTYPES and can_view_content(user, doc)
 	if not get_content_project(doc):
 		return is_global_admin(user) or not get_doc_value(doc, "owner") or get_doc_value(doc, "owner") == user
@@ -250,8 +247,6 @@ OWNER_ONLY_FIELDS = {
 # document: the move methods, a plain save and frappe.client.set_value.
 GUEST_LOCKED_FIELDS = {
 	"GP Discussion": {"project", "team", "pinned_at", "pinned_by", "pin_scope"},
-	"GP Page": {"project", "team"},
-	"GP Task": {"project", "team"},
 	"GP Comment": {"reference_doctype", "reference_name"},
 	"GP Poll": {"discussion"},
 }
@@ -276,18 +271,15 @@ def can_interact_with_content(user, doc):
 
 	True for anyone who can view the content's space (members and granted guests
 	alike) and, for personal/space-less content, the user it belongs to
-	(get_content_owner: the author, or for a comment on a personal task, the task's
-	owner). This is the floor for the `write` permission; whether a specific *edit* is
-	allowed on top of it is decided by can_edit_content and, for non-editors, by whether
-	the save changes any field.
+	(get_content_owner: the author). This is the floor for the `write` permission;
+	whether a specific *edit* is allowed on top of it is decided by can_edit_content
+	and, for non-editors, by whether the save changes any field.
 
 	The admin branch never fires from its only caller: can_write_content reaches here
 	only once can_edit_content has said False, and a global admin is always an editor.
 	It stays because this is a named predicate about who may reach content at all, not a
 	private tail of can_write_content: dropping it makes this answer False for a global
-	admin on another user's personal page. The owner line at the end does fire from
-	there: the owner of a personal task is not an editor of a comment someone else wrote
-	on it, but may still react to it.
+	admin on another user's space-less content.
 	"""
 	if is_global_admin(user):
 		return True
@@ -481,11 +473,9 @@ def can_delete_content(user, doc):
 	project = get_content_project(doc)
 	if not project:
 		# Space-less content has no community to moderate it: only its author and the
-		# global admin, both handled above. The owner of a personal task reaches this
-		# line for a comment someone else wrote on it: they can see the comment, but it
-		# is not theirs to delete. The line below would deny too — get_project_info(None)
-		# is None — but that rests on an implicit falsy chain, and this is the one
-		# function where the rule should be readable.
+		# global admin, both handled above. The line below would deny too —
+		# get_project_info(None) is None — but that rests on an implicit falsy chain, and
+		# this is the one function where the rule should be readable.
 		return False
 	project_info = get_project_info(project)
 	return bool(project_info and is_community_admin(user, project_info.team))
@@ -507,21 +497,6 @@ def discussion_query_conditions(user=None, **kwargs):
 	return content_project_query_conditions("GP Discussion", user)
 
 
-def task_query_conditions(user=None, **kwargs):
-	return criterion_sql(task_access_criterion(frappe.qb.DocType("GP Task"), user))
-
-
-def page_query_conditions(user=None, **kwargs):
-	user = user or frappe.session.user
-	if is_global_admin(user):
-		return None
-	Page = frappe.qb.DocType("GP Page")
-	criterion = (Page.project.isnull() & (Page.owner == user)) | accessible_project_criterion(
-		Page.project, user
-	)
-	return criterion_sql(criterion)
-
-
 def comment_query_conditions(user=None, **kwargs):
 	return referenced_content_query_conditions("GP Comment", user)
 
@@ -531,24 +506,21 @@ def activity_query_conditions(user=None, **kwargs):
 
 
 def referenced_content_query_conditions(doctype, user=None):
-	"""Rows that point at a discussion or task (reference_doctype/reference_name) follow
-	that discussion's or task's space, or, for a task with no space, its owner."""
+	"""Rows that point at a discussion (reference_doctype/reference_name) follow that
+	discussion's space."""
 	user = user or frappe.session.user
 	if is_global_admin(user):
 		return None
 
 	Row = frappe.qb.DocType(doctype)
 	Discussion = frappe.qb.DocType("GP Discussion")
-	Task = frappe.qb.DocType("GP Task")
 	discussion_query = (
 		frappe.qb.from_(Discussion)
 		.select(Discussion.name)
 		.where(accessible_project_criterion(Discussion.project, user))
 	)
-	task_query = frappe.qb.from_(Task).select(Task.name).where(task_access_criterion(Task, user))
 	on_discussion = (Row.reference_doctype == "GP Discussion") & Row.reference_name.isin(discussion_query)
-	on_task = (Row.reference_doctype == "GP Task") & Row.reference_name.isin(task_query)
-	return criterion_sql(on_discussion | on_task)
+	return criterion_sql(on_discussion)
 
 
 def poll_query_conditions(user=None, **kwargs):
@@ -564,7 +536,7 @@ def poll_query_conditions(user=None, **kwargs):
 		.where(accessible_project_criterion(Discussion.project, user))
 	)
 	# A poll with no discussion never reaches the UI, but it is still someone's row —
-	# keep it visible to its owner only, the way a space-less page is.
+	# keep it visible to its owner only.
 	criterion = Poll.discussion.isin(discussion_query) | (Poll.discussion.isnull() & (Poll.owner == user))
 	return criterion_sql(criterion)
 
@@ -603,9 +575,9 @@ def bookmark_has_permission(doc, ptype="read", user=None, **kwargs):
 
 
 def activity_has_permission(doc, ptype="read", user=None, **kwargs):
-	"""An activity row is part of a discussion's or task's timeline: whoever can see that
-	discussion or task can see it. Rows are written by the server (HasActivity.log_activity)
-	and removed with their discussion or task, never edited by hand.
+	"""An activity row is part of a discussion's timeline: whoever can see that discussion
+	can see it. Rows are written by the server (HasActivity.log_activity) and removed with
+	their discussion, never edited by hand.
 	"""
 	user = user or frappe.session.user
 	if not hasattr(doc, "doctype"):
@@ -698,18 +670,6 @@ def accessible_project_criterion(project_field, user=None):
 	if is_global_admin(user):
 		return None
 	return project_field.isin(accessible_project_query(user))
-
-
-def task_access_criterion(Task, user=None):
-	"""The tasks `user` may see, as can_view_content decides. A task in a Space follows
-	the Space. A task with no Space is personal, so only its owner sees it. None for a
-	global admin, who sees every task."""
-	user = user or frappe.session.user
-	criterion = accessible_project_criterion(Task.project, user)
-	if criterion is None:
-		return None
-	space_less = Task.project.isnull() | (Task.project == "")
-	return criterion | (space_less & (Task.owner == user))
 
 
 def apply_accessible_project_filter(query, project_field, user=None):
@@ -848,7 +808,7 @@ def guest_can_view_community(user, team):
 
 
 def get_content_project(doc):
-	if doc.doctype in {"GP Discussion", "GP Task", "GP Page"}:
+	if doc.doctype == "GP Discussion":
 		return get_doc_value(doc, "project")
 	if doc.doctype == "GP Poll":
 		# A poll lives in a discussion, and takes that discussion's space.
@@ -856,7 +816,7 @@ def get_content_project(doc):
 		return frappe.db.get_value("GP Discussion", discussion, "project") if discussion else None
 	if doc.doctype not in {"GP Comment", "GP Activity"}:
 		return None
-	if doc.reference_doctype in {"GP Discussion", "GP Task"}:
+	if doc.reference_doctype == "GP Discussion":
 		return frappe.db.get_value(doc.reference_doctype, doc.reference_name, "project")
 	return None
 

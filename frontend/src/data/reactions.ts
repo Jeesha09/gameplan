@@ -9,7 +9,7 @@ import { useUser } from './users'
 type Reaction = Pick<GPReaction, 'name' | 'emoji' | 'user'>
 
 export type ReactableDoctype = 'GP Discussion' | 'GP Comment' | 'GP Poll'
-type ThreadDoctype = 'GP Discussion' | 'GP Task'
+type ThreadDoctype = 'GP Discussion'
 
 /** A row as thread_reactions and react() return it. */
 interface StoredReaction extends Reaction, Pick<GPReaction, 'reference_name'> {
@@ -53,8 +53,8 @@ const toReaction = ({ name, emoji, user }: Reaction): Reaction => ({ name, emoji
  * comment leaving edit mode) shows the same state as before.
  */
 export function provideThreadReactions(doctype: ThreadDoctype, name: string) {
-  // Fetched once per mount: the url is fixed, and DiscussionView and TaskDetail are
-  // keyed by the thread's id, so another thread mounts a new provider.
+  // Fetched once per mount: the url is fixed, and DiscussionView is keyed by the
+  // thread's id, so another thread mounts a new provider.
   const thread = useCall<StoredReaction[]>({
     url: `/api/v2/document/${doctype}/${name}/method/thread_reactions`,
     cacheKey: ['Thread Reactions', doctype, name],

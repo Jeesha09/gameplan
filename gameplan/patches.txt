@@ -21,7 +21,6 @@ gameplan.gameplan.doctype.team.patches.remove_invited_members
 execute:frappe.delete_doc_if_exists('DocType', 'Team Project Discussion', force=1)
 gameplan.gameplan.doctype.team_user_profile.patches.setup_rembg
 gameplan.gameplan.doctype.team_user_profile.patches.set_image
-gameplan.gameplan.doctype.gp_task.patches.set_status
 gameplan.gameplan.doctype.gp_discussion_visit.patches.add_unique_constraint
 gameplan.gameplan.doctype.gp_project.patches.migrate_members_from_team
 gameplan.gameplan.doctype.gp_discussion.patches.set_last_post
@@ -47,3 +46,4 @@ gameplan.gameplan.doctype.gp_user_profile.patches.bind_starter_bento_cards
 gameplan.patches.attach_profile_bento_card_images
 gameplan.gameplan.doctype.gp_reaction.patches.point_reactions_at_their_posts
 gameplan.gameplan.doctype.gp_invitation.patches.hash_invitation_keys
+gameplan.patches.remove_tasks_and_pages

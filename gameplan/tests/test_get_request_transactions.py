@@ -57,14 +57,12 @@ READ_ONLY_ENDPOINTS = frozenset(
 		# Permission-checked list/report queries.
 		"gameplan.extends.client.get_list",
 		"gameplan.gameplan.doctype.gp_discussion.api.get_discussions",
-		"gameplan.gameplan.doctype.gp_task.gp_task.get_list",
 		"gameplan.gameplan.doctype.gp_user_profile.gp_user_profile.get_list",
 		# Revision history.
 		"gameplan.gameplan.doctype.gp_comment.gp_comment.GPComment.get_revisions",
 		"gameplan.gameplan.doctype.gp_discussion.gp_discussion.GPDiscussion.get_revisions",
 		# Reactions on a thread's posts.
 		"gameplan.gameplan.doctype.gp_discussion.gp_discussion.GPDiscussion.thread_reactions",
-		"gameplan.gameplan.doctype.gp_task.gp_task.GPTask.thread_reactions",
 		# Space membership, activity and unread counters.
 		"gameplan.gameplan.doctype.gp_project.gp_project.get_joined_spaces",
 		"gameplan.gameplan.doctype.gp_project.gp_project.get_activity",

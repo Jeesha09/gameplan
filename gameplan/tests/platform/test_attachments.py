@@ -4,7 +4,7 @@
 """Tests for frappe/security#206: editor uploads are private and get attached to
 their parent doc on save so other members can still read them via permission
 delegation. Covers the extract_file_urls util and the HasAttachments mixin wired
-into GP Discussion / GP Comment / GP Page / GP User Profile.
+into GP Discussion / GP Comment / GP User Profile.
 """
 
 import os
@@ -323,19 +323,6 @@ class TestContentAttachments(FrappeTestCase):
 			{(row.attached_to_doctype, str(row.attached_to_name)) for row in attachments},
 			{("GP Discussion", str(first.name)), ("GP Discussion", str(second.name))},
 		)
-
-	def test_page_attaches_referenced_private_file(self):
-		f = self._make_private_file("page")
-		p = frappe.get_doc(
-			doctype="GP Page",
-			title="notes",
-			project=self.project.name,
-			content=f'<img src="{f.file_url}">',
-		).insert(ignore_permissions=True)
-
-		row = self._attached_to(f.name)
-		self.assertEqual(row.attached_to_doctype, "GP Page")
-		self.assertEqual(str(row.attached_to_name), str(p.name))
 
 	def test_user_profile_readme_attaches_referenced_private_file(self):
 		# a user edits their own "About me" while logged in as themselves, so the

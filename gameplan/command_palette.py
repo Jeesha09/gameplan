@@ -24,10 +24,6 @@ def search_sqlite(query):
 
 		if doctype == "GP Discussion":
 			groups.setdefault("Discussions", []).append(r)
-		elif doctype == "GP Task":
-			groups.setdefault("Tasks", []).append(r)
-		elif doctype == "GP Page":
-			groups.setdefault("Pages", []).append(r)
 
 	out = []
 	for key in groups:

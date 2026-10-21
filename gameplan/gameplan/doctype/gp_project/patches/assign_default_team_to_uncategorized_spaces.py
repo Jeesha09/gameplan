@@ -8,8 +8,6 @@ import frappe
 # community feed.
 PROJECT_LINKED_DOCTYPES = [
 	"GP Discussion",
-	"GP Task",
-	"GP Page",
 	"GP Draft",
 	"GP Notification",
 	"GP Project Visit",

@@ -24,8 +24,6 @@ _SEQUENCE_DOCTYPES = [
 	"GP Discussion",
 	"GP Comment",
 	"GP Poll",
-	"GP Task",
-	"GP Page",
 	"GP Project",
 	"GP Custom Emoji",
 	"GP Notification",

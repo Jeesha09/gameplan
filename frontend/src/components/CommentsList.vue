@@ -226,14 +226,12 @@ type GroupedActivity = {
   user: string
   creation: string
   data: any
-  updates?: { creation: string; data: any }[]
 }
 
 const groupedActivities = computed(() => {
   if (!activities.data?.length) return []
 
   const grouped: GroupedActivity[] = []
-  const activityMap = new Map<string, GroupedActivity>()
 
   const sortedActivities = [...activities.data].sort(
     (a, b) => new Date(a.creation).getTime() - new Date(b.creation).getTime(),
@@ -243,46 +241,14 @@ const groupedActivities = computed(() => {
     // Skip if required properties are missing
     if (!activity?.action || !activity?.user) return
 
-    // Only group description changes
-    if (activity.action === 'Task Value Changed' && activity.data?.field === 'description') {
-      const key = `${activity.action}-${activity.user}-description`
-
-      if (activityMap.has(key)) {
-        const existing = activityMap.get(key)!
-        if (!existing.updates) existing.updates = []
-
-        existing.updates.push({
-          creation: activity.creation,
-          data: activity.data,
-        })
-        // Keep the most recent creation date and data
-        if (new Date(activity.creation) > new Date(existing.creation)) {
-          existing.creation = activity.creation
-          existing.data = activity.data
-        }
-      } else {
-        const newGroup: GroupedActivity = {
-          doctype: 'GP Activity',
-          name: activity.name,
-          action: activity.action,
-          user: activity.user,
-          creation: activity.creation,
-          data: activity.data || {},
-        }
-        activityMap.set(key, newGroup)
-        grouped.push(newGroup)
-      }
-    } else {
-      // For all other activities, add them as is without grouping
-      grouped.push({
-        doctype: 'GP Activity',
-        name: activity.name,
-        action: activity.action,
-        user: activity.user,
-        creation: activity.creation,
-        data: activity.data || {},
-      })
-    }
+    grouped.push({
+      doctype: 'GP Activity',
+      name: activity.name,
+      action: activity.action,
+      user: activity.user,
+      creation: activity.creation,
+      data: activity.data || {},
+    })
   })
 
   return grouped.sort((a, b) => new Date(a.creation).getTime() - new Date(b.creation).getTime())

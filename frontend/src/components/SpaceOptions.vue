@@ -76,9 +76,7 @@ const options = computed(() => [
     icon: 'lucide-trash-2',
     onClick: () => {
       let message = `This will permanently delete the space and all its content. This action cannot be undone.`
-      if (space.value?.discussions_count && space.value?.tasks_count) {
-        message = `This will permanently delete the space and all its content. This space has ${space.value?.discussions_count} discussions and ${space.value?.tasks_count} tasks. This action cannot be undone.`
-      } else if (space.value?.discussions_count) {
+      if (space.value?.discussions_count) {
         message = `This will permanently delete the space and all its content. This space has ${space.value?.discussions_count} discussions. This action cannot be undone.`
       }
       dialog.danger({

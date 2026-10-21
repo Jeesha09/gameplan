@@ -38,11 +38,8 @@ _PLACEHOLDER_RE = re.compile(r"\{\{(file|emoji|user):([^}]+)\}\}")
 _ID_REFERENCE_KINDS: dict[str, dict[str, set[str]]] = {
 	"space": {"community": {"community"}},
 	"discussion": {"space": {"space"}},
-	"comment": {"on": {"discussion", "task"}},
-	"react": {"on": {"discussion", "comment", "task", "page", "poll"}},
-	"task": {"space": {"space"}},
-	"task_update": {"on": {"task"}},
-	"page": {"space": {"space"}},
+	"comment": {"on": {"discussion"}},
+	"react": {"on": {"discussion", "comment", "poll"}},
 	"poll": {"on": {"discussion"}},
 	"vote": {"on": {"poll"}},
 	"bookmark": {"on": {"discussion"}},
@@ -52,7 +49,7 @@ _ID_REFERENCE_KINDS: dict[str, dict[str, set[str]]] = {
 }
 
 # Event fields holding a single user slug (declared by an earlier `user` event).
-_USER_SLUG_FIELDS = ("actor", "assigned_to")
+_USER_SLUG_FIELDS = ("actor",)
 
 # Event fields holding the name of a file that must exist in the fixture's files/ dir.
 _FILE_NAME_FIELDS = ("avatar", "cover", "logo", "image")
@@ -407,54 +404,6 @@ class Seeder:
 		)
 		row = next(r for r in reactions if r.user == actor and r.emoji == emoji)
 		self._backdate("GP Reaction", row.name, ts)
-
-	def _event_task(self, event, actor, ts):
-		space = self._ref_name(event["space"])
-		doc = frappe.get_doc(
-			{
-				"doctype": "GP Task",
-				"title": event["title"],
-				"description": self._resolve(event.get("description", "")),
-				"project": space,
-				"team": frappe.db.get_value("GP Project", space, "team"),
-				"status": event.get("status") or "Backlog",
-				"priority": event.get("priority"),
-				"assigned_to": self.users.get(event["assigned_to"]) if event.get("assigned_to") else None,
-				"due_date": self._date(event.get("due")),
-			}
-		).insert(ignore_permissions=True)
-		self.refs[event["id"]] = ("GP Task", doc.name)
-		self._backdate("GP Task", doc.name, ts)
-
-	def _event_task_update(self, event, actor, ts):
-		task = frappe.get_doc(*self._ref(event["on"]))
-		changes = dict(event.get("changes", {}))
-		if "assigned_to" in changes and changes["assigned_to"]:
-			changes["assigned_to"] = self.users.get(changes["assigned_to"], changes["assigned_to"])
-		if "due" in changes:
-			changes["due_date"] = self._date(changes.pop("due"))
-		task.update(changes)
-		if changes.get("status") == "Done":
-			task.is_completed = 1
-			task.completed_at = ts
-			task.completed_by = actor
-		task.save(ignore_permissions=True)
-		self._touch("GP Task", task.name, ts)
-
-	def _event_page(self, event, actor, ts):
-		space = self._ref_name(event["space"])
-		doc = frappe.get_doc(
-			{
-				"doctype": "GP Page",
-				"title": event["title"],
-				"content": self._resolve(event["content"]),
-				"project": space,
-				"team": frappe.db.get_value("GP Project", space, "team"),
-				"user": actor,
-			}
-		).insert(ignore_permissions=True)
-		self.refs[event["id"]] = ("GP Page", doc.name)
-		self._backdate("GP Page", doc.name, ts)
 
 	def _event_poll(self, event, actor, ts):
 		discussion = self._ref_name(event["on"])

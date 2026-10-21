@@ -6,8 +6,8 @@
 test_permission_matrix.py walks saved content that lives in a space. Two things
 fall outside that shape and are covered here:
 
-- **Personal content** (a page with no space) is owner-only, and never inherits
-  anything from a community.
+- **Personal content** (a poll with no discussion, so no space) is owner-only, and
+  never inherits anything from a community.
 - **Unsaved content**, which is the surface the create-time gate runs against:
   the per-doctype `has_permission` hooks are called with a doc that has no name
   yet, so they must resolve the space from the in-memory field alone.
@@ -19,32 +19,31 @@ from gameplan.gameplan.doctype.gp_comment.gp_comment import has_permission as co
 from gameplan.gameplan.doctype.gp_discussion.gp_discussion import (
 	has_permission as discussion_has_permission,
 )
-from gameplan.gameplan.doctype.gp_page.gp_page import has_permission as page_has_permission
-from gameplan.gameplan.doctype.gp_task.gp_task import has_permission as task_has_permission
 from gameplan.permissions import users_who_can_view_content
 from gameplan.tests.base import GameplanTestCase
 from gameplan.tests.fixtures import (
 	create_community,
 	create_discussion,
-	create_page,
+	create_poll,
 	create_space,
 	grant_guest_access,
 )
 
 
 class TestPersonalContent(GameplanTestCase):
-	def test_private_page_is_owner_only_and_space_page_inherits_space(self):
-		community = create_community("Page Permission Community", members=[self.member, self.second_member])
-		private_space = create_space("Page Private Space", community, is_private=1, members=[self.member])
-		private_page = create_page("Private Page", owner=self.member)
-		space_page = create_page("Space Page", private_space, owner=self.member)
+	def test_a_loose_poll_is_owner_only_and_a_space_poll_inherits_space(self):
+		community = create_community("Poll Permission Community", members=[self.member, self.second_member])
+		private_space = create_space("Poll Private Space", community, is_private=1, members=[self.member])
+		discussion = create_discussion("Poll Private Thread", private_space, owner=self.member)
+		loose_poll = create_poll("Loose Poll", None, owner=self.member)
+		space_poll = create_poll("Space Poll", discussion, owner=self.member)
 
 		# No space: only the owner, whatever the community says.
-		self.assert_allowed(private_page, "read", self.member)
-		self.assert_not_allowed(private_page, "read", self.second_member)
+		self.assert_allowed(loose_poll, "read", self.member)
+		self.assert_not_allowed(loose_poll, "read", self.second_member)
 		# In a space: visibility is the space's, not the owner's.
-		self.assert_allowed(space_page, "read", self.member)
-		self.assert_not_allowed(space_page, "read", self.second_member)
+		self.assert_allowed(space_poll, "read", self.member)
+		self.assert_not_allowed(space_poll, "read", self.second_member)
 
 	def test_a_global_admin_can_still_moderate_personal_content(self):
 		"""Owner-only stops at the global admin, who has to be able to moderate anything.
@@ -52,12 +51,12 @@ class TestPersonalContent(GameplanTestCase):
 		Space-less content is the one shape with no space to inherit that from, so the
 		admin exemption has to be spelled out in can_view_content itself.
 		"""
-		page = create_page("Moderated Private Page", owner=self.member)
+		poll = create_poll("Moderated Loose Poll", None, owner=self.member)
 
 		for action in ("read", "write", "delete"):
 			with self.subTest(action=action):
-				self.assert_allowed(page, action, self.admin)
-				self.assert_not_allowed(page, action, self.second_member)
+				self.assert_allowed(poll, action, self.admin)
+				self.assert_not_allowed(poll, action, self.second_member)
 
 
 class TestContentAudience(GameplanTestCase):
@@ -124,14 +123,6 @@ class TestUnsavedContent(GameplanTestCase):
 					content="A comment",
 				),
 			),
-			"GP Page": (
-				page_has_permission,
-				self._unsaved("GP Page", title="A page", project=self.space.name),
-			),
-			"GP Task": (
-				task_has_permission,
-				self._unsaved("GP Task", title="A task", project=self.space.name),
-			),
 		}
 
 	def test_member_can_read_and_write_unsaved_content_in_a_visible_space(self):
@@ -153,21 +144,18 @@ class TestUnsavedContent(GameplanTestCase):
 				with self.subTest(doctype=doctype, action=action, granted=True):
 					self.assertTrue(has_permission(doc, action, self.guest.name))
 
-	def test_a_granted_guest_may_only_create_discussions_and_comments(self):
-		"""Reaching a space is not permission to create everything in it.
+	def test_a_granted_guest_may_create_discussions_and_comments(self):
+		"""Reaching a space is permission to participate in it.
 
 		`write` is deliberately permissive for a granted guest (it is what lets them
 		react and reply), so the doctype-level restriction lives in the `create` check:
-		a guest starts discussions and adds comments and polls, never pages or tasks.
+		a guest starts discussions and adds comments and polls.
 		"""
 		grant_guest_access(self.guest, self.space)
 
 		for doctype, (has_permission, doc) in self._unsaved_content().items():
 			with self.subTest(doctype=doctype):
-				self.assertEqual(
-					bool(has_permission(doc, "create", self.guest.name)),
-					doctype in {"GP Discussion", "GP Comment"},
-				)
+				self.assertTrue(has_permission(doc, "create", self.guest.name))
 
 	def test_a_member_can_create_every_kind_of_content_in_a_visible_space(self):
 		for doctype, (has_permission, doc) in self._unsaved_content().items():

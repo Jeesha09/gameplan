@@ -42,16 +42,6 @@ const dropdownItems = computed(() => [
     route: { name: 'Bookmarks' },
   },
   {
-    icon: 'lucide-list-todo',
-    label: 'Tasks',
-    route: { name: 'MyTasks' },
-  },
-  {
-    icon: 'lucide-files',
-    label: 'Pages',
-    route: { name: 'MyPages' },
-  },
-  {
     icon: 'lucide-settings',
     label: 'Settings',
     onClick: () => showSettingsDialog(),

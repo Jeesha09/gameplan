@@ -84,7 +84,6 @@ class NotificationTestCase(GameplanTestCase):
 				"discussion",
 				"comment",
 				"poll",
-				"task",
 				"read",
 			],
 		)
@@ -209,16 +208,6 @@ class TestMentionNotifications(NotificationTestCase):
 		rows = self.notifications_for(self.guest)
 		self.assertEqual(len(rows), 1)
 		self.assertEqual(str(rows[0].discussion), str(discussion.name))
-
-	def test_mentioning_someone_on_a_personal_task_does_not_leak_it(self):
-		with self.as_user(self.member):
-			frappe.get_doc(
-				doctype="GP Task",
-				title="Private task",
-				description=mention_html(self.second_member, "Second Member"),
-			).insert()
-
-		self.assertEqual(self.notifications_for(self.second_member), [])
 
 	def test_rich_quote_notifies_the_quoted_author(self):
 		discussion = create_discussion("Plain thread", self.space, owner=self.second_member)

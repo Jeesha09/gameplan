@@ -141,7 +141,6 @@ class HasReactions:
 			doc.update(values)
 			if self.doctype == "GP Comment":
 				doc.discussion = self.reference_name if self.reference_doctype == "GP Discussion" else None
-				doc.task = self.reference_name if self.reference_doctype == "GP Task" else None
 		doc.message = message
 		doc.read = 0
 		doc.flags.ignore_permissions = True

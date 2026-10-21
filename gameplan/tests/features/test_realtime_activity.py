@@ -4,7 +4,7 @@
 """The realtime half of the activity timeline.
 
 Every logged activity is announced over the socket so that anyone with the
-discussion (or task) open sees the timeline update without reloading. The event
+discussion open sees the timeline update without reloading. The event
 has to land in the *document* room: `frappe.publish_realtime` falls back to the
 site room when `doctype`/`docname` are missing, and only Desk (System User)
 sockets join the site room — Gameplan members are Website Users, so they would
@@ -20,20 +20,18 @@ from gameplan.tests.fixtures import (
 	create_community,
 	create_discussion,
 	create_space,
-	create_task,
 )
 
 
 class RealtimeActivityTestCase(GameplanTestCase):
 	"""World: a public space in a community both members belong to, holding one
-	discussion and one task written by `member`."""
+	discussion written by `member`."""
 
 	def setUp(self):
 		super().setUp()
 		self.community = create_community("Acme", members=[self.member, self.second_member])
 		self.space = create_space("Engineering", self.community)
 		self.discussion = create_discussion("Welcome thread", self.space, owner=self.member)
-		self.task = create_task("Ship it", self.space, owner=self.member)
 
 	@staticmethod
 	def _new_activity_calls(publish_realtime):
@@ -182,37 +180,6 @@ class TestEveryActivityIsBroadcast(RealtimeActivityTestCase):
 				frappe.get_doc("GP Discussion", self.discussion.name).move_to_project(other_space.name)
 
 		self.assert_discussion_broadcast(move)
-
-	def test_a_task_value_change_broadcasts_into_the_task_room(self):
-		"""Tasks share the activity mixin and the same timeline component, so the
-		event has to be scoped to the task, not to the discussion."""
-
-		def change_status():
-			with self.as_user(self.member):
-				task = frappe.get_doc("GP Task", self.task.name)
-				task.status = "In Progress"
-				task.save()
-
-		self.assert_broadcasts_for_document(change_status, "GP Task", self.task.name)
-
-	def test_each_logged_activity_gets_its_own_broadcast(self):
-		"""One save can record several changes; a watching tab should be told about
-		the save once per activity row, never fewer."""
-
-		def change_two_fields():
-			with self.as_user(self.member):
-				task = frappe.get_doc("GP Task", self.task.name)
-				task.status = "In Progress"
-				task.priority = "High"
-				task.save()
-
-		calls = self.capture_broadcasts(change_two_fields)
-
-		activities = frappe.get_all(
-			"GP Activity", filters={"reference_doctype": "GP Task", "reference_name": self.task.name}
-		)
-		self.assertEqual(len(calls), 2)
-		self.assertEqual(len(calls), len(activities))
 
 	def test_a_save_that_changes_nothing_on_the_timeline_broadcasts_nothing(self):
 		"""Otherwise every unrelated save would make every open tab refetch the

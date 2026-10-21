@@ -21,10 +21,8 @@ from gameplan.permissions import (
 	comment_query_conditions,
 	discussion_query_conditions,
 	draft_query_conditions,
-	page_query_conditions,
 	poll_query_conditions,
 	project_query_conditions,
-	task_query_conditions,
 	team_query_conditions,
 )
 from gameplan.search_sqlite import GameplanSearch
@@ -36,8 +34,6 @@ ADMIN_EXEMPT_CONDITIONS = (
 	team_query_conditions,
 	project_query_conditions,
 	discussion_query_conditions,
-	task_query_conditions,
-	page_query_conditions,
 	comment_query_conditions,
 	poll_query_conditions,
 )

@@ -172,8 +172,6 @@ def get_unread_notifications(user: str):
 			"discussion",
 			"discussion.title as discussion_title",
 			"discussion.slug as discussion_slug",
-			"task",
-			"task.title as task_title",
 			"project",
 			"project.title as project_title",
 			"team",
@@ -431,7 +429,7 @@ def format_discussion_item(discussion, avatar_map, user: str):
 def notification_group_key(notification):
 	return (
 		notification_path(notification),
-		notification.discussion or notification.task or notification.name,
+		notification.discussion or notification.name,
 		notification.type,
 	)
 
@@ -449,8 +447,6 @@ def notification_path(notification):
 			notification.discussion,
 			notification.discussion_slug,
 		)
-	if notification.task:
-		return content_path(notification.team, notification.project, "tasks", notification.task)
 	return "/g/notifications"
 
 

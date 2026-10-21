@@ -134,8 +134,6 @@ const itemGroups = computed<MoreItemGroup[]>(() => {
   const workspaceItems: MoreItem[] = [
     { label: 'Drafts', icon: 'lucide-pencil-line', route: { name: 'Drafts' } },
     { label: 'Bookmarks', icon: 'lucide-bookmark', route: { name: 'Bookmarks' } },
-    { label: 'Pages', icon: 'lucide-files', route: { name: 'MyPages' } },
-    { label: 'Tasks', icon: 'lucide-list-todo', route: { name: 'MyTasks' } },
     { label: 'People', icon: 'lucide-users-2', route: { name: 'People' } },
   ]
 

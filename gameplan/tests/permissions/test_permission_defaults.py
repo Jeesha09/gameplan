@@ -17,11 +17,13 @@ for the deferring `return True`, breaks every desk permission read today). This 
 pins what each one is actually for, so the next person deleting a survivor gets a red
 test instead of a silent permission change.
 
-All four are pinned by tests that go red when the branch changes, with one limit: the
-owner check is pinned only in its allow direction. Its deny direction is guarded by
-`can_view_content`, which runs first and already refuses anyone who is not the owner.
-The last two are reached through a comment someone else wrote on a member's personal
-task: the task's owner can see it and react to it, but not delete it.
+The first three are pinned by tests that go red when the branch changes, with one
+limit: the owner check is pinned only in its allow direction. Its deny direction is
+guarded by `can_view_content`, which runs first and already refuses anyone who is not
+the owner. The fourth is no longer reachable: the only space-less content left is a
+discussion-less poll, which nobody but its owner and the global admin can see, and both
+are let through before it. TestPersonalContentHasNoModerators pins the rule it states by
+the paths around it.
 
 The same trailing `return True` also ends `team_has_permission` (permissions.py:34) and
 `project_has_permission` (L43) — load-bearing there too, but for a stronger reason, not
@@ -48,10 +50,8 @@ from gameplan.tests.fixtures import (
 	create_community,
 	create_discussion,
 	create_member,
-	create_page,
+	create_poll,
 	create_space,
-	create_task,
-	set_owner,
 )
 
 # Permission types frappe knows about that content_has_permission does not decide, plus
@@ -118,41 +118,34 @@ class TestInteractionFloor(GameplanTestCase):
 
 	Its only caller (can_write_content) reaches it after can_edit_content has already
 	said False, which is why its admin branch never fires from there: a global admin is
-	always an editor. The branch still has to state the rule for the function itself —
-	it is a named predicate about who may reach content to participate, and a global
-	admin who could not is a wrong answer. The owner branch does fire from there, for
-	the owner of a personal task on a comment someone else wrote on it.
+	always an editor. Neither does its owner branch, since the owner of space-less
+	content is always its editor too. Both still have to state the rule for the function
+	itself — it is a named predicate about who may reach content to participate, and a
+	global admin or an owner who could not is a wrong answer.
 	"""
 
 	def setUp(self):
 		super().setUp()
-		self.personal_page = create_page("Interaction Personal Page", owner=self.member)
-		self.task_comment = create_comment_on_personal_task(self.member, author=self.admin)
+		self.personal_poll = create_poll("Interaction Personal Poll", None, owner=self.member)
 
 	def test_a_global_admin_can_interact_with_personal_content_they_do_not_own(self):
-		self.assertIs(can_interact_with_content(self.admin.name, self.personal_page), True)
+		self.assertIs(can_interact_with_content(self.admin.name, self.personal_poll), True)
 
 	def test_the_owner_can_interact_with_their_own_personal_content(self):
-		self.assertIs(can_interact_with_content(self.member.name, self.personal_page), True)
+		self.assertIs(can_interact_with_content(self.member.name, self.personal_poll), True)
 
 	def test_a_stranger_cannot_interact_with_personal_content(self):
-		self.assertIs(can_interact_with_content(self.second_member.name, self.personal_page), False)
-
-	def test_the_task_owner_can_react_to_a_comment_on_their_personal_task(self):
-		self.assertIs(can_interact_with_content(self.member.name, self.task_comment), True)
-		self.assert_allowed(self.task_comment, "write", self.member)
-		self.assert_not_allowed(self.task_comment, "write", self.second_member)
+		self.assertIs(can_interact_with_content(self.second_member.name, self.personal_poll), False)
 
 
 class TestPersonalContentHasNoModerators(GameplanTestCase):
 	"""Space-less content answers to its author and the global admin, nobody else.
 
-	can_delete_content's space-less `return False` is reached by one non-author who can
-	see the content: the owner of a personal task, on a comment someone else wrote on
-	it. test_the_task_owner_cannot_delete_a_comment_they_did_not_write pins that branch.
-	The other tests pin the same rule by the paths around it: moderation stops at the
-	edge of a space, space-less content stays deletable by its author and the global
-	admin, and nobody else can see a personal page.
+	can_delete_content's space-less `return False` has no caller that reaches it: only
+	the author and the global admin can see space-less content, and both are let through
+	above it. These tests pin the same rule by the paths around it: moderation stops at
+	the edge of a space, space-less content stays deletable by its author and the global
+	admin, and nobody else can see it.
 	"""
 
 	def setUp(self):
@@ -161,32 +154,15 @@ class TestPersonalContentHasNoModerators(GameplanTestCase):
 		self.community = create_community(
 			"Moderation Community", members=[self.member], admins=[self.community_admin]
 		)
-		self.personal_page = create_page("Unmoderated Personal Page", owner=self.member)
+		self.personal_poll = create_poll("Unmoderated Personal Poll", None, owner=self.member)
 
 	def test_a_community_admin_cannot_delete_personal_content(self):
-		self.assertIs(can_delete_content(self.community_admin.name, self.personal_page), False)
+		self.assertIs(can_delete_content(self.community_admin.name, self.personal_poll), False)
 
 	def test_the_owner_and_the_global_admin_can(self):
-		self.assertIs(can_delete_content(self.member.name, self.personal_page), True)
-		self.assertIs(can_delete_content(self.admin.name, self.personal_page), True)
+		self.assertIs(can_delete_content(self.member.name, self.personal_poll), True)
+		self.assertIs(can_delete_content(self.admin.name, self.personal_poll), True)
 
 	def test_nobody_else_can_even_view_personal_content(self):
-		self.assertIs(can_view_content(self.community_admin.name, self.personal_page), False)
-		self.assertIs(can_view_content(self.second_member.name, self.personal_page), False)
-
-	def test_the_task_owner_cannot_delete_a_comment_they_did_not_write(self):
-		comment = create_comment_on_personal_task(self.member, author=self.admin)
-
-		self.assertIs(can_view_content(self.member.name, comment), True)
-		self.assertIs(can_delete_content(self.member.name, comment), False)
-
-
-def create_comment_on_personal_task(task_owner, *, author):
-	task = create_task("Personal task with a comment", owner=task_owner)
-	comment = frappe.get_doc(
-		doctype="GP Comment",
-		reference_doctype="GP Task",
-		reference_name=task.name,
-		content="Comment on a personal task",
-	).insert(ignore_permissions=True)
-	return set_owner(comment, author)
+		self.assertIs(can_view_content(self.community_admin.name, self.personal_poll), False)
+		self.assertIs(can_view_content(self.second_member.name, self.personal_poll), False)

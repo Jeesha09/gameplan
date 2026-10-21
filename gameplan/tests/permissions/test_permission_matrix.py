@@ -24,10 +24,8 @@ from gameplan.tests.fixtures import (
 	create_community,
 	create_discussion,
 	create_member,
-	create_page,
 	create_poll,
 	create_space,
-	create_task,
 	grant_guest_access,
 )
 
@@ -88,8 +86,6 @@ class TestPermissionMatrix(GameplanTestCase):
 				"GP Discussion": discussion,
 				"GP Comment": create_comment(discussion, owner=self.member),
 				"GP Poll": create_poll(f"{kind} poll", discussion, owner=self.member),
-				"GP Page": create_page(f"{kind} page", space, owner=self.member),
-				"GP Task": create_task(f"{kind} task", space, owner=self.member),
 			}
 
 	def actor(self, name):

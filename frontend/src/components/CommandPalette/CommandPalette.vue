@@ -111,7 +111,7 @@
 import { h, ref, computed, onBeforeUnmount, watch, nextTick, markRaw, useTemplateRef } from 'vue'
 import { useEventListener, useMediaQuery } from '@vueuse/core'
 import { useRouter } from 'vue-router'
-import { Dialog, ScrollArea, dayjs, debounce, useCall, useNewDoc } from 'frappe-ui'
+import { Dialog, ScrollArea, dayjs, debounce, useCall } from 'frappe-ui'
 import { activeUsers, isGameplanAdmin, useSessionUser, useUser } from '@/data/users'
 import ItemProject from './ItemProject.vue'
 import Item from './Item.vue'
@@ -124,8 +124,6 @@ import { readOnlyMode } from '@/data/readOnlyMode'
 import { hideCommandPalette, show, toggleCommandPalette } from './commandPalette'
 import KeyboardShortcut from '../KeyboardShortcut.vue'
 
-import { showNewTaskDialog } from '../NewTaskDialog'
-import { GPPage } from '@/types/doctypes'
 import { showCommunitiesSettings, showSettingsDialog } from '@/components/Settings'
 import {
   registeredCommands,
@@ -190,28 +188,6 @@ const transformedSearchResults = computed(() => {
               spaceId: item.project,
             },
           }
-        } else if (group.title === 'Tasks') {
-          baseItem.route = {
-            name: item.project ? 'SpaceTask' : 'Task',
-            params: item.project
-              ? {
-                  communityId: item.team || getSpace(item.project)?.team,
-                  taskId: item.name,
-                  spaceId: item.project,
-                }
-              : {
-                  taskId: item.name,
-                },
-          }
-        } else if (group.title === 'Pages') {
-          baseItem.route = {
-            name: 'SpacePage',
-            params: {
-              communityId: item.team || getSpace(item.project)?.team,
-              pageId: item.name,
-              spaceId: item.project,
-            },
-          }
         }
 
         return baseItem
@@ -251,20 +227,6 @@ const shortcuts = computed((): CommandPaletteGroup[] => [
         icon: 'lucide-bookmark',
         aliases: ['saved', 'saved posts'],
         route: { name: 'Bookmarks' },
-      },
-      {
-        title: 'Tasks',
-        name: 'tasks',
-        icon: 'lucide-list-todo',
-        aliases: ['my tasks', 'todos', 'todo'],
-        route: { name: 'MyTasks' },
-      },
-      {
-        title: 'Pages',
-        name: 'pages',
-        icon: 'lucide-files',
-        aliases: ['my pages', 'docs', 'documents', 'wiki'],
-        route: { name: 'MyPages' },
       },
       {
         title: 'People',
@@ -373,74 +335,6 @@ const shortcuts = computed((): CommandPaletteGroup[] => [
           }
 
           router.push({ name: 'NewDiscussion', params: { communityId }, query: { spaceId } })
-        },
-      },
-      {
-        title: 'Add Task',
-        name: 'add-task',
-        search: 'Add Task New Task',
-        aliases: ['new task', 'todo', 'create task'],
-        icon: 'lucide-square-plus',
-        condition: () => canCreateFromPalette.value,
-        onClick() {
-          let spaceId = router.currentRoute.value?.params?.spaceId ?? null
-          showNewTaskDialog({
-            defaults: {
-              assigned_to: useUser('sessionUser').name,
-              project: spaceId || '',
-            },
-            onSuccess(doc) {
-              if (doc.project) {
-                router.push({
-                  name: 'SpaceTask',
-                  params: {
-                    communityId: getSpace(doc.project)?.team,
-                    taskId: doc.name,
-                    spaceId: doc.project,
-                  },
-                })
-              } else {
-                router.push({ name: 'Task', params: { taskId: doc.name } })
-              }
-            },
-          })
-        },
-      },
-      {
-        title: 'Add Page',
-        name: 'add-page',
-        search: 'Add Page New Page',
-        aliases: ['new page', 'doc', 'document', 'note'],
-        icon: 'lucide-file-plus',
-        condition: () => canCreateFromPalette.value,
-        onClick() {
-          let spaceId = router.currentRoute.value.params?.spaceId ?? null
-
-          const newPage = useNewDoc<GPPage>('GP Page', {
-            title: 'Untitled',
-            content: '',
-          })
-
-          if (spaceId) {
-            newPage.doc.project = spaceId as string
-          }
-
-          newPage
-            .submit()
-            .then((doc) => {
-              router.push({
-                name: doc.project ? 'SpacePage' : 'Page',
-                params: doc.project
-                  ? {
-                      communityId: getSpace(doc.project)?.team,
-                      pageId: doc.name,
-                      slug: doc.slug,
-                      spaceId: doc.project,
-                    }
-                  : { pageId: doc.name, slug: doc.slug },
-              })
-            })
-            .catch(() => {})
         },
       },
     ].filter((item) => (item.condition ? item.condition() : true)),

@@ -13,38 +13,6 @@ interface ChildDocType extends DocType {
   idx?: number
 }
 
-// Last updated: 2023-06-15 21:01:42.058336
-export interface GPTask extends DocType {
-  /** Title: Data */
-  title: string
-  /** Description: Text Editor */
-  description?: string
-  /** Start Date: Date */
-  start_date?: string
-  /** Due Date: Date */
-  due_date?: string
-  /** Status: Select */
-  status: 'Backlog' | 'Todo' | 'In Progress' | 'Done' | 'Canceled'
-  /** Priority: Select */
-  priority?: '' | 'Urgent' | 'High' | 'Medium' | 'Low'
-  /** Is Completed: Check */
-  is_completed: 0 | 1
-  /** Project: Link (GP Project) */
-  project?: string
-  /** Index: Int */
-  idx?: number
-  /** Team: Link (GP Team) */
-  team?: string
-  /** Assigned To: Link (User) */
-  assigned_to?: string
-  /** Completed At: Datetime */
-  completed_at?: string
-  /** Completed By: Data */
-  completed_by?: string
-  /** Comments Count: Int */
-  comments_count?: number
-}
-
 // Last updated: 2026-09-10 10:00:00.000000
 export interface GPUserProfile extends DocType {
   /** User: Link (User) */
@@ -96,22 +64,6 @@ export interface GPUserProfile extends DocType {
   email_digest_last_sent_on?: string
 }
 
-// Last updated: 2024-02-06 12:18:02.871772
-export interface GPPage extends DocType {
-  /** Title: Data */
-  title?: string
-  /** Content: Text Editor */
-  content?: string
-  /** Project: Link (GP Project) */
-  project?: string
-  /** Slug: Data */
-  slug?: string
-  /** User: Link (User) */
-  user?: string
-  /** Team: Link (GP Team) */
-  team?: string
-}
-
 // Last updated: 2022-12-09 12:53:23.011368
 export interface GPMember extends ChildDocType {
   /** User: Link (User) */
@@ -138,8 +90,6 @@ export interface GPNotification extends DocType {
   discussion?: string
   /** Poll: Link (GP Poll) */
   poll?: string
-  /** Task: Link (GP Task) */
-  task?: string
   /** Project: Link (GP Project) */
   project?: string
   /** Team: Link (GP Team) */
@@ -256,8 +206,6 @@ export interface GPProject extends DocType {
   icon?: string
   /** Readme: Text Editor */
   readme?: string
-  /** Tasks Count: Int */
-  tasks_count?: number
   /** Discussions Count: Int */
   discussions_count?: number
   /** Archived At: Datetime */

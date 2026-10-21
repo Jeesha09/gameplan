@@ -159,17 +159,6 @@ class TestJoinActiveUsersMigration(FrappeTestCase):
 
 		self.assertTrue(_is_team_member(team.name, member.name))
 
-	def test_task_comment_author_is_joined_to_community(self):
-		member = create_member("test_task_comment_join@example.com")
-		team, project = _create_team_and_project("Task Comment Join")
-		task = _create_task(project.name)
-
-		_create_comment(member.name, "GP Task", task.name)
-
-		join_active_users()
-
-		self.assertTrue(_is_team_member(team.name, member.name))
-
 	def test_guest_activity_does_not_join_community(self):
 		guest = create_guest("test_guest_activity_not_joined@example.com")
 		team, project = _create_team_and_project("Guest Activity Not Joined")
@@ -258,13 +247,6 @@ def _create_discussion(project):
 		project=project,
 		content="hello",
 	).insert(ignore_permissions=True)
-
-
-def _create_task(project):
-	frappe.set_user("Administrator")
-	return frappe.get_doc(doctype="GP Task", title="Community activity task", project=project).insert(
-		ignore_permissions=True
-	)
 
 
 def _create_comment(user, reference_doctype, reference_name):

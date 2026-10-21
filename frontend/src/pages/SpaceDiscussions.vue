@@ -41,8 +41,7 @@
         </Button>
       </template>
     </SpaceHeaderActions>
-    <div class="mb-4 flex items-center justify-between">
-      <SpaceTabs :spaceId="spaceId" />
+    <div class="mb-4 flex items-center justify-end">
       <Select
         class="shrink-0 !w-fit"
         :options="discussionSortOptions"
@@ -93,7 +92,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { Combobox, Dialog, ErrorMessage, Select, useCall, toast } from 'frappe-ui'
 import DiscussionList from '@/components/DiscussionList.vue'
 import SpaceHeaderActions from '@/components/SpaceHeaderActions.vue'
-import SpaceTabs from '@/components/SpaceTabs.vue'
 import DropdownMoreOptions from '@/components/DropdownMoreOptions.vue'
 import SpaceAccessDialog from '@/components/SpaceAccessDialog.vue'
 import PushPin from '@/components/icons/PushPin.vue'

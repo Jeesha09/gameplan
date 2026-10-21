@@ -39,7 +39,7 @@ class GameplanTestCase(FrappeTestCase):
 		# The SQLite search index is a file outside the MariaDB transaction, so a leak
 		# into it survives rollback. Guarding here rather than only in the search tests is
 		# deliberate: the leak arrives through frappe's update_doc_index doc_event, so any
-		# test that saves a discussion, comment, task or page can cause it.
+		# test that saves a discussion or comment can cause it.
 		guard_real_index(self)
 		self.admin = create_admin()
 		self.member = create_member("member@example.com", "Member")

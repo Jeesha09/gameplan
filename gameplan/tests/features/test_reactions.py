@@ -38,7 +38,6 @@ from gameplan.tests.fixtures import (
 	create_member,
 	create_poll,
 	create_space,
-	create_task,
 	declared_http_methods,
 )
 from gameplan.tests.search_isolation import guard_real_index
@@ -398,12 +397,6 @@ class TestReactionsAuthorizeTheStoredPost(ReactionTestCase):
 		with self.as_user(self.second_member):
 			with self.assertRaises(frappe.PermissionError):
 				self.forged(self.private_discussion).thread_reactions()
-
-	def test_task_thread_reactions_refuses_a_task_the_user_cannot_see(self):
-		task = create_task("Hire", self.private_discussion.project, owner=self.member)
-		with self.as_user(self.second_member):
-			with self.assertRaises(frappe.PermissionError):
-				self.forged(task).thread_reactions()
 
 
 class TestPollReactions(ReactionTestCase):
@@ -775,15 +768,3 @@ class TestThreadReactions(ReactionTestCase):
 		self.react(other_comment, self.second_member, [add(THUMBS_UP)])
 
 		self.assertEqual(self.thread_reactions(self.discussion, self.member), [])
-
-	def test_a_task_thread_has_the_reactions_of_its_comments(self):
-		task = create_task("Ship it", self.space, owner=self.member)
-		comment = frappe.get_doc(
-			doctype="GP Comment", reference_doctype="GP Task", reference_name=task.name, content="Done"
-		).insert(ignore_permissions=True)
-		self.react(comment, self.second_member, [add(HEART)])
-
-		self.assertEqual(
-			self.thread_reactions(task, self.member),
-			[("GP Comment", str(comment.name), self.second_member.name, HEART)],
-		)

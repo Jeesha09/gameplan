@@ -8,7 +8,6 @@
         <router-view :route="displayedRoute" />
       </Layout>
     </div>
-    <NewTaskDialog />
     <!-- usersReady, not users.isFinished: a mid-session reload of the user list would
          flip isFinished back to false and unmount the open settings dialog.
          Phones have no dialog: a /settings/* URL is an ordinary page there
@@ -26,7 +25,6 @@ import { session } from '@/data/session'
 import { useIsMobile } from '@/utils/useIsMobile'
 import { useTheme } from '@/utils/useTheme'
 import { useCursorStyle } from '@/utils/useCursorStyle'
-import NewTaskDialog from './components/NewTaskDialog/NewTaskDialog.vue'
 import SettingsDialog from './components/Settings/SettingsDialog.vue'
 import { settingsBackgroundPath } from './components/Settings'
 import { getHomeRoute } from '@/router'

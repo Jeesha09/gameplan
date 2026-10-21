@@ -28,7 +28,6 @@
       v-for="space in filteredSpaces"
       :key="space.name"
       :space="space"
-      :pages-count="getPagesCount(space.name)"
       :guests-count="getGuestsCount(space.name)"
       :show-guests="hasGuests"
     />
@@ -38,7 +37,7 @@
     v-else-if="!communitySpaces.length"
     icon="lucide-panels-top-left"
     title="No spaces yet"
-    description="Create the first space for discussions, pages, and tasks in this community."
+    description="Create the first space for discussions in this community."
   >
     <template #actions>
       <Button
@@ -96,7 +95,7 @@ const emit = defineEmits<{
 const search = defineModel<string>('search', { default: '' })
 const visibilityFilter = defineModel<VisibilityFilter>('visibilityFilter', { default: 'All' })
 
-const { communitySpaces, getPagesCount, getGuestsCount, hasGuests } = useCommunitySpaceData(
+const { communitySpaces, getGuestsCount, hasGuests } = useCommunitySpaceData(
   () => props.communityId,
 )
 

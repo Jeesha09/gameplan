@@ -7,7 +7,7 @@ The FTS index is a file next to the site (``gameplan_search.db``), outside the M
 transaction, so ``frappe.db.rollback()`` cannot undo a write to it. Every save of an
 indexable doctype goes through frappe's ``update_doc_index`` doc_event, which builds a
 *fresh* ``GameplanSearch`` per call — so any test anywhere in the app that creates a
-discussion, comment, task or page permanently appends a row to the site's real index.
+discussion or comment permanently appends a row to the site's real index.
 Per-class patching cannot fix that; the leak is suite-wide.
 
 The redirect is applied once, in ``gameplan/tests/__init__.py``: it repoints

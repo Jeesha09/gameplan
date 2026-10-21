@@ -17,7 +17,6 @@ export interface Space extends Pick<
   | 'archived_at'
   | 'is_private'
   | 'modified'
-  | 'tasks_count'
   | 'discussions_count'
 > {
   team_title: string
@@ -34,7 +33,6 @@ export let spaces = useList<Space>({
     'archived_at',
     'is_private',
     'modified',
-    'tasks_count',
     'discussions_count',
     'team.title as team_title',
     { members: ['user'] },

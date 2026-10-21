@@ -30,20 +30,16 @@ PROJECT_TEAM_DOCTYPES = [
 	"GP Followed Project",
 	"GP Guest Access",
 	"GP Notification",
-	"GP Page",
 	"GP Pinned Project",
 	"GP Project Visit",
-	"GP Task",
 ]
 
 
 class GPProject(ManageMembersMixin, Archivable, Document):
 	on_delete_cascade = [
-		"GP Task",
 		"GP Discussion",
 		"GP Project Visit",
 		"GP Followed Project",
-		"GP Page",
 		"GP Pinned Project",
 	]
 	on_delete_set_null = ["GP Notification"]
@@ -78,10 +74,6 @@ class GPProject(ManageMembersMixin, Archivable, Document):
 	def update_discussions_count(self):
 		total_discussions = frappe.db.count("GP Discussion", filters={"project": self.name})
 		self.db_set("discussions_count", total_discussions)
-
-	def update_tasks_count(self):
-		total_tasks = frappe.db.count("GP Task", filters={"project": self.name})
-		self.db_set("tasks_count", total_tasks)
 
 	@frappe.whitelist(methods=["POST"])
 	@with_stored_document
@@ -325,8 +317,6 @@ def get_activity():
 	activity_by_project = {}
 	for doctype, timestamp_field in [
 		("GP Discussion", "last_post_at"),
-		("GP Task", "modified"),
-		("GP Page", "modified"),
 	]:
 		DocType = frappe.qb.DocType(doctype)
 		project = DocType.project

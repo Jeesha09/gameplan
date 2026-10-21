@@ -98,12 +98,6 @@ class TestCommunities(FrappeTestCase):
 		source.save(ignore_permissions=True)
 		project = create_space("Merge Source Space", source.name)
 		discussion = create_discussion("Merge Source Discussion", project.name)
-		task = frappe.get_doc(doctype="GP Task", title="Merge Source Task", project=project.name).insert(
-			ignore_permissions=True
-		)
-		page = frappe.get_doc(doctype="GP Page", title="Merge Source Page", project=project.name).insert(
-			ignore_permissions=True
-		)
 
 		source.merge_into_team(target.name)
 
@@ -113,17 +107,12 @@ class TestCommunities(FrappeTestCase):
 		self.assertTrue(target.get_member(source_member.name).is_admin)
 		self.assertEqual(frappe.db.get_value("GP Project", project.name, "team"), target.name)
 		self.assertEqual(frappe.db.get_value("GP Discussion", discussion.name, "team"), target.name)
-		self.assertEqual(frappe.db.get_value("GP Task", task.name, "team"), target.name)
-		self.assertEqual(frappe.db.get_value("GP Page", page.name, "team"), target.name)
 
-	def test_move_to_team_repoints_discussions_and_tasks(self):
+	def test_move_to_team_repoints_discussions(self):
 		source = create_community("Bulk Source Team")
 		target = create_community("Bulk Target Team")
 		project = create_space("Bulk Move Space", source.name)
 		discussion = create_discussion("D1", project.name, content="x")
-		task = frappe.get_doc(doctype="GP Task", title="T1", project=project.name).insert(
-			ignore_permissions=True
-		)
 
 		# Inserting child docs bumps the project's modified timestamp via counter
 		# hooks; reload so move_to_team's save sees the latest (as a fresh API call would).
@@ -132,7 +121,6 @@ class TestCommunities(FrappeTestCase):
 
 		self.assertEqual(frappe.db.get_value("GP Project", project.name, "team"), target.name)
 		self.assertEqual(frappe.db.get_value("GP Discussion", discussion.name, "team"), target.name)
-		self.assertEqual(frappe.db.get_value("GP Task", task.name, "team"), target.name)
 
 
 class TestCommunityMembership(GameplanTestCase):

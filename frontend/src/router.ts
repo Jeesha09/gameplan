@@ -24,9 +24,9 @@ type ResourceLike = {
 
 type RouteParamValue = string | string[]
 type ContentRouteDescriptor = {
-  doctype: 'GP Discussion' | 'GP Page' | 'GP Task'
-  documentParam: 'postId' | 'pageId' | 'taskId'
-  routeName: 'Discussion' | 'SpacePage' | 'SpaceTask'
+  doctype: 'GP Discussion'
+  documentParam: 'postId'
+  routeName: 'Discussion'
   slugParam?: 'slug'
 }
 type ProjectContentDoc = {
@@ -210,29 +210,6 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/Drafts.vue'),
   },
   {
-    name: 'MyTasks',
-    path: '/tasks',
-    component: () => import('@/pages/MyTasks.vue'),
-  },
-  {
-    name: 'Task',
-    path: '/task/:taskId',
-    component: () => import('@/pages/Task.vue'),
-    props: true,
-  },
-  {
-    name: 'MyPages',
-    path: '/pages',
-    component: () => import('@/pages/MyPages.vue'),
-  },
-  {
-    name: 'Page',
-    path: '/page/:pageId/:slug?',
-    component: () => import('@/pages/Page.vue'),
-    props: true,
-    meta: { hideMobileNav: true },
-  },
-  {
     path: '/people',
     name: 'People',
     component: () => import('@/pages/People.vue'),
@@ -287,34 +264,6 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/SpaceDiscussions.vue'),
         props: true,
         meta: { communityScope: true },
-      },
-      {
-        name: 'SpacePages',
-        path: 'pages',
-        component: () => import('@/pages/SpacePages.vue'),
-        props: true,
-        meta: { communityScope: true },
-      },
-      {
-        name: 'SpacePage',
-        path: 'pages/:pageId/:slug?',
-        component: () => import('@/pages/Page.vue'),
-        props: true,
-        meta: { hideHeader: true, communityScope: true, hideMobileNav: true },
-      },
-      {
-        name: 'SpaceTasks',
-        path: 'tasks',
-        component: () => import('@/pages/SpaceTasks.vue'),
-        props: true,
-        meta: { communityScope: true },
-      },
-      {
-        name: 'SpaceTask',
-        path: 'tasks/:taskId',
-        component: () => import('@/pages/Task.vue'),
-        props: true,
-        meta: { hideHeader: true, communityScope: true },
       },
     ],
   },
@@ -465,89 +414,6 @@ const routes: RouteRecordRaw[] = [
     },
   },
   {
-    path: '/space/:spaceId/pages',
-    component: RouteGuard,
-    async beforeEnter(to) {
-      const space = await findSpace(routeParam(to.params.spaceId))
-
-      if (!space?.team) {
-        return { name: 'NotFound' }
-      }
-
-      return {
-        name: 'SpacePages',
-        params: {
-          communityId: space.team,
-          spaceId: space.name,
-        },
-        hash: to.hash,
-      }
-    },
-  },
-  {
-    path: '/space/:spaceId/pages/:pageId/:slug?',
-    component: RouteGuard,
-    async beforeEnter(to) {
-      const space = await findSpace(routeParam(to.params.spaceId))
-
-      if (!space?.team) {
-        return { name: 'NotFound' }
-      }
-
-      return {
-        name: 'SpacePage',
-        params: {
-          communityId: space.team,
-          spaceId: space.name,
-          pageId: routeParam(to.params.pageId),
-          slug: optionalRouteParam(to.params.slug),
-        },
-        query: to.query,
-        hash: to.hash,
-      }
-    },
-  },
-  {
-    path: '/space/:spaceId/tasks',
-    component: RouteGuard,
-    async beforeEnter(to) {
-      const space = await findSpace(routeParam(to.params.spaceId))
-
-      if (!space?.team) {
-        return { name: 'NotFound' }
-      }
-
-      return {
-        name: 'SpaceTasks',
-        params: {
-          communityId: space.team,
-          spaceId: space.name,
-        },
-      }
-    },
-  },
-  {
-    path: '/space/:spaceId/tasks/:taskId',
-    component: RouteGuard,
-    async beforeEnter(to) {
-      const space = await findSpace(routeParam(to.params.spaceId))
-
-      if (!space?.team) {
-        return { name: 'NotFound' }
-      }
-
-      return {
-        name: 'SpaceTask',
-        params: {
-          communityId: space.team,
-          spaceId: space.name,
-          taskId: routeParam(to.params.taskId),
-        },
-        query: to.query,
-      }
-    },
-  },
-  {
     path: '/space/:spaceId/discussion/:postId/:slug?',
     component: RouteGuard,
     async beforeEnter(to) {
@@ -650,59 +516,6 @@ const routes: RouteRecordRaw[] = [
                     ...to.query,
                     spaceId: routeParam(to.params.projectId),
                   },
-                }),
-              },
-              {
-                name: 'ProjectTasks',
-                path: 'tasks',
-                redirect: (to) => ({
-                  name: 'SpaceTasks',
-                  params: {
-                    communityId: routeParam(to.params.teamId),
-                    spaceId: routeParam(to.params.projectId),
-                  },
-                }),
-              },
-              {
-                name: 'ProjectTaskDetail',
-                path: 'task/:taskId',
-                meta: { fullWidth: true },
-                redirect: (to) => ({
-                  name: 'SpaceTask',
-                  params: {
-                    communityId: routeParam(to.params.teamId),
-                    spaceId: routeParam(to.params.projectId),
-                    taskId: routeParam(to.params.taskId),
-                  },
-                  query: to.query,
-                }),
-              },
-              {
-                name: 'ProjectPages',
-                path: 'pages',
-                redirect: (to) => ({
-                  name: 'SpacePages',
-                  params: {
-                    communityId: routeParam(to.params.teamId),
-                    spaceId: routeParam(to.params.projectId),
-                  },
-                  hash: to.hash,
-                }),
-              },
-              {
-                name: 'ProjectPage',
-                path: 'pages/:pageId/:slug?',
-                meta: { fullWidth: true, hideHeader: true },
-                redirect: (to) => ({
-                  name: 'SpacePage',
-                  params: {
-                    communityId: routeParam(to.params.teamId),
-                    spaceId: routeParam(to.params.projectId),
-                    pageId: routeParam(to.params.pageId),
-                    slug: optionalRouteParam(to.params.slug),
-                  },
-                  query: to.query,
-                  hash: to.hash,
                 }),
               },
             ],
@@ -966,21 +779,6 @@ function getContentRouteDescriptor(to: RouteLocationNormalized): ContentRouteDes
       documentParam: 'postId',
       routeName: 'Discussion',
       slugParam: 'slug',
-    }
-  }
-  if (to.params.pageId) {
-    return {
-      doctype: 'GP Page',
-      documentParam: 'pageId',
-      routeName: 'SpacePage',
-      slugParam: 'slug',
-    }
-  }
-  if (to.params.taskId) {
-    return {
-      doctype: 'GP Task',
-      documentParam: 'taskId',
-      routeName: 'SpaceTask',
     }
   }
   return null
