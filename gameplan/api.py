@@ -7,7 +7,7 @@ import json
 import frappe
 from frappe import _
 from frappe.query_builder.functions import Count
-from frappe.utils import cint, split_emails, validate_email_address
+from frappe.utils import cint, cstr, split_emails, validate_email_address
 
 import gameplan
 from gameplan.gameplan.doctype.gp_invitation.gp_invitation import get_invitation, grant_access
@@ -489,16 +489,14 @@ def onboarding(community, space, icon, emails, *, visibility: str = VISIBILITY_G
 
 @frappe.whitelist(allow_guest=True, methods=["GET", "POST"])
 @validate_type
-def search_sqlite(query: str, filters: dict | str | None = None):
-	"""Search discussions and replies within the current viewer's access."""
+def search_sqlite(query: str = "", filters: dict | str | None = None, sort_by: str | None = None):
+	"""Search and sort content within the current viewer's access."""
 	from gameplan.public_search import search_for_viewer, validate_search_filters
 
-	anonymous = gameplan.is_anonymous()
-	guest = gameplan.is_guest()
 	search = search_for_viewer()
-	if not (anonymous or guest):
+	if not (gameplan.is_anonymous() or gameplan.is_guest()):
 		filters = validate_search_filters(filters)
-	return search.search(query, filters=filters)
+	return search.search(query, filters=filters, sort_by=sort_by)
 
 
 @frappe.whitelist(allow_guest=True, methods=["GET", "POST"])

@@ -53,3 +53,4 @@ execute:frappe.db.add_index("Deleted Document", ["deleted_doctype", "deleted_nam
 gameplan.gameplan.doctype.gp_notification.patches.backfill_last_event_at
 gameplan.gameplan.doctype.gp_notification.patches.backfill_project_and_team
 gameplan.gameplan.doctype.gp_user_profile.patches.set_notification_defaults
+gameplan.patches.drop_search_index_for_sort_columns

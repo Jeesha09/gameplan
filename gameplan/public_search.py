@@ -40,7 +40,7 @@ class PublicGameplanSearch(GameplanSearch):
 	def space_criterion(self, Project):
 		return (Project.is_anonymous_readable == 1) & anonymous_readable_criterion(Project)
 
-	def search(self, query: str, title_only=False, filters=None):
+	def search(self, query: str, title_only=False, filters=None, sort_by=None):
 		self.require_access()
 		if not isinstance(query, str) or len(query) > MAX_QUERY_LENGTH:
 			frappe.throw("Search must be text of at most 200 characters.")
@@ -48,7 +48,7 @@ class PublicGameplanSearch(GameplanSearch):
 		if len(query.split()) > MAX_QUERY_WORDS:
 			frappe.throw("Search must contain at most 12 words.")
 		filters = self.validate_filters(filters)
-		if len(query) < 2 or not self.index_exists():
+		if (len(query) < 2 and not (not query and filters)) or not self.index_exists():
 			return self._empty_search_result(title_only, filters)
 
 		effective_filters = {
@@ -59,7 +59,7 @@ class PublicGameplanSearch(GameplanSearch):
 				if doctype in self.SEARCH_DOCTYPES
 			],
 		}
-		response = super().search(query, title_only, effective_filters)
+		response = super().search(query, title_only, effective_filters, sort_by=sort_by)
 		results = self._public_results(response["results"])[: self.RESULT_LIMIT]
 		response["results"] = results
 		response["summary"]["applied_filters"] = filters
@@ -109,8 +109,8 @@ class PublicGameplanSearch(GameplanSearch):
 					"name": result["name"],
 					"project": str(row.project),
 					"team": row.team,
-					"title": highlight_text(result.get("title")),
-					"content": highlight_text(result.get("content")),
+					"title": result.get("title") or "",
+					"content": result.get("content") or "",
 					"modified": result["modified"],
 					"author": authors.get(row.owner, ""),
 					"reference_doctype": result.get("reference_doctype"),
