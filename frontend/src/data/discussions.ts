@@ -4,6 +4,7 @@ import { type CacheKey, type UseListOptions, useCall, useDoc, useList } from 'fr
 import { useDocumentVisibility } from '@vueuse/core'
 import { isAnonymousVisitor } from '@/utils/publicAccess'
 import { GPDiscussion } from '@/types/doctypes'
+import type { DiscussionNotificationState } from '@/data/notificationPreferences'
 
 // Reload the feed when the tab is re-activated after sitting in the background
 // for at least this long, so new posts show up without a manual refresh.
@@ -133,6 +134,7 @@ export function useDiscussion(name: string) {
     last_unread_poll: string
     is_bookmarked: boolean
     views: number
+    notification_state: DiscussionNotificationState
   }
 
   interface DiscussionMethods {
@@ -145,6 +147,9 @@ export function useDiscussion(name: string) {
     addBookmark: () => void
     removeBookmark: () => void
     moveToProject: (data: { project: string }) => void
+    setNotificationState: (data: { state: DiscussionNotificationState }) => {
+      notification_state: DiscussionNotificationState
+    }
   }
 
   if (!discussionsCache[name]) {
@@ -159,6 +164,7 @@ export function useDiscussion(name: string) {
         addBookmark: 'add_bookmark',
         removeBookmark: 'remove_bookmark',
         moveToProject: 'move_to_project',
+        setNotificationState: 'set_notification_state',
       },
     })
     Object.assign(discussion, {

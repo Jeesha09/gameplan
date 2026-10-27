@@ -17,6 +17,7 @@ from gameplan.mixins.mentions import HasMentions
 from gameplan.mixins.moderation import Moderatable
 from gameplan.mixins.reactions import HasReactions
 from gameplan.mixins.tags import HasTags
+from gameplan.notifications.resolver import notify_comment, subscribe_on_participation
 from gameplan.permissions import comment_query_conditions, content_has_permission
 from gameplan.public_payload import for_viewer
 from gameplan.utils import get_document_revisions, remove_empty_trailing_paragraphs
@@ -158,7 +159,13 @@ class GPComment(Moderatable, HasAttachments, HasMentions, HasReactions, HasTags,
 			self.edited_at = frappe.utils.now()
 
 	def on_update(self):
-		self.notify_mentions()
+		reached = self.notify_mentions()
+		# Watchers hear about a comment once, when it is posted: `flags.in_insert` is set
+		# for the whole of `on_update` during an insert and never on an edit, so fixing a
+		# typo does not re-notify. Anyone the mention pass just reached is left out.
+		if self.flags.in_insert and self.reference_doctype == "GP Discussion":
+			subscribe_on_participation(self.owner, self.reference_name)
+			notify_comment(self, reached)
 		self.attach_files_in_content()
 		self.sync_poll()
 

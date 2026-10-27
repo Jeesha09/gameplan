@@ -120,6 +120,7 @@ import {
 } from '@/data/spaces'
 import { spaceFeedKey } from '@/data/discussions'
 import { copyToClipboard } from '@/utils'
+import { isSpaceNotifying, toggleSpaceNotifications } from '@/data/spaceNotifications'
 import { readOnlyMode } from '@/data/readOnlyMode'
 import { isPublicVisitor } from '@/utils/publicAccess'
 
@@ -185,6 +186,12 @@ const spaceActions = computed(() => [
     label: 'Mark all as read',
     icon: 'lucide-check',
     onClick: () => currentSpace.value && markAllAsRead([props.spaceId], currentSpace.value.title),
+  },
+  {
+    label: isSpaceNotifying(props.spaceId) ? 'Disable notifications' : 'Enable notifications',
+    icon: isSpaceNotifying(props.spaceId) ? 'lucide-bell-off' : 'lucide-bell',
+    onClick: () => toggleSpaceNotifications(props.spaceId),
+    condition: () => !isArchived.value,
   },
   {
     label: isJoined.value ? 'Leave space' : 'Join space',

@@ -4,6 +4,15 @@
       <template #prefix>
         <PageHeaderBackButton :fallback-route="backRoute" />
       </template>
+      <template #suffix>
+        <DiscussionHeaderActions
+          v-if="showHeaderActions"
+          :state="discussion.doc!.notification_state!"
+          :loading="discussion.setNotificationState.loading"
+          :actions="headerActions"
+          @select="setNotificationState"
+        />
+      </template>
     </PageHeaderMobile>
     <PageHeader class="hidden sm:flex">
       <SpaceBreadcrumbs
@@ -14,6 +23,14 @@
       <span class="hidden text-md-medium text-ink-gray-8 print:inline">
         {{ [communityTitle, space?.title].filter(Boolean).join(' / ') }}
       </span>
+      <div v-if="showHeaderActions" class="flex items-center gap-2 print:hidden">
+        <DiscussionHeaderActions
+          :state="discussion.doc!.notification_state!"
+          :loading="discussion.setNotificationState.loading"
+          :actions="headerActions"
+          @select="setNotificationState"
+        />
+      </div>
     </PageHeader>
     <div class="discussion-container">
       <!-- Only when nothing is cached: a refresh keeps the current copy on screen. -->
@@ -66,6 +83,7 @@
             padding puts its contents back where they were.
           -->
           <div
+            ref="postActionsRow"
             class="flex items-center bg-surface-base pb-2 pt-2"
             :class="
               editingPost
@@ -99,6 +117,12 @@
               </Tooltip>
             </div>
             <div class="ml-auto flex space-x-2 print:hidden">
+              <DiscussionNotificationBell
+                v-if="!readOnlyMode && discussion.doc.notification_state"
+                :state="discussion.doc.notification_state"
+                :loading="discussion.setNotificationState.loading"
+                @select="setNotificationState"
+              />
               <Dropdown
                 v-if="!readOnlyMode"
                 class="ml-auto"
@@ -377,9 +401,11 @@ import {
   dialog,
   toast,
 } from 'frappe-ui'
-import { until, useEventListener } from '@vueuse/core'
+import { until, useEventListener, useIntersectionObserver } from '@vueuse/core'
 import type { Editor } from '@tiptap/vue-3'
 import Reactions from './Reactions.vue'
+import DiscussionNotificationBell from './DiscussionNotificationBell.vue'
+import DiscussionHeaderActions from './DiscussionHeaderActions.vue'
 import UserAvatarWithHover from './UserAvatarWithHover.vue'
 import CommentsArea from '@/components/CommentsArea.vue'
 import DiscussionViewEditor from './editor/DiscussionViewEditor.vue'
@@ -397,6 +423,7 @@ import { getSpace, useSpace } from '@/data/spaces'
 import { useCommunity } from '@/data/communities'
 import { useGroupedSpaceOptions } from '@/data/groupedSpaces'
 import { reloadDiscussionLists, useDiscussion } from '@/data/discussions'
+import type { DiscussionNotificationState } from '@/data/notificationPreferences'
 import { provideThreadReactions } from '@/data/reactions'
 import { useDraftSync } from '@/data/useDraftSync'
 import { tags } from '@/data/tags'
@@ -933,6 +960,17 @@ function moderateDiscussion(spam = false) {
 }
 
 const showReport = ref(false)
+const postActionsRow = useTemplateRef<HTMLElement>('postActionsRow')
+const postActionsVisible = ref(true)
+useIntersectionObserver(postActionsRow, ([entry]) => {
+  postActionsVisible.value = entry?.isIntersecting ?? true
+})
+const showHeaderActions = computed(
+  () =>
+    !postActionsVisible.value && !props.readOnlyMode && Boolean(discussion.doc?.notification_state),
+)
+const headerActions = computed(() => actions.value.filter((action) => !action.hideInHeader))
+
 const actions = computed(() => [
   {
     label: 'Report',
@@ -980,11 +1018,13 @@ const actions = computed(() => [
     icon: 'lucide-edit',
     onClick: startEditingPost,
     condition: () => canEditDiscussion.value,
+    hideInHeader: true,
   },
   {
     label: 'Revisions',
     icon: 'lucide-rotate-ccw',
     onClick: () => (showRevisionsDialog.value = true),
+    hideInHeader: true,
   },
   {
     label: 'Copy link',
@@ -1114,6 +1154,19 @@ const actions = computed(() => [
     },
   },
 ])
+
+async function setNotificationState(choice: DiscussionNotificationState) {
+  try {
+    await discussion.setNotificationState.submit({ state: choice })
+  } catch {
+    toast.error('Could not update discussion notifications')
+    return
+  }
+  const result = discussion.setNotificationState.data
+  if (discussion.doc && result) {
+    discussion.doc.notification_state = result.notification_state
+  }
+}
 
 useCommandPaletteCommands(
   computed(() => {

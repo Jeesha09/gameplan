@@ -19,8 +19,6 @@ import frappe
 from frappe import realtime
 from frappe.query_builder.functions import Count
 
-from gameplan.per_user_state import notification_criterion
-
 # `realtime.publish_realtime` rather than the newer named helpers (`publish_to_user`,
 # `publish_to_website`): those only exist on frappe develop, and Gameplan is also tested
 # against v16, where importing them fails at module load. Going through the module object
@@ -31,6 +29,7 @@ from gameplan.per_user_state import notification_criterion
 # `doc_update`, ...) and against other apps sharing the site.
 UNREAD_COUNTS_CHANGED = "gameplan:unread_counts_changed"
 NOTIFICATION_COUNT_CHANGED = "gameplan:notification_count_changed"
+NOTIFICATION_CHANGED = "gameplan:notification_changed"
 USERS_CHANGED = "gameplan:users_changed"
 
 
@@ -40,6 +39,37 @@ def notify_unread_counts_changed(users: str | list[str]):
 		users = [users]
 	for user in {user for user in users if user}:
 		realtime.publish_realtime(UNREAD_COUNTS_CHANGED, user=user, after_commit=True)
+
+
+def notify_notification_changed(user: str, notification=None):
+	"""Tell one user that a notification of theirs was written, merged or read.
+
+	The message carries two things. `count` is the user's unread total after the change,
+	so the badge can be refreshed without a round trip. `notification` is the row that
+	changed — `name`, `event_count`, `read`, `last_event_at` — or None for a bulk clear
+	(`clear_notifications`, mark-all-as-read) where no single row is the story.
+
+	The row is what lets a tab tell its own echo from real news: this event goes to every
+	session of the user who caused it too. A tab already holding that row with the same
+	`event_count` and `read` has nothing left to do; anything else — a row it has never
+	seen, a merge that bumped the count, a mark-as-read from elsewhere — means reload. The
+	unread total alone could not carry that: a repeat event merging into a row that is
+	already unread leaves the total exactly where it was.
+
+	Time cannot make that call either. Clicking a notification marks it read in the tab
+	and, one navigation later, has the server clear the rest of that thread's
+	notifications (`GPDiscussion.track_visit`), so any window wide enough to cover the
+	echo also swallows the genuine change arriving right behind it.
+	"""
+	message = {"count": unread_notification_count(user), "notification": None}
+	if notification is not None:
+		message["notification"] = {
+			"name": notification.name,
+			"event_count": notification.event_count,
+			"read": notification.read,
+			"last_event_at": str(notification.last_event_at) if notification.last_event_at else None,
+		}
+	realtime.publish_realtime(NOTIFICATION_CHANGED, message=message, user=user, after_commit=True)
 
 
 def notify_notification_count_changed(user: str, *, force_refresh=False):
@@ -77,7 +107,7 @@ def unread_notification_count(user: str) -> int:
 	rows = (
 		frappe.qb.from_(Notification)
 		.select(Count(Notification.name))
-		.where(notification_criterion(user) & (Notification.read == 0))
+		.where((Notification.to_user == user) & (Notification.read == 0))
 	).run()
 	return rows[0][0] if rows else 0
 
