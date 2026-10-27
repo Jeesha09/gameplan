@@ -2,13 +2,14 @@ import { ref, computed, onMounted, provide, inject, watch, type InjectionKey } f
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { call, dialog, dayjs, dayjsLocal, getConfig, toast } from 'frappe-ui'
 import { useOwnedRouteWrites } from '@/composables/useOwnedRouteWrites'
-import { useDraftSync, type DraftPayload } from '@/data/useDraftSync'
+import { useDraftSync } from '@/data/useDraftSync'
+import { hasContent } from '@/data/draftStore'
 import { drafts } from '@/data/drafts'
 import { useGroupedSpaceOptions } from '@/data/groupedSpaces'
 import { canPostInSpace, getSpace } from '@/data/spaces'
 import { useSessionUser, useUser } from '@/data/users'
 import { tags } from '@/data/tags'
-import { extractServerMessage, isEditorContentEmpty } from '@/utils'
+import { extractServerMessage } from '@/utils'
 import { captureError } from '@/utils/errorReporting'
 import { createRequestKey } from '@/utils/requestKey'
 
@@ -25,11 +26,6 @@ function toSiteTime(localDateTime: string) {
 }
 const LOADING_STATUS_DELAY_MS = 200
 const FLUSH_ATTEMPTS = 3
-
-/** Title or non-empty body — the threshold for persisting a draft at all. */
-function hasMeaningfulContent(payload: Partial<DraftPayload>): boolean {
-  return (payload.title ?? '').trim().length > 0 || !isEditorContentEmpty(payload.content)
-}
 
 export function useNewDiscussion() {
   const route = useRoute()
@@ -55,7 +51,7 @@ export function useNewDiscussion() {
   const draft = useDraftSync({
     identity: { type: 'Discussion', mode: 'New' },
     draftName,
-    canSave: hasMeaningfulContent,
+    canSave: hasContent,
     initialPayload: () => ({
       title: '',
       content: '',
@@ -65,13 +61,12 @@ export function useNewDiscussion() {
   })
 
   const draftData = draft.data
-  const isPersisted = computed(() => Boolean(draft.serverName.value))
 
   const scheduledAt = ref<string | null>(null)
   const scheduling = ref(false)
   let scheduleVersion = 0
   watch(
-    () => draft.serverName.value,
+    () => (draft.saved.value ? draft.name.value : null),
     async (name) => {
       const version = ++scheduleVersion
       if (!name) {
@@ -162,8 +157,8 @@ export function useNewDiscussion() {
   function syncDraftToRoute(name: string) {
     runWhenOwned(() => {
       // A deferred sync could land after the composer moved on to a different draft; never
-      // point the URL at a row this composer no longer holds.
-      if (draft.serverName.value !== name) return
+      // point the URL at a draft this composer no longer holds.
+      if (draft.name.value !== name) return
       if (communityId.value) {
         router.replace({
           name: 'NewDiscussion',
@@ -196,7 +191,7 @@ export function useNewDiscussion() {
     router.replace({
       name: 'NewDiscussion',
       params: { communityId: targetCommunityId },
-      query: draftRouteQuery(draft.serverName.value || draftName.value, project),
+      query: draftRouteQuery(draft.saved.value ? draft.name.value : draftName.value, project),
     })
     return true
   }
@@ -260,7 +255,7 @@ export function useNewDiscussion() {
   async function flushUntilPushed(): Promise<boolean> {
     for (let attempt = 0; attempt < FLUSH_ATTEMPTS; attempt++) {
       await draft.flush()
-      if (!draft.serverName.value || !draft.dirty.value) return true
+      if (!draft.saved.value || !draft.dirty.value) return true
       if (draft.lastError.value) return false
     }
     return false
@@ -278,7 +273,7 @@ export function useNewDiscussion() {
       if (!(await flushUntilPushed())) {
         captureError(draft.lastError.value ?? new Error('Draft still unsynced after flush'), {
           action: 'publish-discussion-unsynced-draft',
-          draft: draft.serverName.value,
+          draft: draft.name.value,
         })
         publishError.value =
           'Could not save your draft to the server. Check your connection and try again.'
@@ -288,11 +283,11 @@ export function useNewDiscussion() {
 
       let discussionId: string | undefined
       let queued = false
-      const draftRowName = draft.serverName.value
-      if (draft.serverName.value) {
+      const draftRowName = (draft.saved.value ? draft.name.value : null)
+      if ((draft.saved.value ? draft.name.value : null)) {
         isPublishingSuccessfully.value = true
         const result = await call<string | { doctype: string; name: string }>(PUBLISH_DRAFT, {
-          name: draft.serverName.value,
+          name: (draft.saved.value ? draft.name.value : null),
         })
         queued = typeof result === 'object' && result.doctype === 'GP Submission'
         discussionId = typeof result === 'object' ? result.name : result
@@ -315,7 +310,7 @@ export function useNewDiscussion() {
       if (!discussionId) {
         captureError(new Error('Publishing returned no discussion'), {
           action: 'publish-discussion-no-id',
-          draft: draft.serverName.value,
+          draft: draft.name.value,
         })
         publishError.value = 'Could not publish this post.'
         publishing.value = false
@@ -340,7 +335,7 @@ export function useNewDiscussion() {
       })
       tags.reload()
     } catch (error: any) {
-      captureError(error, { action: 'publish-discussion', draft: draft.serverName.value })
+      captureError(error, { action: 'publish-discussion', draft: draft.name.value })
       publishError.value = extractServerMessage(error) || 'Could not publish this post.'
       publishing.value = false
     } finally {
@@ -354,12 +349,12 @@ export function useNewDiscussion() {
     if (!validateDraft(true)) return false
     scheduling.value = true
     try {
-      if (!(await flushUntilPushed()) || !draft.serverName.value) {
+      if (!(await flushUntilPushed()) || !draft.saved.value) {
         publishError.value =
           'Could not save your draft to the server. Check your connection and try again.'
         return false
       }
-      const name = draft.serverName.value
+      const name = draft.name.value
       const serverTime = toSiteTime(localDateTime)
       await call(SCHEDULE_DRAFT, { name, scheduled_at: serverTime })
       scheduleVersion++
@@ -369,7 +364,7 @@ export function useNewDiscussion() {
       await router.replace({ name: 'Drafts' })
       return true
     } catch (error: any) {
-      captureError(error, { action: 'schedule-discussion', draft: draft.serverName.value })
+      captureError(error, { action: 'schedule-discussion', draft: draft.name.value })
       publishError.value = extractServerMessage(error) || 'Could not schedule this post.'
       return false
     } finally {
@@ -378,16 +373,16 @@ export function useNewDiscussion() {
   }
 
   async function unscheduleDraft() {
-    if (!draft.serverName.value) return
+    if (!draft.saved.value) return
     scheduling.value = true
     try {
-      await call(UNSCHEDULE_DRAFT, { name: draft.serverName.value })
+      await call(UNSCHEDULE_DRAFT, { name: draft.name.value })
       scheduleVersion++
       scheduledAt.value = null
       toast.success('Schedule removed. Your draft is still in Drafts.')
       drafts.reload()
     } catch (error: any) {
-      captureError(error, { action: 'unschedule-discussion', draft: draft.serverName.value })
+      captureError(error, { action: 'unschedule-discussion', draft: draft.name.value })
       publishError.value = extractServerMessage(error) || 'Could not remove the schedule.'
     } finally {
       scheduling.value = false
@@ -395,10 +390,8 @@ export function useNewDiscussion() {
   }
 
   async function deleteDraft() {
-    if (!draftData.value || !hasMeaningfulContent(draftData.value)) {
-      isDeletingDraft.value = true
-      await draft.clear()
-      leaveDraft()
+    if (!draftData.value || !hasContent(draftData.value)) {
+      await clearAndLeave().catch(() => toast.error('Could not delete the draft'))
       return
     }
 
@@ -406,12 +399,21 @@ export function useNewDiscussion() {
       title: 'Delete this draft?',
       message: 'This will permanently delete the draft and cannot be undone.',
       confirmLabel: 'Delete draft',
-      onConfirm: async () => {
-        isDeletingDraft.value = true
-        await draft.clear()
-        leaveDraft()
-      },
+      // A refusal shows in the dialog, and the draft is kept.
+      onConfirm: clearAndLeave,
     })
+  }
+
+  async function clearAndLeave() {
+    isDeletingDraft.value = true
+    let cleared = false
+    try {
+      // Offline, a draft on the server is kept, and the toast says why.
+      cleared = await draft.clear()
+    } finally {
+      if (!cleared) isDeletingDraft.value = false
+    }
+    if (cleared) leaveDraft()
   }
 
   function leaveDraft() {
@@ -440,7 +442,7 @@ export function useNewDiscussion() {
         try {
           await draft.flush()
         } catch (error) {
-          captureError(error, { action: 'draft-flush-on-leave', draft: draft.serverName.value })
+          captureError(error, { action: 'draft-flush-on-leave', draft: draft.name.value })
         }
       }
       return true
@@ -452,7 +454,7 @@ export function useNewDiscussion() {
     draftData,
     selectedSpace,
     canPublish,
-    isPersisted,
+    isPersisted: draft.saved,
     publishError,
     errorMessage,
     sessionUser,

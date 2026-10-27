@@ -18,6 +18,8 @@ echo "Setting Up Sites & Database..."
 
 mkdir ~/frappe-bench/sites/gameplan.test
 cp "${GITHUB_WORKSPACE}/.github/helper/site_config.json" ~/frappe-bench/sites/gameplan.test/site_config.json
+# Serve the test site on localhost so browser tests can use secure-context APIs.
+bench use gameplan.test
 
 # The UI tests read public spaces without signing in (frontend/cypress/e2e/public), which
 # needs public access switched on. Only for them: the server tests keep the shipped default
@@ -62,5 +64,5 @@ bench --site gameplan.test install-app gameplan
 bench --site gameplan.test execute gameplan.search_sqlite.rebuild_index \
   || bench --site gameplan.test execute gameplan.search_sqlite.build_index
 
-# wait till assets are built succesfully
+# Wait for the asset build before starting browser tests.
 wait $build_pid

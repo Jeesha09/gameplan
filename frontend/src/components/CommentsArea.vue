@@ -229,7 +229,7 @@
             />
             <ErrorMessage
               class="mt-2"
-              :message="extractServerMessage(replyError || comments.insert.error)"
+              :message="extractServerMessage(replyError || discardError || comments.insert.error)"
             />
           </div>
         </div>
@@ -347,6 +347,7 @@ const sessionUser = useSessionUser()
 const isMobileViewport = useIsMobile()
 
 const showCommentBox = ref(false)
+const discardError = ref(null)
 const composerMinimized = ref(false)
 const mobileComposerFullscreen = ref(false)
 const composerToolbarExpanded = ref(false)
@@ -696,6 +697,7 @@ function highlightComment(id: string) {
 }
 
 function resetCommentState() {
+  discardError.value = null
   showCommentBox.value = false
   composerMinimized.value = false
   mobileComposerFullscreen.value = false
@@ -711,18 +713,19 @@ async function submitComment() {
   if (!canSubmit.value || comments.insert.loading || submittingReply.value) return
   submittingReply.value = true
   replyError.value = null
+  discardError.value = null
   try {
     let queued = false
     if (props.doctype === 'GP Discussion') {
       await draft.flush()
       const result = await call<{ doctype: string; name: string }>('gameplan.approvals.submit', {
         doctype: 'GP Comment',
-        request_key: draft.serverName.value
-          ? `draft:${draft.serverName.value}`
+        request_key: (draft.saved.value ? draft.name.value : null)
+          ? `draft:${(draft.saved.value ? draft.name.value : null)}`
           : replyRequestKey.value,
         discussion: String(props.name),
         content: draftData.value?.content,
-        draft: draft.serverName.value || '',
+        draft: (draft.saved.value ? draft.name.value : null) || '',
       })
       queued = result.doctype === 'GP Submission'
     } else {
@@ -734,7 +737,7 @@ async function submitComment() {
       if (comments.insert.error || !comment?.name) return
     }
     if (queued) {
-      const name = draft.serverName.value
+      const name = (draft.saved.value ? draft.name.value : null)
       await draft.forget()
       if (name) drafts.removeRow(name)
       toast.success('Submitted for moderator approval. Find it in My submissions.')
@@ -835,6 +838,7 @@ function onNewCommentChange(content: string) {
 }
 
 async function discardComment() {
+  discardError.value = null
   if (!editorObject.value?.isEmpty) {
     dialog.danger({
       title: 'Discard comment',
@@ -842,13 +846,15 @@ async function discardComment() {
       confirmLabel: 'Discard comment',
       cancelLabel: 'Keep comment',
       onConfirm: async () => {
-        await draft.clear()
-        resetCommentState()
+        if (await draft.clear()) resetCommentState()
       },
     })
   } else {
-    await draft.clear()
-    resetCommentState()
+    try {
+      if (await draft.clear()) resetCommentState()
+    } catch (error) {
+      discardError.value = error
+    }
   }
 }
 
