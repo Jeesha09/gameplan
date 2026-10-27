@@ -2,6 +2,7 @@
 # For license information, please see license.txt
 
 import frappe
+from frappe import _
 from frappe.model.document import Document
 from frappe.utils import cstr
 
@@ -23,10 +24,15 @@ from gameplan.notifications.resolver import (
 	notify_new_discussion,
 	subscribe_on_participation,
 )
-from gameplan.permissions import content_has_permission, discussion_query_conditions
+from gameplan.permissions import can_highlight_comment, content_has_permission, discussion_query_conditions
 from gameplan.public_payload import for_viewer
 from gameplan.search_sqlite import enqueue_comment_reindex_on_move
-from gameplan.utils import get_document_revisions, remove_empty_trailing_paragraphs, url_safe_slug
+from gameplan.utils import (
+	get_document_revisions,
+	html_to_text_preview,
+	remove_empty_trailing_paragraphs,
+	url_safe_slug,
+)
 from gameplan.utils.document import with_stored_document
 from gameplan.visibility import is_anonymous_eligible_space, require_admin_to_publish
 
@@ -44,6 +50,8 @@ class GPDiscussion(Moderatable, HasActivity, HasAttachments, HasBacklinks, HasMe
 		"Discussion Unpinned",
 		"Discussion Moved",
 		"Discussion Referenced",
+		"Comment Highlighted",
+		"Comment Unhighlighted",
 	]
 	mentions_field = "content"
 	tags_field = "content"
@@ -83,6 +91,7 @@ class GPDiscussion(Moderatable, HasActivity, HasAttachments, HasBacklinks, HasMe
 		# The bell renders from this on first paint rather than after a second request.
 		d.notification_state = effective_discussion_state(frappe.session.user, self.name)
 		d.views = frappe.db.count("GP Discussion Visit", {"discussion": self.name})
+		d.highlighted_reply = self.get_highlighted_reply()
 		return for_viewer(self.doctype, d)
 
 	def before_insert(self):
@@ -349,6 +358,43 @@ class GPDiscussion(Moderatable, HasActivity, HasAttachments, HasBacklinks, HasMe
 			).insert(ignore_permissions=True)
 
 		return {"notification_state": effective_discussion_state(user, self.name)}
+	@frappe.whitelist(methods=["POST"])
+	@with_stored_document
+	def highlight_comment(self, comment: str):
+		self.check_can_highlight_comment()
+		frappe.db.get_value(self.doctype, self.name, "name", for_update=True)
+		reply = self.get_reply(comment)
+		if reply.highlighted_at:
+			return
+		for current in frappe.get_all(
+			"GP Comment",
+			filters={
+				"reference_doctype": self.doctype,
+				"reference_name": self.name,
+				"highlighted_at": ("is", "set"),
+			},
+			fields=["name", "owner"],
+		):
+			self.clear_highlight(current.name, current.owner)
+		frappe.db.set_value(
+			"GP Comment",
+			comment,
+			{"highlighted_by": frappe.session.user, "highlighted_at": frappe.utils.now()},
+			update_modified=False,
+		)
+		self.log_activity(
+			"Comment Highlighted", data={"comment": cstr(comment), "comment_owner": reply.owner}
+		)
+
+	@frappe.whitelist(methods=["POST"])
+	@with_stored_document
+	def unhighlight_comment(self, comment: str):
+		self.check_can_highlight_comment()
+		frappe.db.get_value(self.doctype, self.name, "name", for_update=True)
+		reply = self.get_reply(comment)
+		if not reply.highlighted_at:
+			return
+		self.clear_highlight(comment, reply.owner)
 
 	@frappe.whitelist(methods=["POST"])
 	@with_stored_document
@@ -406,6 +452,59 @@ class GPDiscussion(Moderatable, HasActivity, HasAttachments, HasBacklinks, HasMe
 
 	def opening_post_bookmark_filters(self):
 		return {"discussion": self.name, "user": frappe.session.user, "comment": ("is", "not set")}
+
+	def check_can_highlight_comment(self):
+		if not can_highlight_comment(frappe.session.user, self):
+			frappe.throw(
+				_("Only the author of this discussion can accept an answer."), frappe.PermissionError
+			)
+
+	def get_reply(self, comment):
+		reply = frappe.db.get_value(
+			"GP Comment",
+			{
+				"name": comment,
+				"reference_doctype": self.doctype,
+				"reference_name": self.name,
+				"deleted_at": ("is", "not set"),
+			},
+			["owner", "highlighted_at"],
+			as_dict=True,
+		)
+		if not reply:
+			frappe.throw(_("This comment does not belong to this discussion"))
+		return reply
+
+	def clear_highlight(self, comment, owner):
+		frappe.db.set_value(
+			"GP Comment",
+			comment,
+			{"highlighted_by": None, "highlighted_at": None},
+			update_modified=False,
+		)
+		self.log_activity("Comment Unhighlighted", data={"comment": cstr(comment), "comment_owner": owner})
+
+	def get_highlighted_reply(self):
+		reply = frappe.db.get_value(
+			"GP Comment",
+			{
+				"reference_doctype": self.doctype,
+				"reference_name": self.name,
+				"deleted_at": ("is", "not set"),
+				"highlighted_at": ("is", "set"),
+			},
+			["name", "owner", "content", "highlighted_by", "highlighted_at"],
+			as_dict=True,
+		)
+		if not reply:
+			return None
+		return {
+			"name": cstr(reply.name),
+			"owner": reply.owner,
+			"content": html_to_text_preview(reply.content, 300),
+			"highlighted_by": reply.highlighted_by,
+			"highlighted_at": reply.highlighted_at,
+		}
 
 	def update_slug(self):
 		self.slug = url_safe_slug(self.title)

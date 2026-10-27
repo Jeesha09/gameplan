@@ -135,6 +135,13 @@ export function useDiscussion(name: string) {
     is_bookmarked: boolean
     views: number
     notification_state: DiscussionNotificationState
+    highlighted_reply: {
+      name: string
+      owner: string
+      content: string
+      highlighted_by: string
+      highlighted_at: string
+    } | null
   }
 
   interface DiscussionMethods {
@@ -150,6 +157,8 @@ export function useDiscussion(name: string) {
     setNotificationState: (data: { state: DiscussionNotificationState }) => {
       notification_state: DiscussionNotificationState
     }
+    highlightComment: (data: { comment: string }) => void
+    unhighlightComment: (data: { comment: string }) => void
   }
 
   if (!discussionsCache[name]) {
@@ -165,6 +174,8 @@ export function useDiscussion(name: string) {
         removeBookmark: 'remove_bookmark',
         moveToProject: 'move_to_project',
         setNotificationState: 'set_notification_state',
+        highlightComment: 'highlight_comment',
+        unhighlightComment: 'unhighlight_comment',
       },
     })
     Object.assign(discussion, {

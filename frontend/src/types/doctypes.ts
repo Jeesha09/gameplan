@@ -341,6 +341,10 @@ export interface GPComment extends DocType {
   /** Hidden At: Datetime */
   hidden_at?: string
   spam_removed_at?: string
+  /** Highlighted By: Link (User) */
+  highlighted_by?: string
+  /** Highlighted At: Datetime */
+  highlighted_at?: string
   /** Tags: Table (GP Tag Link) */
   tags: GPTagLink[]
 }

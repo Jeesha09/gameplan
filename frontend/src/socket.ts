@@ -9,6 +9,7 @@ import { socketio_port } from '../../../../sites/common_site_config.json'
 export type NewActivityEvent = {
   reference_doctype: string
   reference_name: string
+  action: string
 }
 
 export type NotificationChange = {
