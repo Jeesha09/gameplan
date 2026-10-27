@@ -14,6 +14,7 @@ from gameplan.gameplan.doctype.gp_unread_record.gp_unread_record import GPUnread
 from gameplan.mixins.archivable import check_if_space_is_archived
 from gameplan.mixins.attachments import HasAttachments
 from gameplan.mixins.mentions import HasMentions
+from gameplan.mixins.moderation import Moderatable
 from gameplan.mixins.reactions import HasReactions
 from gameplan.mixins.tags import HasTags
 from gameplan.permissions import comment_query_conditions, content_has_permission
@@ -25,7 +26,7 @@ from gameplan.visibility import is_anonymous_eligible_discussion, require_admin_
 POLL_BLOCK = re.compile(r'<div\b[^>]*\bdata-type="poll"[^>]*>\s*</div>')
 
 
-class GPComment(HasAttachments, HasMentions, HasReactions, HasTags, Document):
+class GPComment(Moderatable, HasAttachments, HasMentions, HasReactions, HasTags, Document):
 	on_delete_cascade = ["GP Draft", "GP Poll"]
 	on_delete_set_null = ["GP Notification", "GP Discussion"]
 	mentions_field = "content"
@@ -90,6 +91,7 @@ class GPComment(HasAttachments, HasMentions, HasReactions, HasTags, Document):
 
 	def validate(self):
 		before = self.get_doc_before_save()
+		self.validate_moderation()
 		if before and (
 			self.has_value_changed("reference_name") or self.has_value_changed("reference_doctype")
 		):
@@ -208,6 +210,7 @@ class GPComment(HasAttachments, HasMentions, HasReactions, HasTags, Document):
 	@with_stored_document
 	def get_revisions(self, fieldname="content"):
 		"""Return the edit history of `fieldname` (default: content) on this comment."""
+		frappe.get_doc(self.doctype, self.name).check_permission("read")
 		return get_document_revisions(self.doctype, self.name, fieldname)
 
 	@frappe.whitelist(methods=["POST"])

@@ -124,6 +124,11 @@ def get_user_info(user=None):
 				user.email_digest_last_sent_on = user_profile.email_digest_last_sent_on
 		user.role = role_map.get(user.name)
 
+		if user.name == frappe.session.user:
+			from gameplan.community_bans import banned_communities
+
+			user.banned_communities = banned_communities(user.name)
+
 		# Add discussion and comment counts
 		user.discussions_count_3m = discussion_count_map.get(user.name, 0)
 		user.comments_count_3m = comment_count_map.get(user.name, 0)
@@ -393,6 +398,14 @@ def get_unsplash_photos(keyword=None):
 		return get_by_keyword(keyword)
 
 	return frappe.cache().get_value("unsplash_photos", generator=get_list)
+
+
+@frappe.whitelist(methods=["POST"])
+def set_discussion_read_state(discussion: str, unread: bool = False):
+	"""Set the current reader's read/unread state without requiring participation rights."""
+	doc = frappe.get_doc("GP Discussion", discussion)
+	# Read markers belong to the viewer; they do not require content-write permission.
+	getattr(doc, "mark_as_unread" if unread else "track_visit")()
 
 
 @frappe.whitelist(methods=["POST"])

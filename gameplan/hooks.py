@@ -140,6 +140,7 @@ permission_query_conditions = {
 }
 
 has_permission = {
+	"File": "gameplan.moderated_file.file_has_permission",
 	"GP Team": "gameplan.permissions.team_has_permission",
 	"GP Project": "gameplan.permissions.project_has_permission",
 	"GP Discussion": "gameplan.gameplan.doctype.gp_discussion.gp_discussion.has_permission",
@@ -162,6 +163,8 @@ has_permission = {
 # ---------------
 # Override standard doctype classes
 
+override_doctype_class = {"File": "gameplan.moderated_file.ModeratedFile"}
+
 # override_doctype_class = {
 # 	"ToDo": "custom_app.overrides.CustomToDo"
 # }
@@ -173,6 +176,7 @@ has_permission = {
 doc_events = {
 	"*": {
 		"on_trash": "gameplan.mixins.on_delete.on_trash",
+		"validate": "gameplan.community_bans.validate_participation",
 	},
 	# Discourse-style limits on Gameplan Guests posting in a space only because it is public.
 	"GP Discussion": {

@@ -239,6 +239,10 @@ LEGACY_PRIVACY_REFERENCES = {
 	# A historical patch, frozen against the schema it was written for.
 	"gameplan/gameplan/doctype/gp_project/patches/migrate_members_from_team.py": 1,
 	# Frappe's File.is_private, an unrelated field on another doctype.
+	"gameplan/mixins/moderation.py": 1,
+	"gameplan/tests/features/test_reply_moderation.py": 2,
+	"gameplan/tests/features/test_moderation_core.py": 3,
+	"gameplan/tests/features/test_moderation_visibility.py": 2,
 	"gameplan/gameplan/doctype/gp_user_profile/gp_user_profile.py": 1,
 	"gameplan/migrate_from_discourse/__init__.py": 1,
 	# Reject the legacy onboarding key; File.is_private is unrelated.

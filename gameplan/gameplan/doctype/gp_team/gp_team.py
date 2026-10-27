@@ -63,6 +63,11 @@ class GPTeam(HasVisibility, Archivable, Document):
 
 	def validate(self):
 		self.check_visibility_change_allowed()
+		from gameplan.community_bans import is_banned
+
+		for member in self.members:
+			if (member.is_admin or member.is_moderator) and is_banned(self.name, member.user):
+				frappe.throw("Lift the community ban before appointing this user")
 		before = self.get_doc_before_save()
 		if before and self.has_value_changed("archived_at"):
 			require_admin_to_publish(
@@ -199,6 +204,19 @@ class GPTeam(HasVisibility, Archivable, Document):
 			self.ensure_can_remove_admin(member)
 
 		member.is_admin = cint(is_admin)
+		self.save()
+
+	@frappe.whitelist(methods=["POST"])
+	@with_stored_document
+	def set_member_moderator(self, user, is_moderator):
+		require_can_manage_community(self)
+		member = self.get_member(user)
+		if not member:
+			frappe.throw(_("Member not found"))
+		if gameplan.is_anonymous(user) or gameplan.is_guest(user):
+			frappe.throw(_("Only community members can be moderators"))
+
+		member.is_moderator = int(bool(cint(is_moderator)))
 		self.save()
 
 	def get_member(self, user):

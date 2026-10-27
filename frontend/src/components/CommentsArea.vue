@@ -357,11 +357,24 @@ const composerStorageKey = computed(() => {
   return ['gameplan', 'comment-composer', sessionUser.name, props.doctype, props.name].join(':')
 })
 
+let commentsLoaded = false
 const comments = useList<GPComment>({
   doctype: 'GP Comment',
   url: publicListUrl('GP Comment'),
   cacheKey: isAnonymousVisitor() ? undefined : ['Comments', props.doctype, props.name],
-  fields: ['name', 'content', 'owner', 'creation', 'modified', 'edited_at', 'deleted_at'],
+  fields: [
+    'name',
+    'content',
+    'owner',
+    'creation',
+    'modified',
+    'edited_at',
+    'deleted_at',
+    'hidden_at',
+    'spam_removed_at',
+    'reference_doctype',
+    'reference_name',
+  ],
   transform(data) {
     return data.map((d) => ({ ...d, doctype: 'GP Comment' }))
   },
@@ -373,13 +386,16 @@ const comments = useList<GPComment>({
   start: publicPageStart(),
   limit: isAnonymousVisitor() ? PUBLIC_PAGE_SIZE : 99999,
   onSuccess() {
+    if (commentsLoaded) return
+    const linkedComment = comments.data?.find((c) => String(c.name) === route.query.comment)
+    if (route.query.comment && route.query.comment !== 'first_post' && !linkedComment) return
+    commentsLoaded = true
     if (route.query.comment) {
       if (route.query.comment === 'first_post') {
         router.replace({ query: route.query.page ? { page: route.query.page } : {} })
         return
       }
-      const comment = comments.data?.find((c) => String(c.name) === route.query.comment)
-      scrollToItem(comment)
+      scrollToItem(linkedComment)
     } else if (!route.query.fromSearch && comments.data?.length > 0) {
       scrollToEnd()
     }
@@ -672,6 +688,8 @@ async function submitComment() {
   await draft.commit()
   resetCommentState()
   tags.reload()
+  await comments.reload()
+  scrollToEnd()
 }
 
 async function scrollToEnd() {
@@ -858,6 +876,7 @@ onMounted(() => {
     // timeline silently stops updating. Compare as strings.
     if (data.reference_doctype === props.doctype && data.reference_name === String(props.name)) {
       activities.reload()
+      comments.reload()
     }
   })
 })
