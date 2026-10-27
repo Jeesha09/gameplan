@@ -10,6 +10,7 @@ from gameplan.gameplan.doctype.gp_unread_record.gp_unread_record import GPUnread
 from gameplan.mixins.activity import HasActivity
 from gameplan.mixins.archivable import check_if_space_is_archived
 from gameplan.mixins.attachments import HasAttachments
+from gameplan.mixins.backlinks import HasBacklinks
 from gameplan.mixins.mentions import HasMentions
 from gameplan.mixins.moderation import Moderatable
 from gameplan.mixins.reactions import HasReactions, get_reactions_on
@@ -30,7 +31,7 @@ from gameplan.utils.document import with_stored_document
 from gameplan.visibility import is_anonymous_eligible_space, require_admin_to_publish
 
 
-class GPDiscussion(Moderatable, HasActivity, HasAttachments, HasMentions, HasReactions, HasTags, Document):
+class GPDiscussion(Moderatable, HasActivity, HasAttachments, HasBacklinks, HasMentions, HasReactions, HasTags, Document):
 	# Class Configuration
 	# GP Activity is removed in on_trash, not here. See remove_all_activities.
 	on_delete_cascade = ["GP Comment", "GP Discussion Visit", "GP Discussion Subscription", "GP Poll"]
@@ -42,6 +43,7 @@ class GPDiscussion(Moderatable, HasActivity, HasAttachments, HasMentions, HasRea
 		"Discussion Pinned",
 		"Discussion Unpinned",
 		"Discussion Moved",
+		"Discussion Referenced",
 	]
 	mentions_field = "content"
 	tags_field = "content"
@@ -98,6 +100,7 @@ class GPDiscussion(Moderatable, HasActivity, HasAttachments, HasMentions, HasRea
 		self.remove_all_activities()
 		self.remove_all_reactions()
 		self.update_discussions_count()
+		frappe.db.delete("GP Backlink", {"discussion": self.name})
 		GPUnreadRecord.delete_unread_records_for_discussion(self.name)
 
 	def validate(self):
@@ -118,6 +121,7 @@ class GPDiscussion(Moderatable, HasActivity, HasAttachments, HasMentions, HasRea
 		# here rather than in after_insert because mentions have to run first to be skipped.
 		if self.flags.in_insert:
 			notify_new_discussion(self, reached)
+		self.log_backlink_activities()
 		self.log_title_update()
 		self.attach_files_in_content()
 		self.sync_unread_records_on_move()
@@ -133,6 +137,7 @@ class GPDiscussion(Moderatable, HasActivity, HasAttachments, HasMentions, HasRea
 		self.update_slug()
 		self.update_tags()
 		self.sanitize_content()
+		self.update_backlinks()
 
 	def sanitize_content(self):
 		from gameplan.utils.sanitizer import sanitize_content
@@ -201,6 +206,75 @@ class GPDiscussion(Moderatable, HasActivity, HasAttachments, HasMentions, HasRea
 		"""Return the edit history of `fieldname` (default: content) on this discussion."""
 		frappe.get_doc(self.doctype, self.name).check_permission("read")
 		return get_document_revisions(self.doctype, self.name, fieldname)
+
+	@frappe.whitelist()
+	@with_stored_document
+	def get_reference_activities(self):
+		activities = frappe.get_all(
+			"GP Activity",
+			filters={
+				"reference_doctype": self.doctype,
+				"reference_name": self.name,
+				"action": "Discussion Referenced",
+			},
+			fields=["name", "user", "action", "data", "creation"],
+		)
+		if not activities:
+			return []
+
+		for activity in activities:
+			activity.data = frappe.parse_json(activity.data)
+		sources, visible_comments = _get_visible_sources(
+			[activity.data["discussion"] for activity in activities],
+			[activity.data["comment"] for activity in activities if activity.data.get("comment")],
+		)
+
+		visible = []
+		for activity in activities:
+			comment = activity.data.get("comment")
+			if comment and str(comment) not in visible_comments:
+				continue
+			if source := sources.get(activity.data["discussion"]):
+				activity.data.update(title=source.title, project=source.project)
+				visible.append(activity)
+		return visible
+
+	@frappe.whitelist()
+	@with_stored_document
+	def get_backlinks(self):
+		rows = frappe.get_all(
+			"GP Backlink", filters={"discussion": self.name}, fields=["parent", "parenttype"]
+		)
+		posts = [str(row.parent) for row in rows if row.parenttype == "GP Discussion"]
+		sources, visible_comments = _get_visible_sources(
+			posts, [row.parent for row in rows if row.parenttype == "GP Comment"]
+		)
+
+		backlinks = []
+		for comment in visible_comments.values():
+			source = sources[str(comment.reference_name)]
+			backlinks.append(
+				frappe._dict(
+					comment=comment.name,
+					discussion=str(comment.reference_name),
+					owner=comment.owner,
+					creation=comment.creation,
+					title=source.title,
+					project=source.project,
+				)
+			)
+		for name in posts:
+			if source := sources.get(name):
+				backlinks.append(
+					frappe._dict(
+						discussion=name,
+						owner=source.owner,
+						creation=source.creation,
+						title=source.title,
+						project=source.project,
+					)
+				)
+		return sorted(backlinks, key=lambda b: b.creation, reverse=True)
 
 	@frappe.whitelist(methods=["POST"])
 	@with_stored_document
@@ -400,6 +474,36 @@ class GPDiscussion(Moderatable, HasActivity, HasAttachments, HasMentions, HasRea
 				"Discussion Title Changed",
 				data={"old_title": self.get_doc_before_save().title, "new_title": self.title},
 			)
+
+
+def _get_visible_sources(discussions, comments):
+	live_comments = {}
+	if comments:
+		live_comments = {
+			str(comment.name): comment
+			for comment in frappe.get_list(
+				"GP Comment",
+				filters={"name": ["in", comments], "deleted_at": ["is", "not set"]},
+				fields=["name", "reference_name", "owner", "creation"],
+			)
+		}
+
+	names = {str(name) for name in discussions}
+	names |= {str(comment.reference_name) for comment in live_comments.values()}
+	sources = {}
+	if names:
+		sources = {
+			str(discussion.name): discussion
+			for discussion in frappe.get_list(
+				"GP Discussion",
+				filters={"name": ["in", list(names)]},
+				fields=["name", "title", "project", "owner", "creation"],
+			)
+		}
+	visible_comments = {
+		name: comment for name, comment in live_comments.items() if str(comment.reference_name) in sources
+	}
+	return sources, visible_comments
 
 
 def on_doctype_update():

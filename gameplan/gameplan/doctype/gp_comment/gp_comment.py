@@ -13,6 +13,7 @@ from frappe.utils import cstr
 from gameplan.gameplan.doctype.gp_unread_record.gp_unread_record import GPUnreadRecord
 from gameplan.mixins.archivable import check_if_space_is_archived
 from gameplan.mixins.attachments import HasAttachments
+from gameplan.mixins.backlinks import HasBacklinks
 from gameplan.mixins.mentions import HasMentions
 from gameplan.mixins.moderation import Moderatable
 from gameplan.mixins.reactions import HasReactions
@@ -27,7 +28,7 @@ from gameplan.visibility import is_anonymous_eligible_discussion, require_admin_
 POLL_BLOCK = re.compile(r'<div\b[^>]*\bdata-type="poll"[^>]*>\s*</div>')
 
 
-class GPComment(Moderatable, HasAttachments, HasMentions, HasReactions, HasTags, Document):
+class GPComment(Moderatable, HasAttachments, HasBacklinks, HasMentions, HasReactions, HasTags, Document):
 	on_delete_cascade = ["GP Draft", "GP Poll"]
 	on_delete_set_null = ["GP Notification", "GP Discussion"]
 	mentions_field = "content"
@@ -73,6 +74,7 @@ class GPComment(Moderatable, HasAttachments, HasMentions, HasReactions, HasTags,
 	def before_save(self):
 		self.set_edited_at()
 		self.update_tags()
+		self.update_backlinks()
 
 	def update_discussion_meta(self):
 		if self.reference_doctype != "GP Discussion":
@@ -166,6 +168,7 @@ class GPComment(Moderatable, HasAttachments, HasMentions, HasReactions, HasTags,
 		if self.flags.in_insert and self.reference_doctype == "GP Discussion":
 			subscribe_on_participation(self.owner, self.reference_name)
 			notify_comment(self, reached)
+		self.log_backlink_activities()
 		self.attach_files_in_content()
 		self.sync_poll()
 
