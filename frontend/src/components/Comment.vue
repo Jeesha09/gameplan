@@ -125,9 +125,17 @@
       fieldname="content"
     />
   </div>
+  <ReportDialog
+    v-if="showReport"
+    v-model:open="showReport"
+    doctype="GP Comment"
+    :name="String(comment.name)"
+  />
 </template>
 
 <script setup lang="ts">
+import ReportDialog from './ReportDialog.vue'
+import { canReport } from '@/data/reporting'
 import { ref, computed, defineAsyncComponent, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Button, Dropdown, ErrorMessage, Tooltip, dayjsLocal, useDoctype } from 'frappe-ui'
@@ -161,6 +169,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const showReport = ref(false)
 const router = useRouter()
 const showRevisionsDialog = ref(false)
 const commentType = useDoctype<GPComment>('GP Comment')
@@ -311,6 +320,15 @@ const copyLink = (comment: GPComment) => {
 }
 
 const dropdownOptions = computed(() => [
+  {
+    label: 'Report',
+    icon: 'lucide-flag',
+    onClick: () => {
+      showReport.value = true
+    },
+    condition: () =>
+      props.comment.reference_doctype === 'GP Discussion' && canReport(props.comment, props.space),
+  },
   {
     label: 'Moderation history',
     icon: 'lucide-history',

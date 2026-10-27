@@ -120,6 +120,8 @@ after_migrate = ["gameplan.roles.sync_roles", "gameplan.mcp.sync_agent_instructi
 # Permissions evaluated in scripted ways
 
 permission_query_conditions = {
+	"File": "gameplan.approval_access.file_query_conditions",
+	"GP Submission": "gameplan.approval_access.query_conditions",
 	"GP Team": "gameplan.permissions.team_query_conditions",
 	"GP Project": "gameplan.permissions.project_query_conditions",
 	"GP Discussion": "gameplan.gameplan.doctype.gp_discussion.gp_discussion.get_permission_query_conditions",
@@ -140,6 +142,7 @@ permission_query_conditions = {
 }
 
 has_permission = {
+	"GP Submission": "gameplan.approval_access.has_permission",
 	"File": "gameplan.moderated_file.file_has_permission",
 	"GP Team": "gameplan.permissions.team_has_permission",
 	"GP Project": "gameplan.permissions.project_has_permission",
@@ -174,18 +177,35 @@ override_doctype_class = {"File": "gameplan.moderated_file.ModeratedFile"}
 # Hook on document methods and events
 
 doc_events = {
+	"GP Team": {"on_trash": "gameplan.approval_policy.delete_counters"},
 	"*": {
 		"on_trash": "gameplan.mixins.on_delete.on_trash",
 		"validate": "gameplan.community_bans.validate_participation",
 	},
 	# Discourse-style limits on Gameplan Guests posting in a space only because it is public.
 	"GP Discussion": {
-		"validate": "gameplan.new_user_limits.check_new_user_limits",
-		"after_insert": "gameplan.new_user_limits.record_first_day_post",
+		"on_trash": ["gameplan.reporting.protect_pending_reviews", "gameplan.slow_mode.clear_state"],
+		"before_insert": "gameplan.approval_policy.guard_publication",
+		"validate": ["gameplan.new_user_limits.check_new_user_limits", "gameplan.slow_mode.protect_settings"],
+		"after_insert": [
+			"gameplan.new_user_limits.record_first_day_post",
+			"gameplan.approval_policy.record_accepted",
+		],
 	},
 	"GP Comment": {
-		"validate": "gameplan.new_user_limits.check_new_user_limits",
-		"after_insert": "gameplan.new_user_limits.record_first_day_post",
+		"on_trash": [
+			"gameplan.reporting.protect_pending_reviews",
+			"gameplan.slow_mode.preserve_deleted_reply",
+		],
+		"before_insert": ["gameplan.approval_policy.guard_publication", "gameplan.slow_mode.record_reply"],
+		"validate": [
+			"gameplan.new_user_limits.check_new_user_limits",
+			"gameplan.reporting.protect_pending_reviews",
+		],
+		"after_insert": [
+			"gameplan.new_user_limits.record_first_day_post",
+			"gameplan.approval_policy.record_accepted",
+		],
 	},
 	"GP Poll": {
 		"validate": "gameplan.new_user_limits.check_new_user_limits",
@@ -196,6 +216,8 @@ doc_events = {
 		"on_trash": [
 			"gameplan.gameplan.doctype.gp_user_profile.gp_user_profile.delete_user_profile",
 			"gameplan.gameplan.doctype.gp_guest_access.gp_guest_access.on_user_delete",
+			"gameplan.approval_policy.delete_counters",
+			"gameplan.slow_mode.clear_state",
 		],
 		"on_update": "gameplan.gameplan.doctype.gp_user_profile.gp_user_profile.on_user_update",
 	},

@@ -322,9 +322,24 @@
       />
     </div>
   </div>
+  <SlowModeDialog
+    v-if="showSlowMode && discussion.doc"
+    v-model:open="showSlowMode"
+    :discussion="String(discussion.doc.name)"
+    @saved="discussion.reload()"
+  />
+  <ReportDialog
+    v-if="showReport && discussion.doc"
+    v-model:open="showReport"
+    doctype="GP Discussion"
+    :name="String(discussion.doc.name)"
+  />
 </template>
 
 <script setup lang="ts">
+import ReportDialog from './ReportDialog.vue'
+import SlowModeDialog from './SlowModeDialog.vue'
+import { canReport } from '@/data/reporting'
 import { call as moderationCall } from 'frappe-ui'
 import {
   ref,
@@ -507,6 +522,7 @@ const pinDialog = reactive<{
   show: false,
   pinToCategory: false,
 })
+const showSlowMode = ref(false)
 const showRevisionsDialog = ref(false)
 
 // While the post is being edited, its title/body live in an auto-saved draft instead of
@@ -895,7 +911,22 @@ function moderateDiscussion(spam = false) {
   })
 }
 
+const showReport = ref(false)
 const actions = computed(() => [
+  {
+    label: 'Report',
+    icon: 'lucide-flag',
+    onClick: () => {
+      showReport.value = true
+    },
+    condition: () => canReport(discussion.doc, space.value),
+  },
+  {
+    label: 'Slow mode',
+    icon: 'lucide-timer',
+    onClick: () => (showSlowMode.value = true),
+    condition: () => canModerateSpace(space.value, useSessionUser()),
+  },
   {
     label: 'Moderation history',
     icon: 'lucide-history',

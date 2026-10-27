@@ -109,6 +109,19 @@
             isComposerCollapsed ? '' : 'bg-surface-base sm:bg-transparent',
           ]"
         >
+          <p
+            v-if="slowStatus?.seconds"
+            class="mb-2 text-base text-ink-gray-6"
+            data-testid="slow-mode-status"
+          >
+            <template v-if="slowWait">Slow mode: you can reply again in {{ slowWait }}s.</template>
+            <template v-else-if="slowStatus.exempt"
+              >Slow mode is on. Moderators can reply without waiting.</template
+            >
+            <template v-else
+              >Slow mode: {{ slowModeLabel(slowStatus.seconds) }} between your replies.</template
+            >
+          </p>
           <div v-if="!showCommentBox" class="sm:-mx-3">
             <button
               type="button"
@@ -201,20 +214,23 @@
               :submitButtonProps="{
                 variant: 'solid',
                 onClick: submitComment,
-                loading: comments.insert.loading,
-                disabled: !canSubmit,
+                loading: comments.insert.loading || submittingReply,
+                disabled: !canSubmit || submittingReply,
               }"
               :discardButtonProps="{
                 onClick: discardComment,
               }"
-              :editable="!isDraftLoading"
+              :editable="!isDraftLoading && !submittingReply"
               :max-height="activeComposerEditorMaxHeightStyle"
               :min-height="activeComposerEditorMinHeightStyle"
               v-model:toolbar-expanded="composerToolbarExpanded"
               can-attach-poll
               placeholder="Add a comment..."
             />
-            <ErrorMessage class="mt-2" :message="extractServerMessage(comments.insert.error)" />
+            <ErrorMessage
+              class="mt-2"
+              :message="extractServerMessage(replyError || comments.insert.error)"
+            />
           </div>
         </div>
       </div>
@@ -236,7 +252,8 @@ import {
 } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useEventListener } from '@vueuse/core'
-import { useList, ErrorMessage, Button, Tooltip, type UseListOptions } from 'frappe-ui'
+import { useList, ErrorMessage, Button, Tooltip, call, toast, type UseListOptions } from 'frappe-ui'
+import { slowModeLabel, useSlowMode } from '@/data/slowMode'
 import CommentEditor from '@/components/editor/CommentEditor.vue'
 import Comment from './Comment.vue'
 import Activity from './Activity.vue'
@@ -248,10 +265,12 @@ import { GPActivity, GPBookmark, GPComment, GPPoll } from '@/types/doctypes'
 import type { Editor } from '@tiptap/vue-3'
 import { tags } from '@/data/tags'
 import { useRichQuotes } from '@/components/RichQuoteExtension/useRichQuotes'
+import { drafts } from '@/data/drafts'
 import { useDraftSync } from '@/data/useDraftSync'
 import { useSessionUser } from '@/data/users'
 import type { Space } from '@/data/spaces'
 import { extractServerMessage } from '@/utils'
+import { createRequestKey } from '@/utils/requestKey'
 import { useIsMobile } from '@/utils/useIsMobile'
 import {
   isPollDraftReady,
@@ -307,6 +326,14 @@ const props = withDefaults(defineProps<Props>(), {
   disableNewComment: false,
   hideNewComment: false,
 })
+
+const {
+  data: slowStatus,
+  remaining: slowWait,
+  refresh: refreshSlowMode,
+} = useSlowMode(() =>
+  props.doctype === 'GP Discussion' && !isAnonymousVisitor() ? String(props.name) : undefined,
+)
 
 const emit = defineEmits<{
   'composer-resize': []
@@ -529,7 +556,10 @@ const commentEmpty = computed(() => {
 const pollDraft = computed(() => pollDraftInContent(draftData.value?.content))
 
 const canSubmit = computed(
-  () => !commentEmpty.value && (!pollDraft.value || isPollDraftReady(pollDraft.value)),
+  () =>
+    !slowWait.value &&
+    !commentEmpty.value &&
+    (!pollDraft.value || isPollDraftReady(pollDraft.value)),
 )
 
 const editorObject = computed<Editor | null>(() => {
@@ -674,22 +704,55 @@ function resetCommentState() {
   highlightedItem.value = null
 }
 
+const submittingReply = ref(false)
+const replyError = ref<unknown>(null)
+const replyRequestKey = ref(createRequestKey())
 async function submitComment() {
-  if (!canSubmit.value || comments.insert.loading) return
-
-  const comment = await comments.insert.submit({
-    reference_doctype: props.doctype,
-    reference_name: props.name,
-    content: draftData.value?.content,
-  })
-  if (comments.insert.error || !comment?.name) return
-  if (pollDraft.value) polls.reload()
-
-  await draft.commit()
-  resetCommentState()
-  tags.reload()
-  await comments.reload()
-  scrollToEnd()
+  if (!canSubmit.value || comments.insert.loading || submittingReply.value) return
+  submittingReply.value = true
+  replyError.value = null
+  try {
+    let queued = false
+    if (props.doctype === 'GP Discussion') {
+      await draft.flush()
+      const result = await call<{ doctype: string; name: string }>('gameplan.approvals.submit', {
+        doctype: 'GP Comment',
+        request_key: draft.serverName.value
+          ? `draft:${draft.serverName.value}`
+          : replyRequestKey.value,
+        discussion: String(props.name),
+        content: draftData.value?.content,
+        draft: draft.serverName.value || '',
+      })
+      queued = result.doctype === 'GP Submission'
+    } else {
+      const comment = await comments.insert.submit({
+        reference_doctype: props.doctype,
+        reference_name: props.name,
+        content: draftData.value?.content,
+      })
+      if (comments.insert.error || !comment?.name) return
+    }
+    if (queued) {
+      const name = draft.serverName.value
+      await draft.forget()
+      if (name) drafts.removeRow(name)
+      toast.success('Submitted for moderator approval. Find it in My submissions.')
+    } else {
+      await draft.commit()
+      if (pollDraft.value) polls.reload()
+    }
+    replyRequestKey.value = createRequestKey()
+    resetCommentState()
+    tags.reload()
+    await comments.reload()
+    if (!queued) scrollToEnd()
+  } catch (e) {
+    replyError.value = e
+  } finally {
+    submittingReply.value = false
+    refreshSlowMode()
+  }
 }
 
 async function scrollToEnd() {
