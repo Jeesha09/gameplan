@@ -251,15 +251,15 @@ import {
   useTemplateRef,
 } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useEventListener } from '@vueuse/core'
-import { useList, ErrorMessage, Button, Tooltip, call, toast, type UseListOptions } from 'frappe-ui'
+import { useDebounceFn, useEventListener } from '@vueuse/core'
+import { useList, ErrorMessage, Button, Tooltip, call, toast, dialog } from 'frappe-ui'
 import { slowModeLabel, useSlowMode } from '@/data/slowMode'
 import CommentEditor from '@/components/editor/CommentEditor.vue'
 import Comment from './Comment.vue'
 import Activity from './Activity.vue'
 import Poll from './Poll.vue'
 import UserAvatar from './UserAvatar.vue'
-import { dialog, shellScrollContainer } from 'frappe-ui'
+import { shellScrollContainer } from 'frappe-ui'
 import { subscribeToDoc, useSocket, type NewActivityEvent } from '@/socket'
 import { GPActivity, GPBookmark, GPComment, GPPoll } from '@/types/doctypes'
 import type { Editor } from '@tiptap/vue-3'
@@ -267,6 +267,15 @@ import { tags } from '@/data/tags'
 import { useRichQuotes } from '@/components/RichQuoteExtension/useRichQuotes'
 import { drafts } from '@/data/drafts'
 import { useDraftSync } from '@/data/useDraftSync'
+import { refuseOffline } from '@/data/offline/requests'
+import {
+  ACTIVITY_FIELDS,
+  COMMENT_FIELDS,
+  POLL_FIELDS,
+  activitiesCacheKey,
+  commentsCacheKey,
+  pollsCacheKey,
+} from '@/data/discussionTimeline'
 import { useSessionUser } from '@/data/users'
 import type { Space } from '@/data/spaces'
 import { extractServerMessage } from '@/utils'
@@ -389,20 +398,8 @@ let commentsLoaded = false
 const comments = useList<GPComment>({
   doctype: 'GP Comment',
   url: publicListUrl('GP Comment'),
-  cacheKey: isAnonymousVisitor() ? undefined : ['Comments', props.doctype, props.name],
-  fields: [
-    'name',
-    'content',
-    'owner',
-    'creation',
-    'modified',
-    'edited_at',
-    'deleted_at',
-    'hidden_at',
-    'spam_removed_at',
-    'reference_doctype',
-    'reference_name',
-  ],
+  cacheKey: isAnonymousVisitor() ? undefined : commentsCacheKey(props.doctype, props.name),
+  fields: COMMENT_FIELDS,
   transform(data) {
     return data.map((d) => ({ ...d, doctype: 'GP Comment' }))
   },
@@ -438,10 +435,12 @@ const bookmarks = useList<GPBookmark>({
   limit: 99999,
 })
 
+
 const activities = useList<GPActivity>({
   doctype: 'GP Activity',
   immediate: !isAnonymousVisitor(),
-  fields: ['name', 'user', 'action', 'data', 'creation'],
+  cacheKey: isAnonymousVisitor() ? undefined : activitiesCacheKey(props.doctype, props.name),
+  fields: ACTIVITY_FIELDS,
   filters: {
     reference_doctype: props.doctype,
     reference_name: props.name,
@@ -463,30 +462,22 @@ const activities = useList<GPActivity>({
 // The parent bumps `activityVersion` with the doc's `modified` on every such action,
 // so reload the timeline when it changes (skipping the initial undefined -> value
 // transition on first load, when the list has already fetched on mount).
+// This and the `new_activity` socket event can fire for the same action; one debounced
+// reload keeps the second from aborting the first and leaving the cached timeline up.
+const reloadActivities = useDebounceFn(() => activities.reload(), 100)
+
 watch(
   () => props.activityVersion,
   (next, prev) => {
-    if (prev !== undefined && next !== prev && !isAnonymousVisitor()) activities.reload()
+    if (prev !== undefined && next !== prev && !isAnonymousVisitor()) reloadActivities()
   },
 )
-
-const pollFields: UseListOptions<GPPoll>['fields'] = [
-  'name',
-  'title',
-  'anonymous',
-  'multiple_answers',
-  'creation',
-  'owner',
-  'stopped_at',
-  'comment',
-  { options: ['name', 'title', 'idx', 'percentage'] },
-  { votes: ['user', 'option'] },
-]
 
 const polls = useList<GPPoll>({
   doctype: 'GP Poll',
   url: publicListUrl('GP Poll'),
-  fields: pollFields,
+  cacheKey: isAnonymousVisitor() ? undefined : pollsCacheKey(props.name),
+  fields: POLL_FIELDS,
   filters: () => ({
     discussion: props.name,
     comment: isAnonymousVisitor() ? ['is', 'not set'] : undefined,
@@ -710,7 +701,7 @@ const submittingReply = ref(false)
 const replyError = ref<unknown>(null)
 const replyRequestKey = ref(createRequestKey())
 async function submitComment() {
-  if (!canSubmit.value || comments.insert.loading || submittingReply.value) return
+  if (!canSubmit.value || comments.insert.loading || submittingReply.value || refuseOffline()) return
   submittingReply.value = true
   replyError.value = null
   discardError.value = null
@@ -720,8 +711,8 @@ async function submitComment() {
       await draft.flush()
       const result = await call<{ doctype: string; name: string }>('gameplan.approvals.submit', {
         doctype: 'GP Comment',
-        request_key: (draft.saved.value ? draft.name.value : null)
-          ? `draft:${(draft.saved.value ? draft.name.value : null)}`
+        request_key: draft.saved.value
+          ? `draft:${draft.name.value}`
           : replyRequestKey.value,
         discussion: String(props.name),
         content: draftData.value?.content,
@@ -737,7 +728,7 @@ async function submitComment() {
       if (comments.insert.error || !comment?.name) return
     }
     if (queued) {
-      const name = (draft.saved.value ? draft.name.value : null)
+      const name = draft.saved.value ? draft.name.value : null
       await draft.forget()
       if (name) drafts.removeRow(name)
       toast.success('Submitted for moderator approval. Find it in My submissions.')
@@ -842,6 +833,7 @@ async function discardComment() {
   if (!editorObject.value?.isEmpty) {
     dialog.danger({
       title: 'Discard comment',
+      worksOffline: true,
       message: 'Are you sure you want to discard your comment?',
       confirmLabel: 'Discard comment',
       cancelLabel: 'Keep comment',
@@ -944,7 +936,7 @@ onMounted(() => {
     // integer hand this component a number, so a strict compare never matches and the
     // timeline silently stops updating. Compare as strings.
     if (data.reference_doctype === props.doctype && data.reference_name === String(props.name)) {
-      activities.reload()
+      reloadActivities()
       comments.reload()
     }
   })

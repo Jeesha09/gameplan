@@ -68,7 +68,7 @@
   </router-view>
 </template>
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   BottomSheet,
@@ -90,6 +90,7 @@ import { isSpacePinned } from '@/data/pinnedSpaces'
 import { useCommunity } from '@/data/communities'
 import { useOwnedRouteWrites } from '@/composables/useOwnedRouteWrites'
 import { isPublicVisitor } from '@/utils/publicAccess'
+import { whenOnline } from '@/data/online'
 
 const props = defineProps<{
   communityId: string
@@ -134,7 +135,7 @@ function routeParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value
 }
 
-onMounted(() => {
-  if (!publicVisitor.value) trackSpaceVisit(props.spaceId)
+whenOnline(() => {
+  if (!publicVisitor.value) return trackSpaceVisit(props.spaceId).catch(() => {})
 })
 </script>

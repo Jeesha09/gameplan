@@ -79,7 +79,7 @@
         class="-mx-3"
         :filters="filters"
         :orderBy="() => discussionOrderBy"
-        :cacheKey="`Discussions-${communityId}-${feedType}`"
+        :cacheKey="communityFeedKey(communityId, feedType)"
         :key="JSON.stringify(filters)"
       />
     </KeepAlive>
@@ -106,14 +106,13 @@ import CommunityMenu from '@/components/CommunityMenu.vue'
 import DiscussionList from '@/components/DiscussionList.vue'
 import LastPostReminder from '@/components/LastPostReminder.vue'
 import PublicLoginButtons from '@/components/Public/PublicLoginButtons.vue'
+import { communityFeedKey, type FeedType } from '@/data/discussions'
 import { communityState } from '@/data/communityState'
 import { useCommunity } from '@/data/communities'
 import { discussionOrderBy, discussionSortOptions } from '@/data/discussionSort'
 import { getSpaceUnreadCount, spaces } from '@/data/spaces'
 import { fetchParticipatingUnreadCount, getParticipatingUnreadCount } from '@/data/unreadCount'
 import { isPublicVisitor } from '@/utils/publicAccess'
-
-type FeedType = 'recent' | 'unread' | 'participating'
 
 interface Props {
   communityId: string
