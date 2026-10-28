@@ -59,3 +59,19 @@ Use MariaDB for the presentation and concurrency checks.
 
 The local bench runbook contains demo accounts, addresses, service commands, and test results.
 It is stored outside the repository because it contains local credentials.
+
+## Validation snapshot
+
+The production frontend build and14 offline-worker tests pass. All six failures
+from the172-test browser run have passing superseding runs after integration fixes.
+The final focused browser run passes all19 tests.
+
+The full MariaDB run completes8 integration tests,1956 main tests, and142 legacy tests.
+Six linked-user field-permission subtests still fail because the framework returns
+`api_key: None` where they expect the field to be absent. The same failures reproduce
+on the original moderation branch. Two main tests are skipped. The existing
+TypeScript type check is not clean; the production build passes.
+
+The local Moonhollow presentation has a verified20-minute video in ten chapters,
+with30 individual feature parts. Its runbook, accounts, recordings, backups, and
+resume checkpoint remain outside Git.
