@@ -19,6 +19,7 @@ fixture directory.
 import json
 import os
 import re
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 
 import frappe
@@ -272,13 +273,53 @@ class Seeder:
 
 		frappe.set_user(actor)
 		try:
-			handler(event, actor, ts)
+			with self._historical_access(event, actor):
+				handler(event, actor, ts)
 		finally:
 			frappe.set_user("Administrator")
 
 		if ts is not None:
 			self._backdate_new_notifications(max_notification_before, ts)
 		self.counts[event_type] = self.counts.get(event_type, 0) + 1
+
+	@contextmanager
+	def _historical_access(self, event, actor):
+		"""Replay past participation without changing the fixture's final membership."""
+		from gameplan.permissions import can_view_space, get_content_project
+
+		target = event.get("on") or event.get("space")
+		project = None
+		if target in self.refs:
+			doc = frappe.get_doc(*self._ref(target))
+			project = doc.name if doc.doctype == "GP Project" else get_content_project(doc)
+		rows = []
+		try:
+			if project and not can_view_space(actor, project):
+				team = frappe.db.get_value("GP Project", project, "team")
+				if frappe.db.exists("Has Role", {"parent": actor, "role": "Gameplan Guest"}):
+					rows.append(
+						frappe.get_doc(
+							doctype="GP Guest Access", user=actor, project=project, team=team
+						).insert(ignore_permissions=True)
+					)
+				else:
+					for parenttype, parent in (("GP Team", team), ("GP Project", project)):
+						if not frappe.db.exists(
+							"GP Member", {"parenttype": parenttype, "parent": parent, "user": actor}
+						):
+							row = frappe.get_doc(
+								doctype="GP Member",
+								parenttype=parenttype,
+								parent=parent,
+								parentfield="members",
+								user=actor,
+							)
+							row.db_insert()
+							rows.append(row)
+			yield
+		finally:
+			for row in rows:
+				frappe.db.delete(row.doctype, {"name": row.name})
 
 	# ---- event handlers -----------------------------------------------------
 

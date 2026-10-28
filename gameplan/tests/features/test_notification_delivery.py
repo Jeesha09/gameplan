@@ -124,7 +124,7 @@ class TestHourlyBatch(DeliveryTestCase):
 		one, a discussion moved somewhere private is still offered to everyone who could see
 		where it used to be."""
 		self.mention_second_member()
-		private = create_space("Secret", self.community, is_private=1, members=[self.member])
+		private = create_space("Secret", self.community, visibility="Member Access", members=[self.member])
 
 		with self.as_user(self.member):
 			frappe.get_doc("GP Discussion", self.discussion.name).move_to_project(private.name)
@@ -291,7 +291,7 @@ class TestHourlyBatch(DeliveryTestCase):
 
 	def test_a_row_whose_space_the_user_lost_is_marked_skipped_not_sent(self):
 		private = create_space(
-			"Secret", self.community, is_private=1, members=[self.member, self.second_member]
+			"Secret", self.community, visibility="Member Access", members=[self.member, self.second_member]
 		)
 		with self.as_user(self.member):
 			secret = create_discussion("Plans", private)

@@ -100,6 +100,7 @@ const showAvatar = computed(() =>
 )
 
 function open() {
-  if (isOnline.value && !props.notification.read && route.value) emit('read', props.notification.name)
+  if (isOnline.value && !props.notification.read && route.value)
+    emit('read', props.notification.name)
 }
 </script>

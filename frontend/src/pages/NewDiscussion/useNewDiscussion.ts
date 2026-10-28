@@ -159,7 +159,8 @@ export function useNewDiscussion() {
     runWhenOwned(() => {
       // A deferred sync could land after the composer moved on to a different draft; never
       // point the URL at a draft this composer no longer holds.
-      if (draft.name.value !== name) return
+      if (isDeletingDraft.value || isPublishingSuccessfully.value || draft.name.value !== name)
+        return
       if (communityId.value) {
         router.replace({
           name: 'NewDiscussion',
@@ -286,11 +287,11 @@ export function useNewDiscussion() {
 
       let discussionId: string | undefined
       let queued = false
-      const draftRowName = (draft.saved.value ? draft.name.value : null)
-      if ((draft.saved.value ? draft.name.value : null)) {
+      const draftRowName = draft.saved.value ? draft.name.value : null
+      if (draft.saved.value ? draft.name.value : null) {
         isPublishingSuccessfully.value = true
         const result = await call<string | { doctype: string; name: string }>(PUBLISH_DRAFT, {
-          name: (draft.saved.value ? draft.name.value : null),
+          name: draft.saved.value ? draft.name.value : null,
         })
         queued = typeof result === 'object' && result.doctype === 'GP Submission'
         discussionId = typeof result === 'object' ? result.name : result
@@ -419,11 +420,11 @@ export function useNewDiscussion() {
     } finally {
       if (!cleared) isDeletingDraft.value = false
     }
-    if (cleared) leaveDraft()
+    if (cleared) await leaveDraft()
   }
 
   function leaveDraft() {
-    router.replace({ name: 'Drafts' })
+    return router.replace({ name: 'Drafts' })
   }
 
   function initialize() {

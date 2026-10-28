@@ -173,7 +173,7 @@ class TestDiscussionState(PreferenceTestCase):
 		self.assertEqual(self.notifications_for(self.member), [])
 
 	def test_a_watcher_who_cannot_see_the_space_is_not_told(self):
-		private = create_space("Secret", self.community, is_private=1, members=[self.member])
+		private = create_space("Secret", self.community, visibility="Member Access", members=[self.member])
 		with self.as_user(self.member):
 			hidden = create_discussion("Hidden", private)
 		self.subscribe(self.second_member, hidden, "Watch")
@@ -283,7 +283,7 @@ class TestSetNotificationState(PreferenceTestCase):
 			d = frappe.get_doc("GP Discussion", self.discussion.name).as_dict()
 		self.assertEqual(d.notification_state, "Mentions only")
 
-	def test_a_row_is_private_to_its_user(self):
+	def test_a_row_is_scoped_to_its_user(self):
 		row = self.subscribe(self.second_member, self.discussion, "Watch")
 
 		self.assert_permission(row, "read", self.second_member, True)

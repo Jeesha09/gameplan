@@ -47,6 +47,7 @@ type SocketEventName = keyof GameplanSocketEvents
 // isn't in the type, and every key in the type must appear here or nothing dispatches it.
 const GAMEPLAN_SOCKET_EVENTS = [
   'gameplan:unread_counts_changed',
+  'gameplan:notification_count_changed',
   'gameplan:notification_changed',
   'gameplan:users_changed',
 ] as const satisfies readonly SocketEventName[]

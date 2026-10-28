@@ -95,7 +95,8 @@ export function useDiscussions(options: UseDiscussionOptions) {
   const discussions = useList<Discussion>({
     url: '/api/v2/method/gameplan.gameplan.doctype.gp_discussion.api.get_discussions',
     doctype: 'GP Discussion',
-    cacheKey: !isAnonymousVisitor() && options.cacheKey ? discussionFeedKey(options.cacheKey) : undefined,
+    cacheKey:
+      !isAnonymousVisitor() && options.cacheKey ? discussionFeedKey(options.cacheKey) : undefined,
     filters: options.filters,
     limit: options.limit || FEED_LIMIT,
     start: options.start,

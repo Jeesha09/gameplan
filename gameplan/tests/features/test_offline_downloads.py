@@ -64,7 +64,7 @@ class OfflineDownloadsTestCase(GameplanTestCase):
 		self.outside = create_discussion("Rival thread", self.other_space, owner=self.second_member)
 		self.secret = create_discussion(
 			"Private thread",
-			create_space("Secret", self.community, is_private=1, members=[self.second_member]),
+			create_space("Secret", self.community, visibility="Member Access", members=[self.second_member]),
 			owner=self.second_member,
 		)
 
@@ -108,7 +108,7 @@ class TestOfflineIndex(OfflineDownloadsTestCase):
 		self.assertEqual(self.discussions(30), names([self.recent, self.elsewhere]))
 
 	def test_a_discussion_leaves_the_scope_with_its_space(self):
-		private = create_space("Secret", self.community, is_private=1, members=[self.member])
+		private = create_space("Secret", self.community, visibility="Member Access", members=[self.member])
 		secret = create_discussion("Secret thread", private, owner=self.member)
 		moved = create_discussion("Moved thread", self.joined, owner=self.member)
 		deleted = create_discussion("Deleted thread", self.not_joined, owner=self.member)
@@ -143,10 +143,10 @@ class TestOfflineIndex(OfflineDownloadsTestCase):
 
 	def test_revoked_follows_read_access_not_download_scope(self):
 		"""A visited discussion is revoked only when the user can no longer read it."""
-		private = create_space("Secret", self.community, is_private=1, members=[self.member])
+		private = create_space("Secret", self.community, visibility="Member Access", members=[self.member])
 		secret = create_discussion("Secret thread", private, owner=self.member)
 		gone = create_discussion("Gone thread", self.joined, owner=self.member)
-		locked = create_community("Locked", is_private=1, members=[self.member])
+		locked = create_community("Locked", visibility="Member Access", members=[self.member])
 		war_room = create_space("War Room", locked, members=[self.member])
 		locked_thread = create_discussion("Locked thread", war_room, owner=self.member)
 		# Readable but never downloaded: a public community they never joined.

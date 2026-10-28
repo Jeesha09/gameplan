@@ -36,6 +36,31 @@ class TestDemoPermissions(GameplanTestCase):
 		self.seeder._apply_deferred_archives()
 		self.addCleanup(frappe.db.rollback)
 
+	def test_historical_participation_does_not_restore_current_membership(self):
+		from gameplan.tests.fixtures import create_discussion
+
+		space = self.space("watercooler")
+		with self.as_user(self.admin):
+			discussion = create_discussion("Mascot export notes", space)
+		self.seeder.refs["historical-thread"] = ("GP Discussion", discussion.name)
+		dev = self.user("dev")
+		self.assertFalse(can_view_space(dev, space))
+		self.seeder._replay(
+			{
+				"type": "comment",
+				"id": "historical-reply",
+				"actor": "dev",
+				"on": "historical-thread",
+				"content": "<p>Export the tall coffee friend at 2x.</p>",
+			}
+		)
+		self.seeder._replay({"type": "react", "actor": "dev", "on": "historical-reply", "emoji": "👍"})
+		self.assertFalse(can_view_space(dev, space))
+		self.assertFalse(can_view_community(dev, space.team))
+		comment = frappe.get_doc(*self.seeder.refs["historical-reply"])
+		self.assertEqual(comment.owner, dev)
+		self.assertEqual(comment.get_reactions()[0].user, dev)
+
 	def test_all_nine_active_community_and_space_tier_combinations_exist(self):
 		combinations = set()
 		for event in self.events:

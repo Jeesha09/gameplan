@@ -26,7 +26,7 @@ describe('Writing while offline', () => {
   const composer = () => cy.get('.ProseMirror').last()
 
   it('keeps a reply typed offline and posts it on reconnect', () => {
-    cy.intercept('POST', '**/api/v2/document/GP%20Comment').as('postComment')
+    cy.intercept('POST', '**/api/method/gameplan.approvals.submit').as('postComment')
     cy.intercept('GET', '**/api/v2/document/GP%20Comment?*').as('comments')
 
     cy.button('Add a comment').click()

@@ -65,6 +65,7 @@ PUBLIC_FIELDS = {
 		"spam_removed_at",
 	},
 	"GP Comment": {
+		"highlighted_at",
 		"content",
 		"reference_doctype",
 		"reference_name",
@@ -89,7 +90,7 @@ AUTHOR_FIELDS = {
 	"GP Team": {"owner"},
 	"GP Project": {"owner"},
 	"GP Discussion": {"owner", "last_post_by", "closed_by", "pinned_by"},
-	"GP Comment": {"owner"},
+	"GP Comment": {"owner", "highlighted_by"},
 	"GP Poll": {"owner"},
 }
 
@@ -128,10 +129,14 @@ PRIVATE_FIELDS = {
 		"tasks_count": "tasks are never public",
 	},
 	"GP Discussion": {
+		"backlinks": "internal relationships; read through the scoped References endpoint",
 		"modified_by": "who last touched it, not who wrote it",
 		"slow_mode_seconds": "posting policy; signed-in readers fetch their own cooldown separately",
 	},
-	"GP Comment": {"modified_by": "who last touched it, not who wrote it"},
+	"GP Comment": {
+		"modified_by": "who last touched it, not who wrote it",
+		"backlinks": "internal relationships; read through the scoped References endpoint",
+	},
 	"GP Poll": {"modified_by": "who last touched it, not who wrote it"},
 }
 
@@ -219,7 +224,9 @@ def public_row(doctype, row, handles, files=None):
 	files = files or {}
 	cleaned = frappe._dict()
 	for key, value in row.items():
-		if key in AUTHOR_FIELDS[doctype]:
+		if doctype == "GP Discussion" and key == "highlighted_reply":
+			cleaned[key] = public_row("GP Comment", value, handles) if value else None
+		elif key in AUTHOR_FIELDS[doctype]:
 			cleaned[key] = handles.get(value)
 		elif key in TABLE_FIELDS[doctype]:
 			cleaned[key] = public_child_rows(TABLE_FIELDS[doctype][key], value)
@@ -248,7 +255,9 @@ def public_child_rows(child_doctype, rows):
 
 def collect_user_ids(doctype, row, user_ids):
 	for key, value in row.items():
-		if key in AUTHOR_FIELDS[doctype] and value:
+		if doctype == "GP Discussion" and key == "highlighted_reply" and value:
+			collect_user_ids("GP Comment", value, user_ids)
+		elif key in AUTHOR_FIELDS[doctype] and value:
 			user_ids.add(value)
 		elif key in RICH_TEXT_FIELDS and isinstance(value, str):
 			user_ids.update(user_ids_in_html(value))

@@ -159,7 +159,7 @@ describe('Drafts, one name each', () => {
 
   it('saves a new reply after the last one was posted as a draft of its own', () => {
     cy.intercept('POST', CREATE).as('create')
-    cy.intercept('POST', '**/api/v2/document/GP%20Comment').as('postComment')
+    cy.intercept('POST', '**/api/method/gameplan.approvals.submit').as('postComment')
     cy.then(() =>
       cy.visit(`/g/community/${community}/space/${space}/discussion/${discussion}/${slug}`),
     )

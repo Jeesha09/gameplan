@@ -7,7 +7,7 @@ import json
 import frappe
 from frappe import _
 from frappe.query_builder.functions import Count
-from frappe.utils import cint, cstr, split_emails, validate_email_address
+from frappe.utils import cint, split_emails, validate_email_address
 
 import gameplan
 from gameplan.gameplan.doctype.gp_invitation.gp_invitation import get_invitation, grant_access

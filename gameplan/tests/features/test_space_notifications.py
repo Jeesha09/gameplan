@@ -121,7 +121,7 @@ class TestNewDiscussion(SpaceNotificationTestCase):
 		self.assertEqual(self.notifications_for(self.second_member), [])
 
 	def test_a_subscriber_who_cannot_open_the_space_hears_nothing(self):
-		private = create_space("Secret", self.community, is_private=1, members=[self.member])
+		private = create_space("Secret", self.community, visibility="Member Access", members=[self.member])
 		self.subscribe(self.second_member, private)
 
 		self.start_discussion(self.member, space=private)
@@ -199,7 +199,7 @@ class TestMoved(SpaceNotificationTestCase):
 		self.assertEqual(self.notifications_for(self.second_member), [])
 
 	def test_a_subscriber_who_cannot_open_the_destination_is_not_told(self):
-		private = create_space("Secret", self.community, is_private=1, members=[self.admin])
+		private = create_space("Secret", self.community, visibility="Member Access", members=[self.admin])
 		self.subscribe(self.second_member, self.space)
 
 		self.move(self.admin, to=private)
@@ -223,7 +223,7 @@ class TestMoved(SpaceNotificationTestCase):
 
 class TestAdded(SpaceNotificationTestCase):
 	def test_being_added_to_a_space_is_news(self):
-		private = create_space("Secret", self.community, is_private=1, members=[self.admin])
+		private = create_space("Secret", self.community, visibility="Member Access", members=[self.admin])
 
 		with self.as_user(self.admin):
 			frappe.get_doc("GP Project", private.name).add_member(self.second_member.name)
@@ -384,7 +384,7 @@ class TestAccessLoss(SpaceNotificationTestCase):
 	def setUp(self):
 		super().setUp()
 		self.private = create_space(
-			"Secret", self.community, is_private=1, members=[self.admin, self.second_member]
+			"Secret", self.community, visibility="Member Access", members=[self.admin, self.second_member]
 		)
 		self.discussion = self.start_discussion(self.admin, space=self.private)
 		self.subscribe(self.second_member, self.private)
@@ -439,7 +439,9 @@ class TestAccessLoss(SpaceNotificationTestCase):
 		self.assertEqual(len(self.subscriptions_for(self.second_member, self.space)), 1)
 
 	def test_being_removed_from_a_private_community_forgets_every_space(self):
-		closed = create_community("Closed", is_private=1, members=[self.second_member], admins=[self.admin])
+		closed = create_community(
+			"Closed", visibility="Member Access", members=[self.second_member], admins=[self.admin]
+		)
 		closed_space = create_space("Lobby", closed)
 		self.subscribe(self.second_member, closed_space)
 

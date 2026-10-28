@@ -26,6 +26,7 @@ function guarded<T extends { onCancel?: () => void }>(open: (args: T) => unknown
 }
 
 export const dialog = {
+  prompt: guarded(frappeDialog.prompt),
   confirm: guarded(frappeDialog.confirm),
   danger: guarded(frappeDialog.danger),
 }

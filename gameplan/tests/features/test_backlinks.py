@@ -20,7 +20,7 @@ class BacklinkTestCase(GameplanTestCase):
 		self.community = create_community("Backlink Community", members=[self.member, self.second_member])
 		self.space = create_space("Open Space", self.community)
 		self.private_space = create_space(
-			"Private Space", self.community, is_private=1, members=[self.member]
+			"Private Space", self.community, visibility="Member Access", members=[self.member]
 		)
 		self.target = create_discussion("Q3 Roadmap", self.space, owner=self.member)
 		self.source = create_discussion("Hiring sync", self.space, owner=self.member)
@@ -32,6 +32,14 @@ class BacklinkTestCase(GameplanTestCase):
 	def referenced_activities(self):
 		filters = {"reference_name": self.target.name, "action": "Discussion Referenced"}
 		return frappe.get_all("GP Activity", filters=filters, pluck="data")
+
+	def test_hidden_reply_is_omitted_from_references_and_activity(self):
+		comment = create_comment(self.source, content=link_to(self.target))
+		with self.as_user(self.admin):
+			comment.hide("Review this reference")
+		self.assertEqual(self.backlinks(), [])
+		with self.as_user(self.member):
+			self.assertEqual(frappe.get_doc("GP Discussion", self.target.name).get_reference_activities(), [])
 
 	def test_comment_link_is_listed_on_target(self):
 		comment = create_comment(self.source, content=link_to(self.target))

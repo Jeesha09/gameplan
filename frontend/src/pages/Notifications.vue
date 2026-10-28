@@ -274,7 +274,8 @@ const activeList = computed(() =>
 )
 const loadFailure = useLoadFailure(activeList, 'notifications')
 const isInitialLoading = computed(
-  () => activeList.value.loading && (!activeList.value.data?.length || filtersChangedSinceLoad.value),
+  () =>
+    activeList.value.loading && (!activeList.value.data?.length || filtersChangedSinceLoad.value),
 )
 
 const emptyStateTitle = computed(() => {

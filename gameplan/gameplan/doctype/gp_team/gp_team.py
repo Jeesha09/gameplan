@@ -158,7 +158,9 @@ class GPTeam(HasVisibility, Archivable, Document):
 		self.save()
 		# A private community takes every space with it; a public one stays readable, so
 		# only the private spaces the user was just removed from are gone.
-		for project_name in self.get_project_names(is_private=None if self.is_private else 1):
+		for project_name in self.get_project_names(
+			visibility=None if is_member_access(self.visibility) else VISIBILITY_MEMBER_ACCESS
+		):
 			reset_space_for_user(project_name, user)
 
 	@frappe.whitelist(methods=["POST"])

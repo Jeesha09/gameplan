@@ -37,7 +37,9 @@ from gameplan.utils.document import with_stored_document
 from gameplan.visibility import is_anonymous_eligible_space, require_admin_to_publish
 
 
-class GPDiscussion(Moderatable, HasActivity, HasAttachments, HasBacklinks, HasMentions, HasReactions, HasTags, Document):
+class GPDiscussion(
+	Moderatable, HasActivity, HasAttachments, HasBacklinks, HasMentions, HasReactions, HasTags, Document
+):
 	# Class Configuration
 	# GP Activity is removed in on_trash, not here. See remove_all_activities.
 	on_delete_cascade = ["GP Comment", "GP Discussion Visit", "GP Discussion Subscription", "GP Poll"]
@@ -358,6 +360,7 @@ class GPDiscussion(Moderatable, HasActivity, HasAttachments, HasBacklinks, HasMe
 			).insert(ignore_permissions=True)
 
 		return {"notification_state": effective_discussion_state(user, self.name)}
+
 	@frappe.whitelist(methods=["POST"])
 	@with_stored_document
 	def highlight_comment(self, comment: str):
@@ -454,6 +457,10 @@ class GPDiscussion(Moderatable, HasActivity, HasAttachments, HasBacklinks, HasMe
 		return {"discussion": self.name, "user": frappe.session.user, "comment": ("is", "not set")}
 
 	def check_can_highlight_comment(self):
+		from gameplan.community_bans import require_participation
+
+		self.check_permission("read")
+		require_participation(self)
 		if not can_highlight_comment(frappe.session.user, self):
 			frappe.throw(
 				_("Only the author of this discussion can accept an answer."), frappe.PermissionError
@@ -467,6 +474,8 @@ class GPDiscussion(Moderatable, HasActivity, HasAttachments, HasBacklinks, HasMe
 				"reference_doctype": self.doctype,
 				"reference_name": self.name,
 				"deleted_at": ("is", "not set"),
+				"hidden_at": ("is", "not set"),
+				"spam_removed_at": ("is", "not set"),
 			},
 			["owner", "highlighted_at"],
 			as_dict=True,
@@ -492,6 +501,8 @@ class GPDiscussion(Moderatable, HasActivity, HasAttachments, HasBacklinks, HasMe
 				"reference_name": self.name,
 				"deleted_at": ("is", "not set"),
 				"highlighted_at": ("is", "set"),
+				"hidden_at": ("is", "not set"),
+				"spam_removed_at": ("is", "not set"),
 			},
 			["name", "owner", "content", "highlighted_by", "highlighted_at"],
 			as_dict=True,
@@ -582,7 +593,12 @@ def _get_visible_sources(discussions, comments):
 			str(comment.name): comment
 			for comment in frappe.get_list(
 				"GP Comment",
-				filters={"name": ["in", comments], "deleted_at": ["is", "not set"]},
+				filters={
+					"name": ["in", comments],
+					"deleted_at": ["is", "not set"],
+					"hidden_at": ["is", "not set"],
+					"spam_removed_at": ["is", "not set"],
+				},
 				fields=["name", "reference_name", "owner", "creation"],
 			)
 		}

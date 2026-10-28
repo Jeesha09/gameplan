@@ -168,6 +168,16 @@ class TestPublicPayloadClassification(GameplanTestCase):
 
 
 class TestPublicDocuments(PublicContentTestCase):
+	def test_public_accepted_answer_uses_profile_handles(self):
+		with self.as_user(self.member):
+			frappe.get_doc("GP Discussion", self.discussion.name).highlight_comment(str(self.comment.name))
+		with switched_on(), self.as_user(ANONYMOUS):
+			payload = frappe.get_doc("GP Discussion", self.discussion.name).as_dict()
+		answer = payload["highlighted_reply"]
+		self.assertEqual(answer["owner"], self.second_handle)
+		self.assertEqual(answer["highlighted_by"], self.member_handle)
+		self.assert_carries_no_user_ids(payload, "accepted answer")
+
 	def public_docs(self):
 		return [self.community, self.space, self.discussion, self.comment, self.poll]
 

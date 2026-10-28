@@ -36,6 +36,29 @@ class TestHighlightedComments(DiscussionLifecycleTestCase):
 			)
 		]
 
+	def test_hidden_answer_is_omitted_until_restored(self):
+		self.highlight(self.member, self.reply)
+		with self.as_user(self.admin):
+			self.reply.hide("Review this reply")
+		self.assertIsNone(self.stored().get_highlighted_reply())
+		with self.as_user(self.admin):
+			self.reply.restore()
+		self.assertEqual(self.stored().get_highlighted_reply()["name"], cstr(self.reply.name))
+
+	def test_hidden_reply_cannot_be_accepted(self):
+		with self.as_user(self.admin):
+			self.reply.hide("Review this reply")
+		with self.assertRaises(frappe.ValidationError):
+			self.highlight(self.member, self.reply)
+
+	def test_banned_author_cannot_accept_an_answer(self):
+		from gameplan.community_bans import set_ban
+
+		with self.as_user(self.admin):
+			set_ban(self.community.name, self.member.name, 1, "No participation")
+		with self.assertRaises(frappe.PermissionError):
+			self.highlight(self.member, self.reply)
+
 	def test_author_can_highlight_a_reply(self):
 		self.highlight(self.member, self.reply)
 

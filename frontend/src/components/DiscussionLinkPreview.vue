@@ -54,7 +54,7 @@ let closeTimer: ReturnType<typeof setTimeout> | undefined
 
 function discussionLink(target: EventTarget | null) {
   const link = (target as HTMLElement | null)?.closest?.('a[href]') as HTMLAnchorElement | null
-  if (!link) return null
+  if (!link?.closest('.ProseMirror')) return null
   const parsed = parseDiscussionUrl(link.href)
   return parsed ? { link, ...parsed } : null
 }

@@ -112,7 +112,7 @@ function toDraftRow(record: DraftRecord): DraftRow {
     space: space?.name ?? null,
     space_title: space?.title ?? null,
     community: space?.team ?? null,
-    is_private: space?.is_private ?? false,
+    visibility: space?.visibility ?? null,
     discussion: null,
   }
 }

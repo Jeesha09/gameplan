@@ -645,7 +645,7 @@ class TestSearchIndexLifecycle(IsolatedSearchIndex, GameplanTestCase):
 		inaccessible_space = create_space(
 			"Browse Inaccessible Search Space",
 			self.community,
-			is_private=1,
+			visibility="Member Access",
 			members=[self.member],
 		)
 		hidden = self.create_discussion(
@@ -663,7 +663,7 @@ class TestSearchIndexLifecycle(IsolatedSearchIndex, GameplanTestCase):
 		inaccessible_space = create_space(
 			"Injection Inaccessible Search Space",
 			self.community,
-			is_private=1,
+			visibility="Member Access",
 			members=[self.member],
 		)
 		self.create_discussion(

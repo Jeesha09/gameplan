@@ -16,7 +16,9 @@ export let unreadNotifications = useCall({
 })
 
 // Shared store: refresh the badge on reconnect even if its last load succeeded.
-onReconnect(() => !isAnonymousVisitor() && !unreadNotifications.loading && unreadNotifications.reload())
+onReconnect(
+  () => !isAnonymousVisitor() && !unreadNotifications.loading && unreadNotifications.reload(),
+)
 
 const listeners = new Set<() => void>()
 

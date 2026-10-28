@@ -448,7 +448,6 @@ const bookmarks = useList<GPBookmark>({
   limit: 99999,
 })
 
-
 const activities = useList<GPActivity>({
   doctype: 'GP Activity',
   immediate: !isAnonymousVisitor(),
@@ -473,13 +472,14 @@ const referenceActivities = useCall<GPActivity[]>({
   url: computed(
     () => `/api/v2/document/GP Discussion/${props.name}/method/get_reference_activities`,
   ),
-  immediate: props.doctype === 'GP Discussion',
+  immediate: props.doctype === 'GP Discussion' && !isAnonymousVisitor(),
 })
 
-function reloadActivities() {
+const reloadActivities = useDebounceFn(() => {
+  if (isAnonymousVisitor()) return
   activities.reload()
   if (props.doctype === 'GP Discussion') referenceActivities.reload()
-}
+}, 100)
 
 // The timeline normally updates live via the `new_activity` socket event (see
 // onMounted). Independent of that server round trip, the user who just
@@ -516,7 +516,7 @@ const embeddedPolls = isAnonymousVisitor()
   ? useList<GPPoll>({
       doctype: 'GP Poll',
       url: publicListUrl('GP Poll'),
-      fields: pollFields,
+      fields: POLL_FIELDS,
       filters: () => ({
         discussion: props.name,
         comment: ['in', (comments.data ?? []).filter((c) => !c.deleted_at).map((c) => c.name)],
@@ -727,7 +727,8 @@ const submittingReply = ref(false)
 const replyError = ref<unknown>(null)
 const replyRequestKey = ref(createRequestKey())
 async function submitComment() {
-  if (!canSubmit.value || comments.insert.loading || submittingReply.value || refuseOffline()) return
+  if (!canSubmit.value || comments.insert.loading || submittingReply.value || refuseOffline())
+    return
   submittingReply.value = true
   replyError.value = null
   discardError.value = null
@@ -737,9 +738,7 @@ async function submitComment() {
       await draft.flush()
       const result = await call<{ doctype: string; name: string }>('gameplan.approvals.submit', {
         doctype: 'GP Comment',
-        request_key: draft.saved.value
-          ? `draft:${draft.name.value}`
-          : replyRequestKey.value,
+        request_key: draft.saved.value ? `draft:${draft.name.value}` : replyRequestKey.value,
         discussion: String(props.name),
         content: draftData.value?.content,
         draft: (draft.saved.value ? draft.name.value : null) || '',
