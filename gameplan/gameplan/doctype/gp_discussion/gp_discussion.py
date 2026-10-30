@@ -623,6 +623,7 @@ def _get_visible_sources(discussions, comments):
 
 def on_doctype_update():
 	frappe.db.add_index("GP Discussion", ["project", "last_post_at"])
+	frappe.db.add_index("GP Discussion", ["owner"])
 
 
 def move_discussion(discussion, project):

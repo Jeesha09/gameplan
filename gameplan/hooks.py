@@ -196,7 +196,9 @@ doc_events = {
 		"after_insert": [
 			"gameplan.new_user_limits.record_first_day_post",
 			"gameplan.approval_policy.record_accepted",
+			"gameplan.activity_counts.refresh_owner_counts",
 		],
+		"after_delete": "gameplan.activity_counts.refresh_owner_counts",
 	},
 	"GP Comment": {
 		"on_trash": [
@@ -212,6 +214,8 @@ doc_events = {
 			"gameplan.new_user_limits.record_first_day_post",
 			"gameplan.approval_policy.record_accepted",
 		],
+		"on_update": "gameplan.activity_counts.refresh_reply_counts",
+		"after_delete": "gameplan.activity_counts.refresh_owner_counts",
 	},
 	"GP Poll": {
 		"validate": "gameplan.new_user_limits.check_new_user_limits",

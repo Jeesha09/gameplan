@@ -16,7 +16,6 @@ from gameplan.gameplan.doctype.gp_user_profile.gp_user_profile import (
 	NOTIFICATION_PREFERENCE_FIELDS,
 	save_my_notification_preferences,
 )
-from gameplan.gameplan.doctype.gp_user_profile.gp_user_profile import get_list as get_profile_list
 from gameplan.notifications.resolver import effective_discussion_state
 from gameplan.tests.base import GameplanTestCase
 from gameplan.tests.features.test_notifications import mention_html, quote_html
@@ -432,7 +431,6 @@ class TestPreferencesArePrivate(PreferenceTestCase):
 		with self.as_user(self.member):
 			for rows in (
 				get_list(doctype="GP User Profile", fields=fields, filters=filters),
-				get_profile_list(fields=fields, filters=filters),
 				frappe.client.get_list("GP User Profile", fields=fields, filters=filters),
 				reportview_execute("GP User Profile", fields=fields, filters=filters),
 			):

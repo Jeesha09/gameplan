@@ -8,12 +8,10 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.model.naming import append_number_if_name_exists
-from frappe.query_builder.functions import Count
 from frappe.utils import cint
 from frappe.website.utils import cleanup_page_name
 
 import gameplan
-from gameplan.extends.client import check_permissions
 from gameplan.mixins.attachments import HasAttachments
 from gameplan.new_user_limits import POST_COUNTER_FIELDS
 from gameplan.notifications import away
@@ -301,103 +299,6 @@ def on_user_update(doc, method=None):
 		# A rename changes what *other* sessions render, and their cached user list has
 		# no other reason to refetch.
 		notify_users_changed(profile.name)
-
-
-@frappe.whitelist()
-def get_list(
-	fields: list | str | None = None,
-	filters: dict | list | str | None = None,
-	order_by: str | None = None,
-	start: int = 0,
-	limit: int = 20,
-	group_by: str | None = None,
-	parent: str | None = None,
-	debug: bool = False,
-):
-	"""List user profiles with their discussion and comment counts."""
-	# Hinted so frappe checks the types at the boundary, and wide enough for how they
-	# arrive: useList sends fields and filters as GET query strings (like get_discussions).
-	doctype = "GP User Profile"
-	check_permissions(doctype, parent)
-	query = frappe.qb.get_query(
-		table=doctype,
-		fields=frappe.parse_json(fields) if fields else None,
-		filters=frappe.parse_json(filters) if filters else None,
-		order_by=order_by,
-		offset=start,
-		limit=limit,
-		group_by=group_by,
-		# Fields and filters come from the client and may follow links (`user.last_ip`):
-		# checked, so they reach no more of another doctype than the user may read.
-		ignore_permissions=False,
-	)
-	data = query.run(as_dict=True, debug=debug)
-	if not data:
-		return data
-	users = [d.user for d in data]
-
-	Discussion = frappe.qb.DocType("GP Discussion")
-	discussions_count = (
-		frappe.qb.from_(Discussion)
-		.select(Count(Discussion.name).as_("count"), Discussion.owner)
-		.where(Discussion.owner.isin(users))
-		.groupby(Discussion.owner)
-	).run(as_dict=True)
-	discussions_by_user = {d.owner: d.count for d in discussions_count}
-
-	Comment = frappe.qb.DocType("GP Comment")
-	comments_count = (
-		frappe.qb.from_(Comment)
-		.select(Count(Comment.name).as_("count"), Comment.owner)
-		.where(Comment.owner.isin(users) & Comment.deleted_at.isnull())
-		.groupby(Comment.owner)
-	).run(as_dict=True)
-	comments_by_user = {d.owner: d.count for d in comments_count}
-
-	Reaction = frappe.qb.DocType("GP Reaction")
-	reactions_given = (
-		frappe.qb.from_(Reaction)
-		.select(Count(Reaction.name).as_("count"), Reaction.user)
-		.where(Reaction.user.isin(users))
-		.groupby(Reaction.user)
-	).run(as_dict=True)
-	reactions_given_by_user = {r.user: r.count for r in reactions_given}
-
-	reactions_received_by_user = {}
-
-	discussion_reactions = (
-		frappe.qb.from_(Reaction)
-		.join(Discussion)
-		.on(Discussion.name == Reaction.reference_name)
-		.select(Count(Reaction.name).as_("count"), Discussion.owner)
-		.where((Reaction.reference_doctype == "GP Discussion") & Discussion.owner.isin(users))
-		.groupby(Discussion.owner)
-	).run(as_dict=True)
-	for r in discussion_reactions:
-		reactions_received_by_user[r.owner] = reactions_received_by_user.get(r.owner, 0) + r.count
-
-	comment_reactions = (
-		frappe.qb.from_(Reaction)
-		.join(Comment)
-		.on(Comment.name == Reaction.reference_name)
-		.select(Count(Reaction.name).as_("count"), Comment.owner)
-		.where(
-			(Reaction.reference_doctype == "GP Comment")
-			& Comment.owner.isin(users)
-			& Comment.deleted_at.isnull()
-		)
-		.groupby(Comment.owner)
-	).run(as_dict=True)
-	for r in comment_reactions:
-		reactions_received_by_user[r.owner] = reactions_received_by_user.get(r.owner, 0) + r.count
-
-	for user in data:
-		user.discussions_count = discussions_by_user.get(user.user, 0)
-		user.comments_count = comments_by_user.get(user.user, 0)
-		user.reactions_given = reactions_given_by_user.get(user.user, 0)
-		user.reactions_received = reactions_received_by_user.get(user.user, 0)
-
-	return data
 
 
 @frappe.whitelist(methods=["GET", "POST"])

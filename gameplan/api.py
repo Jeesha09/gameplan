@@ -11,6 +11,7 @@ from frappe.query_builder.functions import Count, Min
 from frappe.utils import cint, split_emails, validate_email_address
 
 import gameplan
+from gameplan.activity_counts import ACTIVITY_COUNT_FIELDS
 from gameplan.gameplan.doctype.gp_invitation.gp_invitation import get_invitation, grant_access
 from gameplan.realtime import notify_notification_changed, unread_notification_count
 from gameplan.roles import GAMEPLAN_ROLES, has_app_access
@@ -251,6 +252,44 @@ def get_member_count():
 
 def clear_member_count():
 	frappe.cache.delete_value(MEMBER_COUNT_CACHE_KEY)
+
+
+PEOPLE_ORDER = ("full_name", "modified", *ACTIVITY_COUNT_FIELDS)
+
+
+@frappe.whitelist()
+def get_people(
+	query: str = "",
+	order_by: str = "modified",
+	descending: bool = True,
+	start: int = 0,
+	limit: int = 50,
+):
+	"""Page through members and admins for the People page, with their post, reply and reaction counts."""
+	if not has_app_access():
+		frappe.throw("Not permitted", frappe.PermissionError)
+	if order_by not in PEOPLE_ORDER:
+		frappe.throw(_("order_by must be one of {0}").format(", ".join(PEOPLE_ORDER)))
+	frappe.has_permission("GP User Profile", "read", throw=True)
+
+	Profile = frappe.qb.DocType("GP User Profile")
+	return (
+		frappe.qb.from_(Profile)
+		.select(
+			Profile.name,
+			Profile.user,
+			Profile.bio,
+			Profile.modified,
+			*(Profile[field] for field in ACTIVITY_COUNT_FIELDS),
+		)
+		.where(Profile.user.isin(user_search_query(query, include_guests=False)))
+		.orderby(Case().when(Profile.user == frappe.session.user, 0).else_(1))
+		.orderby(Profile[order_by], order=Order.desc if descending else Order.asc)
+		.orderby(Profile.name)
+		.offset(max(start, 0))
+		.limit(min(max(limit, 1), USER_INFO_BATCH_LIMIT))
+		.run(as_dict=True)
+	)
 
 
 def match_rank(field, query):

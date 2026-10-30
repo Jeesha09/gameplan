@@ -1,14 +1,12 @@
 # Copyright (c) 2022, Frappe Technologies Pvt Ltd and Contributors
 # See license.txt
 
-import json
-
 import frappe
 
-from gameplan.api import disable_user, get_user_info
+from gameplan.activity_counts import ACTIVITY_COUNT_FIELDS, backfill_activity_counts
+from gameplan.api import disable_user, get_people, get_user_info
 from gameplan.gameplan.doctype.gp_user_profile.gp_user_profile import (
 	get_bento_cards,
-	get_list,
 	get_my_bento_cards,
 	has_permission,
 	reset_my_bento_cards,
@@ -18,7 +16,16 @@ from gameplan.gameplan.doctype.gp_user_profile.patches.bind_starter_bento_cards 
 	execute as bind_starter_bento_cards,
 )
 from gameplan.tests.base import GameplanTestCase
-from gameplan.tests.fixtures import create_member
+from gameplan.tests.fixtures import (
+	create_comment,
+	create_community,
+	create_discussion,
+	create_guest,
+	create_member,
+	create_space,
+)
+
+THUMBS_UP_ADD = {"emoji": "👍", "operation": "add"}
 
 
 def get_profile(user):
@@ -723,53 +730,65 @@ class TestProfiles(GameplanTestCase):
 		self.assertEqual([card["id"] for card in response["cards"]], ["intro"])
 
 
-class TestGetListQueryParams(GameplanTestCase):
-	"""`get_list` serves frappe-ui's `useList`, which sends its arguments as GET query
-	strings: `fields`/`filters` arrive JSON-encoded and `start`/`limit` as strings, not
-	as the `dict`/`int` shapes the query builder wants."""
-
+class TestPeople(GameplanTestCase):
 	def setUp(self):
 		super().setUp()
-		self.alice = create_member("test_alice_getlist@example.com", "Alice Getlist")
-		self.bob = create_member("test_bob_getlist@example.com", "Bob Getlist")
-		frappe.set_user(self.alice.name)
+		self.alice = create_member("test_alice_people@example.com", "Alice People")
+		self.bob = create_member("test_bob_people@example.com", "Bob People")
+		self.guest = create_guest("test_guest_people@example.com", "Guest People")
+		community = create_community("People Community", members=[self.alice, self.bob])
+		self.space = create_space("People Space", community, members=[self.alice, self.bob])
 
-	def test_accepts_json_stringified_fields_and_filters_with_string_pagination(self):
-		result = get_list(
-			fields=json.dumps(["name", "user"]),
-			filters=json.dumps({"user": self.alice.name}),
-			start="0",
-			limit="5",
+	def counts(self, user):
+		return frappe.db.get_value(
+			"GP User Profile", {"user": user.name}, list(ACTIVITY_COUNT_FIELDS), as_dict=True
 		)
 
-		self.assertEqual(len(result), 1)
-		self.assertEqual(result[0]["user"], self.alice.name)
+	def test_counts_follow_posts_replies_and_reactions(self):
+		with self.as_user(self.alice):
+			discussion = create_discussion("Alice's post", self.space)
+		with self.as_user(self.bob):
+			comment = create_comment(discussion)
+			frappe.get_doc("GP Discussion", discussion.name).react(operations=[THUMBS_UP_ADD])
+		with self.as_user(self.alice):
+			frappe.get_doc("GP Comment", comment.name).react(operations=[THUMBS_UP_ADD])
 
-	def test_still_accepts_native_dict_filters_and_int_pagination(self):
-		"""A direct Python call passes them unencoded."""
-		result = get_list(fields=["name", "user"], filters={"user": self.bob.name}, start=0, limit=5)
-
-		self.assertEqual(len(result), 1)
-		self.assertEqual(result[0]["user"], self.bob.name)
-
-	def test_reads_nothing_of_another_users_account_through_a_link(self):
-		frappe.db.set_value("User", self.bob.name, "last_ip", "203.0.113.7", update_modified=False)
-
-		rows = get_list(
-			fields=json.dumps(["name", "user.last_ip"]), filters=json.dumps({"user": self.bob.name})
+		self.assertEqual(
+			self.counts(self.alice),
+			{"discussions_count": 1, "comments_count": 0, "reactions_received": 1, "reactions_given": 1},
 		)
-		self.assertIsNone(rows[0].get("last_ip"))
-		# Nor one character at a time, through a filter.
-		self.assertEqual(get_list(fields=["name"], filters={"user.last_ip": ["like", "203.%"]}), [])
+		self.assertEqual(
+			self.counts(self.bob),
+			{"discussions_count": 0, "comments_count": 1, "reactions_received": 1, "reactions_given": 1},
+		)
 
-	def test_defaults_still_work_when_every_argument_is_omitted(self):
-		# Just needs to not raise - the default `limit=20` means a specific row (e.g.
-		# self.alice's) isn't guaranteed to be in this page on a site with more than 20
-		# profiles, so this only checks the call succeeds and shapes a list.
-		result = get_list()
+		frappe.delete_doc("GP Comment", comment.name, ignore_permissions=True)
 
-		self.assertIsInstance(result, list)
-		self.assertLessEqual(len(result), 20)
+		self.assertEqual(self.counts(self.bob)["comments_count"], 0)
+		self.assertEqual(self.counts(self.bob)["reactions_received"], 0)
+		self.assertEqual(self.counts(self.alice)["reactions_given"], 0)
+
+	def test_lists_members_with_the_session_user_first_and_no_guests(self):
+		with self.as_user(self.bob):
+			create_discussion("Bob's post", self.space)
+		with self.as_user(self.alice):
+			rows = get_people(query="People", order_by="discussions_count")
+
+		self.assertEqual([row.user for row in rows], [self.alice.name, self.bob.name])
+		self.assertEqual(rows[1].discussions_count, 1)
+
+	def test_refuses_an_unknown_sort(self):
+		with self.as_user(self.alice), self.assertRaises(frappe.ValidationError):
+			get_people(order_by="name; drop table")
+
+	def test_backfill_matches_the_live_counts(self):
+		with self.as_user(self.alice):
+			create_comment(create_discussion("Backfilled", self.space))
+		frappe.db.set_value("GP User Profile", {"user": self.alice.name}, "comments_count", 9)
+
+		backfill_activity_counts()
+
+		self.assertEqual(self.counts(self.alice)["comments_count"], 1)
 
 
 class TestCustomEmojis(GameplanTestCase):

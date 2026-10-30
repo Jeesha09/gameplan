@@ -15,3 +15,4 @@ class GPReaction(Document):
 
 def on_doctype_update():
 	frappe.db.add_index("GP Reaction", ["reference_doctype", "reference_name"])
+	frappe.db.add_index("GP Reaction", ["user"])

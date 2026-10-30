@@ -61,7 +61,7 @@ READ_ONLY_ENDPOINTS = frozenset(
 		"gameplan.extends.client.get_list",
 		"gameplan.gameplan.doctype.gp_discussion.api.get_discussions",
 		"gameplan.gameplan.doctype.gp_task.gp_task.get_list",
-		"gameplan.gameplan.doctype.gp_user_profile.gp_user_profile.get_list",
+		"gameplan.api.get_people",
 		# Scoped moderation reads.
 		"gameplan.moderation.community_bans",
 		"gameplan.reporting.queue",

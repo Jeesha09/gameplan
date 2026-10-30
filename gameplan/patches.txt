@@ -55,3 +55,4 @@ gameplan.gameplan.doctype.gp_notification.patches.backfill_project_and_team
 gameplan.gameplan.doctype.gp_user_profile.patches.set_notification_defaults
 gameplan.patches.drop_search_index_for_sort_columns
 gameplan.gameplan.doctype.gp_backlink.patches.backfill_backlinks
+gameplan.gameplan.doctype.gp_user_profile.patches.backfill_activity_counts

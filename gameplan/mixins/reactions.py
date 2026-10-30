@@ -6,6 +6,7 @@ import frappe
 from frappe import _
 from frappe.query_builder import Criterion
 
+from gameplan.activity_counts import queue_activity_counts
 from gameplan.notifications import records
 from gameplan.notifications.preferences import wants_content_feedback
 from gameplan.utils.document import with_stored_document
@@ -74,6 +75,8 @@ class HasReactions:
 				user=user,
 			).insert(ignore_permissions=True)
 
+		if added or removed:
+			queue_activity_counts([user, self.owner])
 		reactions = self.get_reactions(for_update=True)
 		self.notify_reactions(reactions, added={(user, emoji) for emoji in added})
 		return reactions
@@ -94,7 +97,10 @@ class HasReactions:
 		delete, and only System Manager may delete GP Reaction rows. It runs in on_trash,
 		before frappe's dynamic link check would refuse the delete over these rows.
 		"""
-		frappe.db.delete("GP Reaction", {"reference_doctype": self.doctype, "reference_name": str(self.name)})
+		filters = {"reference_doctype": self.doctype, "reference_name": str(self.name)}
+		users = frappe.get_all("GP Reaction", filters=filters, pluck="user")
+		frappe.db.delete("GP Reaction", filters)
+		queue_activity_counts([*users, self.owner])
 
 	def notify_reactions(self, reactions, added):
 		"""Tell the post owner about the `added` (user, emoji) keys, given all `reactions`."""
