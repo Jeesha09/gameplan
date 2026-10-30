@@ -105,6 +105,13 @@
           </Button>
           <CommentEditor v-if="hiddenContent" :value="hiddenContent" :editable="false" />
         </div>
+        <div
+          v-else-if="comment.deleted_at == null && !editorMounted && !isEditing"
+          ref="contentPreview"
+          data-slot="editor-content"
+          class="ProseMirror prose-v3 max-w-none relative !whitespace-normal"
+          v-html="comment.content"
+        />
         <CommentEditor
           v-else-if="comment.deleted_at == null"
           :quote-source-id="`comment:${comment.name}`"
@@ -148,9 +155,18 @@
 <script setup lang="ts">
 import ReportDialog from './ReportDialog.vue'
 import { canReport } from '@/data/reporting'
-import { ref, computed, defineAsyncComponent, watch } from 'vue'
+import { ref, computed, defineAsyncComponent, useTemplateRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Button, Dropdown, ErrorMessage, Tooltip, dayjsLocal, useDoctype } from 'frappe-ui'
+import { useIntersectionObserver } from '@vueuse/core'
+import {
+  Button,
+  Dropdown,
+  ErrorMessage,
+  Tooltip,
+  dayjsLocal,
+  shellScrollContainer,
+  useDoctype,
+} from 'frappe-ui'
 import { useList } from 'frappe-ui'
 import { copyToClipboard, extractServerMessage } from '@/utils'
 import UserProfileLink from './UserProfileLink.vue'
@@ -192,6 +208,17 @@ const emit = defineEmits<{
   'show-highlight': []
 }>()
 const isHighlighted = computed(() => props.highlightedReply === String(props.comment.name))
+const contentPreview = useTemplateRef<HTMLElement>('contentPreview')
+const editorMounted = ref(false)
+const { stop: stopObservingPreview } = useIntersectionObserver(
+  contentPreview,
+  ([entry]) => {
+    if (!entry?.isIntersecting) return
+    editorMounted.value = true
+    stopObservingPreview()
+  },
+  { root: shellScrollContainer, rootMargin: '100% 0px' },
+)
 const showRevisionsDialog = ref(false)
 const commentType = useDoctype<GPComment>('GP Comment')
 const hiddenContent = ref('')
