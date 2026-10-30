@@ -46,6 +46,8 @@ READ_ONLY_ENDPOINTS = frozenset(
 	{
 		# Directory and notification reads.
 		"gameplan.api.get_user_info",
+		"gameplan.api.search_users",
+		"gameplan.api.get_member_count",
 		"gameplan.api.unread_notifications",
 		"gameplan.api.get_notifications",
 		"gameplan.api.get_unsplash_photos",
