@@ -145,13 +145,21 @@ class TestMentionNotifications(NotificationTestCase):
 		self.assertEqual(len(self.notifications_for(self.second_member)), 1)
 
 	def test_everyone_mention_notifies_the_other_members_but_not_the_author(self):
+		space = create_space("Joined", self.community, members=[self.member, self.second_member])
 		with self.as_user(self.member):
-			create_discussion("Everyone thread", self.space, content=mention_html("_everyone_", "Everyone"))
+			create_discussion("Everyone thread", space, content=mention_html("_everyone_", "Everyone"))
 
 		rows = self.notifications_for(self.second_member)
 		self.assertEqual(len(rows), 1)
 		self.assertIn("mentioned everyone", rows[0].message)
 		self.assertEqual(self.notifications_for(self.member), [])
+
+	def test_everyone_mention_skips_people_who_have_not_joined_the_space(self):
+		space = create_space("Joined", self.community, members=[self.member])
+		with self.as_user(self.member):
+			create_discussion("Everyone thread", space, content=mention_html("_everyone_", "Everyone"))
+
+		self.assertEqual(self.notifications_for(self.second_member), [])
 
 	def test_everyone_mention_skips_users_who_cannot_see_the_space(self):
 		"""An @everyone in a private space must not reach the whole site.
@@ -186,7 +194,9 @@ class TestMentionNotifications(NotificationTestCase):
 		private_community = create_community(
 			"Black Ops", visibility=VISIBILITY_MEMBER_ACCESS, members=[self.member, self.second_member]
 		)
-		space = create_space("Recon", private_community)
+		space = create_space(
+			"Recon", private_community, members=[self.member, self.second_member, self.outsider]
+		)
 		self.assertEqual(
 			space.visibility, VISIBILITY_GENERAL, "the space must stay General — the community is the gate"
 		)
@@ -299,13 +309,15 @@ class TestEveryoneMentionQueryCount(NotificationTestCase):
 	genuinely one insert per recipient and is supposed to scale.
 	"""
 
-	# The six reads users_who_can_view_content needs, whatever the member list holds:
-	# the active-user roster, GP Project (name/team/visibility), the GP Project and
-	# GP Team membership rows, GP Guest Access, and GP Team.visibility.
-	AUDIENCE_QUERY_BUDGET = 6
+	# The eight reads, whatever the member list holds: the space's members and guests,
+	# which of them are enabled, then users_who_can_view_space's GP Project
+	# (name/team/visibility), GP Project and GP Team membership rows, GP Guest Access,
+	# and GP Team.visibility.
+	AUDIENCE_QUERY_BUDGET = 8
 
 	def test_everyone_audience_query_count_does_not_grow_with_the_member_list(self):
-		discussion = create_discussion("Everyone thread", self.space, owner=self.member)
+		space = create_space("Joined", self.community, members=[self.member, self.second_member])
+		discussion = create_discussion("Everyone thread", space, owner=self.member)
 		doc = frappe.get_doc("GP Discussion", discussion.name)
 
 		# Resolve once before every measurement: the first call to see a newly created
@@ -320,10 +332,10 @@ class TestEveryoneMentionQueryCount(NotificationTestCase):
 		extra_members = [
 			create_member(f"everyone_scale_{index}@example.com", f"Scale {index}") for index in range(20)
 		]
-		community = frappe.get_doc("GP Team", self.community.name)
+		space = frappe.get_doc("GP Project", space.name)
 		for user in extra_members:
-			community.append("members", {"user": user.name})
-		community.save(ignore_permissions=True)
+			space.append("members", {"user": user.name})
+		space.save(ignore_permissions=True)
 
 		doc._everyone_audience()
 		with patch.object(frappe.db, "sql", wraps=frappe.db.sql) as queries:

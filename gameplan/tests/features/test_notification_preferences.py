@@ -139,10 +139,13 @@ class TestDiscussionState(PreferenceTestCase):
 		self.assertEqual(self.notifications_for(self.second_member), [])
 
 	def test_a_muted_discussion_blocks_everyone(self):
-		self.subscribe(self.second_member, self.discussion, "Mute")
+		space = create_space("Joined", self.community, members=[self.member, self.second_member, self.admin])
+		with self.as_user(self.member):
+			discussion = create_discussion("Everyone thread", space)
+		self.subscribe(self.second_member, discussion, "Mute")
 
 		with self.as_user(self.member):
-			create_comment(self.discussion, content=mention_html("_everyone_", "Everyone"))
+			create_comment(discussion, content=mention_html("_everyone_", "Everyone"))
 
 		self.assertEqual(self.notifications_for(self.second_member), [])
 		self.assertEqual([r.type for r in self.notifications_for(self.admin)], ["Mention"])
