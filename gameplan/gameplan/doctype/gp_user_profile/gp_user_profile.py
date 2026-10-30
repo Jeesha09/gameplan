@@ -288,6 +288,9 @@ def delete_user_profile(doc, method=None):
 
 
 def on_user_update(doc, method=None):
+	from gameplan.api import clear_member_count
+
+	clear_member_count()
 	create_user_profile(doc)
 	if any(doc.has_value_changed(field) for field in ["full_name", "enabled"]):
 		profile = frappe.get_doc("GP User Profile", {"user": doc.name})

@@ -13,7 +13,7 @@ from unittest.mock import patch
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
-from gameplan.api import change_user_role, disable_user, get_user_info, invite_by_email
+from gameplan.api import change_user_role, disable_user, invite_by_email, search_users
 from gameplan.tests.fixtures import (
 	create_community,
 	create_guest,
@@ -146,13 +146,33 @@ class TestMemberManagement(FrappeTestCase):
 		self.assertEqual(invitation.role, "Gameplan Guest")
 		self.assertEqual(frappe.parse_json(invitation.projects), [project.name])
 
+	def test_search_users_refuses_member_filters_for_a_private_community_or_space(self):
+		insider = create_member("sec_insider@example.com")
+		outsider = create_member("sec_outsider@example.com")
+		team = create_community("Sec Private Team", visibility=VISIBILITY_MEMBER_ACCESS, members=[insider])
+		project = create_space(
+			"Sec Private Space", team, visibility=VISIBILITY_MEMBER_ACCESS, members=[insider]
+		)
+
+		frappe.set_user(outsider.name)
+		for filters in (
+			{"community": team.name},
+			{"exclude_community": team.name},
+			{"exclude_space": project.name},
+		):
+			with self.subTest(filters=filters), self.assertRaises(frappe.PermissionError):
+				search_users(**filters)
+
+		frappe.set_user(insider.name)
+		self.assertIn(insider.name, [user.name for user in search_users(community=team.name)])
+
 	def test_get_user_info_hides_email_from_guest(self):
 		"""A Guest caller must not receive other members' email addresses."""
 		create_member("sec_directory_member@example.com")
 		guest = create_guest("sec_guest@example.com")
 
 		frappe.set_user(guest.name)
-		users = get_user_info()
+		users = search_users()
 
 		self.assertTrue(users)
 		for user in users:
@@ -163,7 +183,7 @@ class TestMemberManagement(FrappeTestCase):
 		create_member("sec_directory_member2@example.com")
 
 		frappe.set_user("Administrator")
-		users = get_user_info()
+		users = search_users()
 
 		self.assertTrue(users)
 		self.assertTrue(any(user.get("email") for user in users))

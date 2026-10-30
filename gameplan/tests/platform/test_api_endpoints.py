@@ -384,7 +384,7 @@ class TestGetUserInfoEndpoint(APIEndpointTestCase):
 		promoted.add_roles("Gameplan Admin")
 
 		with self.as_user(self.member):
-			rows = get_user_info()
+			rows = get_user_info(users=[promoted.name])
 
 		matches = [row for row in rows if row.name == promoted.name]
 		self.assertEqual(len(matches), 1)

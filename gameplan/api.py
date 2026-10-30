@@ -7,7 +7,7 @@ import json
 import frappe
 from frappe import _
 from frappe.query_builder import Case, Order
-from frappe.query_builder.functions import Count, Max
+from frappe.query_builder.functions import Count, Min
 from frappe.utils import cint, split_emails, validate_email_address
 
 import gameplan
@@ -40,7 +40,6 @@ def get_user_info(user=None, users=None):
 
 	from gameplan.guest_payload import users_for_handles
 
-	names = None
 	if user:
 		if gameplan.is_guest() and user != frappe.session.user:
 			user = users_for_handles([user]).get(user)
@@ -57,17 +56,17 @@ def get_user_info(user=None, users=None):
 				frappe.session.user if name == frappe.session.user else handles.get(name) for name in names
 			]
 		names = [name for name in names if name and isinstance(name, str)]
+	else:
+		frappe.throw(_("Pass user or users"))
 
 	return user_info_rows(names)
 
 
-def user_info_rows(names=None):
-	if names is not None and not names:
+def user_info_rows(names):
+	if not names:
 		return []
 
-	filters = {"roles.role": ["like", "Gameplan %"]}
-	if names is not None:
-		filters["name"] = ["in", names]
+	filters = {"roles.role": ["like", "Gameplan %"], "name": ["in", names]}
 
 	users = frappe.qb.get_query(
 		"User",
@@ -210,6 +209,13 @@ def search_users(
 		frappe.throw("Not permitted", frappe.PermissionError)
 	if order_by not in USER_SEARCH_ORDER:
 		frappe.throw(_("order_by must be one of {0}").format(", ".join(USER_SEARCH_ORDER)))
+	for doctype, name in (
+		("GP Team", community),
+		("GP Team", exclude_community),
+		("GP Project", exclude_space),
+	):
+		if name:
+			frappe.has_permission(doctype, "read", doc=str(name), throw=True)
 
 	User = frappe.qb.DocType("User")
 	order = Order.desc if descending else Order.asc
@@ -228,16 +234,23 @@ def search_users(
 	return user_info_rows([row.name for row in q.run(as_dict=1)])
 
 
+MEMBER_COUNT_CACHE_KEY = "gameplan:member_count"
+
+
 @frappe.whitelist()
 def get_member_count():
 	"""How many enabled people hold a Gameplan Member or Admin role."""
 	if not has_app_access():
 		frappe.throw("Not permitted", frappe.PermissionError)
-	count = frappe.cache.get_value("gameplan:member_count")
+	count = frappe.cache.get_value(MEMBER_COUNT_CACHE_KEY)
 	if count is None:
 		count = frappe.qb.from_(user_search_query(include_guests=False)).select(Count("*")).run()[0][0]
-		frappe.cache.set_value("gameplan:member_count", count, expires_in_sec=300)
+		frappe.cache.set_value(MEMBER_COUNT_CACHE_KEY, count, expires_in_sec=300)
 	return count
+
+
+def clear_member_count():
+	frappe.cache.delete_value(MEMBER_COUNT_CACHE_KEY)
 
 
 def match_rank(field, query):
@@ -303,14 +316,14 @@ def order_by_role(q, order):
 	User = frappe.qb.DocType("User")
 	HasRole = frappe.qb.DocType("Has Role")
 	rank = Case()
-	for index, role in enumerate(GAMEPLAN_ROLES):
+	for index, role in enumerate(reversed(GAMEPLAN_ROLES)):
 		rank = rank.when(HasRole.role == role, index)
 	return (
 		q.join(HasRole)
 		.on((HasRole.parent == User.name) & (HasRole.parenttype == "User"))
 		.where(HasRole.role.isin(GAMEPLAN_ROLES))
 		.groupby(User.name, User.full_name)
-		.orderby(Max(rank), order=order)
+		.orderby(Min(rank), order=order)
 	)
 
 

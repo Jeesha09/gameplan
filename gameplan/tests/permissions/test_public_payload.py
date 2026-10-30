@@ -242,7 +242,7 @@ class TestPublicDocuments(PublicContentTestCase):
 		with switched_on(), self.as_user(self.guest):
 			payload = frappe.get_doc("GP Discussion", self.discussion.name).as_dict()
 			reactions = self.discussion.thread_reactions()
-			directory = get_user_info()
+			directory = get_user_info(users=[self.guest.name, self.member_handle, self.second_handle])
 			self.assertEqual(payload.owner, self.member_handle)
 			self.assertEqual({row.user for row in reactions}, {self.member_handle, self.second_handle})
 			self.assertIn(f'data-id="{self.second_handle}"', payload.content)
