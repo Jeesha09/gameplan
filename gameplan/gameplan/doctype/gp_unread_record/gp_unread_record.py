@@ -6,7 +6,6 @@ from datetime import timedelta
 import frappe
 from frappe.model.document import Document, bulk_insert
 
-import gameplan
 from gameplan.realtime import notify_unread_counts_changed
 from gameplan.visibility import is_member_access
 
@@ -54,6 +53,12 @@ class GPUnreadRecord(Document):
 			"GP Discussion", comment_doc.reference_name, ["name", "project", "owner"], as_dict=True
 		)
 		project_members = GPUnreadRecord._get_project_members(discussion_doc.project)
+		visibility = frappe.db.get_value("GP Project", discussion_doc.project, "visibility")
+		if not is_member_access(visibility):
+			project_members = {
+				*project_members,
+				*GPUnreadRecord._get_discussion_participants(discussion_doc),
+			}
 
 		records = []
 		for user in project_members:
@@ -418,36 +423,30 @@ class GPUnreadRecord(Document):
 
 	@staticmethod
 	def _get_project_members(project_name):
-		"""Get all users who have access to the project"""
-		project = frappe.db.get_value("GP Project", project_name, ["name", "visibility"], as_dict=True)
-
-		all_users = set()
-
-		if is_member_access(project.visibility):
-			members = frappe.qb.get_query(
-				"GP Member",
-				fields=["user"],
-				filters={"parent": project.name, "parenttype": "GP Project"},
-			).run(pluck=True)
-			all_users.update(members)
-		else:
-			enabled_users = frappe.qb.get_query(
-				"GP User Profile", filters={"enabled": 1}, fields=["user"]
-			).run(pluck=True)
-
-			for user in enabled_users:
-				if not gameplan.is_guest(user):
-					all_users.add(user)
-
-		# Include guest users with explicit project access
+		"""Get the users who joined the project, plus guests given access to it"""
+		project = str(project_name)
+		members = frappe.qb.get_query(
+			"GP Member",
+			fields=["user"],
+			filters={"parent": project, "parenttype": "GP Project"},
+		).run(pluck=True)
 		guest_users = frappe.qb.get_query(
 			"GP Guest Access",
 			fields=["user"],
-			filters={"project": project.name},
+			filters={"project": project},
 		).run(pluck=True)
-		all_users.update(guest_users)
+		return list({*members, *guest_users})
 
-		return list(all_users)
+	@staticmethod
+	def _get_discussion_participants(discussion_doc):
+		"""Get the discussion's author and everyone who replied to it"""
+		repliers = frappe.qb.get_query(
+			"GP Comment",
+			fields=["owner"],
+			filters={"reference_doctype": "GP Discussion", "reference_name": str(discussion_doc.name)},
+			distinct=True,
+		).run(pluck=True)
+		return {discussion_doc.owner, *repliers}
 
 	@staticmethod
 	def _notify_unread_counts_changed(users):

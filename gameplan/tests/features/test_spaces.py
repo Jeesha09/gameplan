@@ -512,10 +512,10 @@ class TestSpaceMembership(GameplanTestCase):
 class TestSpaceReadState(GameplanTestCase):
 	def setUp(self):
 		super().setUp()
-		self.community = create_community("Read State Community", members=[self.member, self.second_member])
-		self.space = create_space(
-			"Read State Space", self.community, members=[self.member, self.second_member]
-		)
+		self.reader = create_member("read_state_reader@example.com", "Read State Reader")
+		people = [self.member, self.second_member, self.reader]
+		self.community = create_community("Read State Community", members=people)
+		self.space = create_space("Read State Space", self.community, members=people)
 		with self.as_user(self.second_member):
 			self.discussion = create_discussion("Unread Space Discussion", self.space)
 
@@ -534,7 +534,7 @@ class TestSpaceReadState(GameplanTestCase):
 		self.assertEqual(
 			frappe.db.get_value(
 				"GP Unread Record",
-				{"user": self.outsider.name, "discussion": self.discussion.name},
+				{"user": self.reader.name, "discussion": self.discussion.name},
 				"is_unread",
 			),
 			1,

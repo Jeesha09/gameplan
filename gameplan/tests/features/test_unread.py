@@ -13,7 +13,7 @@ from gameplan.gameplan.doctype.gp_unread_record.gp_unread_record import GPUnread
 from gameplan.realtime import UNREAD_COUNTS_CHANGED
 from gameplan.tests.base import GameplanTestCase
 from gameplan.tests.fixtures import create_community, create_discussion, create_member, create_space
-from gameplan.visibility import VISIBILITY_MEMBER_ACCESS
+from gameplan.visibility import VISIBILITY_GENERAL, VISIBILITY_MEMBER_ACCESS
 
 
 def unread_count_events(publish_realtime):
@@ -390,13 +390,7 @@ class TestUnread(GameplanTestCase):
 
 
 class TestUnreadRecordLifecycle(GameplanTestCase):
-	"""Who gets an unread record, who does not, and what the counters then report.
-
-	The space is private and explicitly membered on purpose: a public space fans the
-	records out to every enabled non-guest user on the site (see
-	`GPUnreadRecord._get_project_members`), which makes "exactly who got a record"
-	impossible to assert.
-	"""
+	"""Who gets an unread record, who does not, and what the counters then report."""
 
 	def setUp(self):
 		super().setUp()
@@ -450,6 +444,17 @@ class TestUnreadRecordLifecycle(GameplanTestCase):
 		self.assertEqual(self.records_for(self.member, discussion), [])
 		self.assertEqual(len(self.records_for(self.second_member, discussion)), 1)
 		self.assertEqual(len(self.records_for(self.reader, discussion)), 1)
+
+	def test_an_open_space_only_marks_people_who_joined_it_unread(self):
+		self.space.visibility = VISIBILITY_GENERAL
+		self.space.save(ignore_permissions=True)
+		passerby = create_member("unread_passerby@example.com", "Unread Passerby")
+
+		discussion = self.post_discussion(self.member)
+		self.post_comment(self.second_member, discussion)
+
+		self.assertEqual(len(self.records_for(self.reader, discussion)), 2)
+		self.assertEqual(self.records_for(passerby, discussion), [])
 
 	def test_the_commenter_gets_no_unread_record_for_their_own_comment(self):
 		discussion = self.post_discussion(self.member)

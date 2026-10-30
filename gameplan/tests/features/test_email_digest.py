@@ -100,7 +100,7 @@ class TestEmailDigest(GameplanTestCase):
 		author_profile.save(ignore_permissions=True)
 		team = create_community("Digest Team")
 		frappe.db.set_value("GP Team", team.name, "image", "/files/digest-team.png", update_modified=False)
-		project = create_space("Digest Space", team.name)
+		project = create_space("Digest Space", team.name, members=[self.user])
 		discussion = create_discussion("Digest Discussion", project.name)
 		frappe.db.set_value(
 			"GP Discussion",
