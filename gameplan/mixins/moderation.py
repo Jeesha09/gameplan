@@ -134,8 +134,8 @@ class Moderatable:
 		targets = [(self.doctype, str(self.name))]
 		if self.doctype == "GP Discussion":
 			for doctype, filters in [
-				("GP Comment", {"reference_doctype": self.doctype, "reference_name": self.name}),
-				("GP Poll", {"discussion": self.name}),
+				("GP Comment", {"reference_doctype": self.doctype, "reference_name": str(self.name)}),
+				("GP Poll", {"discussion": str(self.name)}),
 			]:
 				targets.extend(
 					(doctype, str(name)) for name in frappe.get_all(doctype, filters=filters, pluck="name")
@@ -143,7 +143,7 @@ class Moderatable:
 		elif self.doctype == "GP Comment":
 			targets.extend(
 				("GP Poll", str(name))
-				for name in frappe.get_all("GP Poll", filters={"comment": self.name}, pluck="name")
+				for name in frappe.get_all("GP Poll", filters={"comment": str(self.name)}, pluck="name")
 			)
 		for doctype, name in targets:
 			if doctype == "GP Poll":
@@ -169,10 +169,10 @@ class Moderatable:
 			from gameplan.realtime import notify_notification_count_changed, notify_unread_counts_changed
 
 			notify_unread_counts_changed(
-				frappe.get_all("GP Unread Record", filters={"discussion": self.name}, pluck="user")
+				frappe.get_all("GP Unread Record", filters={"discussion": str(self.name)}, pluck="user")
 			)
 			for user in set(
-				frappe.get_all("GP Notification", filters={"discussion": self.name}, pluck="to_user")
+				frappe.get_all("GP Notification", filters={"discussion": str(self.name)}, pluck="to_user")
 			):
 				notify_notification_count_changed(user, force_refresh=True)
 		frappe.publish_realtime(

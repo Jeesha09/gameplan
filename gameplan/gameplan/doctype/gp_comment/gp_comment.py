@@ -279,3 +279,4 @@ def add_indexes():
 	# returning reference_name. Without it MariaDB full-scans GP Comment as a
 	# per-row dependent subquery — ~18s on large sites vs ~20ms with the index.
 	frappe.db.add_index("GP Comment", ["owner", "reference_doctype", "reference_name"], "owner_reference")
+	frappe.db.add_index("GP Comment", ["reference_doctype", "reference_name"])
