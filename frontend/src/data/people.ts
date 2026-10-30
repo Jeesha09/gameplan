@@ -1,11 +1,8 @@
-import { ref } from 'vue'
-import { useList } from 'frappe-ui'
+import { reactive, ref, watch } from 'vue'
+import { call } from 'frappe-ui'
 import type { GPUserProfile } from '@/types/doctypes'
 
-interface Person extends Pick<
-  GPUserProfile,
-  'name' | 'user' | 'bio' | 'modified' | 'cover_image' | 'cover_image_position'
-> {
+interface Person extends Pick<GPUserProfile, 'name' | 'user' | 'bio' | 'modified'> {
   discussions_count: number
   comments_count: number
   reactions_given: number
@@ -36,6 +33,7 @@ export const peopleSortOptions = [
   ...sortChoices,
 ]
 
+export const peopleSearch = ref('')
 export const peopleSortField = ref<PeopleSortField>('modified')
 export const peopleSortDirection = ref<PeopleSortDirection>('desc')
 
@@ -48,18 +46,43 @@ export function sortPeopleBy(field: PeopleSortField) {
   peopleSortDirection.value = field === 'full_name' ? 'asc' : 'desc'
 }
 
-/** The People list: filtered to enabled accounts, shared across visits. People.vue sorts it
- *  and reloads it on each visit. */
-export const people = useList<Person>({
-  // GP User Profile's default list view; the aggregate post/reply/reaction counts are
-  // computed server-side per row, so this can't be the generic `/api/v2/document/...`
-  // REST list.
-  url: '/api/v2/method/gameplan.gameplan.doctype.gp_user_profile.gp_user_profile.get_list',
-  doctype: 'GP User Profile',
-  fields: ['name', 'user', 'bio', 'modified', 'cover_image', 'cover_image_position'],
-  filters: { enabled: 1 },
-  orderBy: 'modified desc',
-  limit: 999,
-  cacheKey: 'People',
-  immediate: false,
+const PAGE_SIZE = 50
+let request = 0
+
+/** The People list, searched, sorted and paged on the server. The session user comes first. */
+export const people = reactive({
+  data: null as Person[] | null,
+  error: null as unknown,
+  loading: false,
+  isFinished: false,
+  hasNextPage: false,
+  reload: () => loadPeople(true),
+  next: () => loadPeople(false),
 })
+
+async function loadPeople(reset: boolean) {
+  const current = ++request
+  people.loading = true
+  try {
+    const rows = await call<Person[]>('gameplan.api.get_people', {
+      query: peopleSearch.value,
+      order_by: peopleSortField.value,
+      descending: peopleSortDirection.value === 'desc',
+      start: reset ? 0 : (people.data?.length ?? 0),
+      limit: PAGE_SIZE,
+    })
+    if (current !== request) return
+    people.data = reset ? rows : [...(people.data ?? []), ...rows]
+    people.hasNextPage = rows.length === PAGE_SIZE
+    people.error = null
+  } catch (error) {
+    if (current === request) people.error = error
+  } finally {
+    if (current === request) {
+      people.loading = false
+      people.isFinished = true
+    }
+  }
+}
+
+watch([peopleSearch, peopleSortField, peopleSortDirection], () => people.reload())

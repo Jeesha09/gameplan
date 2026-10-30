@@ -23,7 +23,7 @@
         </PageHeader>
         <div class="mx-auto w-full body-container pt-6">
           <div class="flex items-center justify-between">
-            <h2 class="text-2xl-semibold text-ink-gray-7">{{ peopleList.length }} members</h2>
+            <h2 class="text-2xl-semibold text-ink-gray-7">{{ memberCount }} members</h2>
             <div class="flex items-center gap-2">
               <Select
                 class="shrink-0 !w-fit"
@@ -143,7 +143,6 @@
                       <div class="text-base-medium text-ink-gray-8">
                         {{ useUser(user.user).full_name }}
                       </div>
-                      <Badge v-if="useUser(user.user).isGuest">Guest</Badge>
                     </div>
                     <div
                       v-if="user.bio"
@@ -213,7 +212,6 @@
                       <div class="text-base-medium text-ink-gray-8">
                         {{ useUser(user.user).full_name }}
                       </div>
-                      <Badge v-if="useUser(user.user).isGuest">Guest</Badge>
                     </div>
                     <div
                       v-if="user.bio"
@@ -254,13 +252,12 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import {
   PageHeaderBackButton,
   PageHeaderMobile,
   PageHeader,
   Breadcrumbs,
-  Badge,
   Button,
   Select,
   TextInput,
@@ -269,9 +266,10 @@ import {
 } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCellSort, ListRow } from 'frappe-ui/list'
 import { showSettingsDialog } from '@/components/Settings'
-import { isGameplanAdmin, useSessionUser, useUser } from '@/data/users'
+import { isGameplanAdmin, loadMemberCount, memberCount, useUser } from '@/data/users'
 import {
   people,
+  peopleSearch,
   peopleSortDirection,
   peopleSortField,
   peopleSortOptions,
@@ -289,24 +287,13 @@ defineOptions({
   name: 'People',
 })
 
-const search = ref('')
+const search = peopleSearch
 const isAdmin = computed(() => isGameplanAdmin())
 
 // Counts change between visits, and a failed load should not stick, so fetch on each visit.
 people.reload()
+loadMemberCount()
 revalidateOnReconnect(people)
-
-// Guests are left out. Name and email come from the users store, the copy the rest of the
-// app shows, so search matches it.
-const profiles = computed(() => {
-  return (people.data || [])
-    .filter((profile) => !useUser(profile.user).isGuest)
-    .map((profile) => ({
-      ...profile,
-      email: useUser(profile.user).email,
-      full_name: useUser(profile.user).full_name,
-    }))
-})
 
 const sortField = computed({
   get: () => peopleSortField.value,
@@ -319,34 +306,7 @@ function directionFor(field: PeopleSortField) {
   return peopleSortField.value === field ? peopleSortDirection.value : null
 }
 
-type Profile = (typeof profiles.value)[number]
-
-function compareProfiles(a: Profile, b: Profile) {
-  const field = peopleSortField.value
-  let result = 0
-  if (field === 'full_name' || field === 'modified') {
-    result = a[field].localeCompare(b[field])
-  } else {
-    result = a[field] - b[field]
-  }
-  return peopleSortDirection.value === 'asc' ? result : -result
-}
-
-const peopleList = computed(() => {
-  let list = profiles.value
-  if (search.value) {
-    const term = search.value.toLowerCase()
-    list = list.filter(
-      (profile) =>
-        profile.full_name.toLowerCase().includes(term) ||
-        profile.email.toLowerCase().includes(term),
-    )
-  }
-
-  list = [...list].sort(compareProfiles)
-  const myProfile = list.find((profile) => profile.user === useSessionUser().name)
-  return myProfile ? [myProfile, ...list.filter((profile) => profile !== myProfile)] : list
-})
+const peopleList = computed(() => people.data ?? [])
 
 const listFailure = useLoadFailure(people, 'people')
 
