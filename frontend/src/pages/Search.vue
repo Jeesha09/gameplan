@@ -366,7 +366,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed, onMounted, onScopeDispose, onUnmounted, ref, useTemplateRef } from 'vue'
+import { computed, onMounted, onScopeDispose, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { createReusableTemplate } from '@vueuse/core'
 import {
@@ -657,8 +657,39 @@ const { results: matchingAuthors } = useUserSearch(() =>
   authorQuery.value ? { query: authorQuery.value, include_disabled: true, limit: 50 } : null,
 )
 
+const lookedUpAuthorCounts = ref<Record<string, number>>({})
+const lookedUpAuthors = new Set<string>()
+const authorCountsCall = useCall<Record<string, number>>({
+  url: '/api/v2/method/gameplan.api.get_search_author_counts',
+  immediate: false,
+})
+
+watch(
+  () => [
+    ...matchingAuthors.value.map((user) => user.name),
+    ...((activeFilters.value.owner || []) as string[]),
+  ],
+  async (names) => {
+    if (publicVisitor.value || useSessionUser().isGuest) return
+    const listed = filterOptions.data?.authors ?? {}
+    const missing = [...new Set(names)].filter(
+      (name) => !(name in listed) && !lookedUpAuthors.has(name),
+    )
+    if (!missing.length) return
+    missing.forEach((name) => lookedUpAuthors.add(name))
+    try {
+      const counts = await authorCountsCall.submit({ authors: JSON.stringify(missing) })
+      lookedUpAuthorCounts.value = { ...lookedUpAuthorCounts.value, ...counts }
+    } catch {
+      missing.forEach((name) => lookedUpAuthors.delete(name))
+    }
+  },
+)
+
 const authorsFilterOptions = computed(() => {
-  const authorCounts = new Map<string, number>(Object.entries(filterOptions.data?.authors ?? {}))
+  const authorCounts = new Map<string, number>(
+    Object.entries({ ...lookedUpAuthorCounts.value, ...filterOptions.data?.authors }),
+  )
 
   // Disabled users stay in the list while they have indexed posts, so older posts
   // by people who have left can still be found by author.

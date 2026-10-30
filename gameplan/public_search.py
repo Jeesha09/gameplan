@@ -83,6 +83,9 @@ class PublicGameplanSearch(GameplanSearch):
 		options["doctypes"] = {doctype: 0 for doctype in self.SEARCH_DOCTYPES}
 		return options
 
+	def get_author_counts(self, authors):
+		return {}
+
 	def _public_results(self, results):
 		live_rows = self._live_rows(results)
 		authors = handles_for({row.owner for row in live_rows.values()})

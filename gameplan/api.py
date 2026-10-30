@@ -715,6 +715,17 @@ def get_search_filter_options():
 	return search_for_viewer().get_filter_options()
 
 
+@frappe.whitelist(methods=["GET", "POST"])
+def get_search_author_counts(authors=None):
+	"""Count indexed posts by each of up to 100 authors, within the current viewer's access."""
+	from gameplan.public_search import search_for_viewer
+
+	names = frappe.parse_json(authors) if authors else []
+	if not isinstance(names, list) or len(names) > USER_INFO_BATCH_LIMIT:
+		frappe.throw(_("authors must be a list of at most {0}").format(USER_INFO_BATCH_LIMIT))
+	return search_for_viewer().get_author_counts([str(name) for name in names])
+
+
 def can_access_gameplan():
 	"""Check if the app should be shown in /apps"""
 	from frappe.utils.modules import get_modules_from_all_apps_for_user

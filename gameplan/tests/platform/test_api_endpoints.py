@@ -7,6 +7,7 @@ import json
 from unittest.mock import patch
 
 import frappe
+from frappe.search.sqlite_search import index_docs_in_queue
 from frappe.utils import add_days, now
 
 import gameplan
@@ -14,6 +15,7 @@ from gameplan.api import (
 	CLIENT_ERROR_FIELD_LIMIT,
 	CLIENT_ERROR_QUOTA,
 	can_access_gameplan,
+	get_search_author_counts,
 	get_search_filter_options,
 	get_user_info,
 	invite_by_email,
@@ -294,6 +296,64 @@ class TestSearchFilterOptionsEndpoint(IsolatedSearchIndex, APIEndpointTestCase):
 		self.assertNotIn(str(hidden_space.name), project_counts)
 		self.assertNotIn(hidden_community.name, result["teams"])
 		self.assertNotIn(hidden_tag, result["tags"])
+
+	def test_lists_the_most_active_authors_and_counts_anyone_else_on_request(self):
+		busy = create_user("api-filter-busy@example.com", "Busy Author", "Gameplan Member")
+		quiet = create_user("api-filter-quiet@example.com", "Quiet Author", "Gameplan Member")
+		outsider = create_user("api-filter-outsider@example.com", "Outsider Author", "Gameplan Member")
+		community = create_community(
+			"API Author Filter Community", visibility=VISIBILITY_MEMBER_ACCESS, members=[busy, quiet]
+		)
+		space = create_space(
+			"API Author Filter Space", community, visibility=VISIBILITY_MEMBER_ACCESS, members=[busy, quiet]
+		)
+		hidden_community = create_community(
+			"API Author Hidden Community", visibility=VISIBILITY_MEMBER_ACCESS, members=[outsider]
+		)
+		hidden_space = create_space(
+			"API Author Hidden Space",
+			hidden_community,
+			visibility=VISIBILITY_MEMBER_ACCESS,
+			members=[outsider],
+		)
+		create_discussion("Busy one", space, owner=busy)
+		create_discussion("Busy two", space, owner=busy)
+		create_discussion("Quiet one", space, owner=quiet)
+		create_discussion("Hidden one", hidden_space, owner=outsider)
+		self.search.build_index()
+
+		with self.as_user(busy), patch("gameplan.search_sqlite.AUTHOR_OPTION_LIMIT", 1):
+			options = get_search_filter_options()
+			counts = get_search_author_counts(json.dumps([busy.name, quiet.name, outsider.name]))
+
+		self.assertEqual(len(options["authors"]), 1)
+		self.assertEqual(counts, {busy.name: 2, quiet.name: 1})
+
+	def test_counts_follow_the_index_when_it_changes(self):
+		community = create_community(
+			"API Cached Filter Community", visibility=VISIBILITY_MEMBER_ACCESS, members=[self.member]
+		)
+		space = create_space(
+			"API Cached Filter Space", community, visibility=VISIBILITY_MEMBER_ACCESS, members=[self.member]
+		)
+		create_discussion("First cached", space, owner=self.member)
+		self.search.build_index()
+
+		def count():
+			with self.as_user(self.member):
+				return get_search_author_counts(json.dumps([self.member.name]))[self.member.name]
+
+		before = count()
+		discussion = create_discussion("Second cached", space, owner=self.member)
+		index_docs_in_queue()
+		self.assertEqual(count(), before + 1)
+
+		self.search.remove_doc("GP Discussion", discussion.name)
+		self.assertEqual(count(), before)
+
+	def test_author_counts_refuse_more_than_a_batch(self):
+		with self.as_user(self.member), self.assertRaises(frappe.ValidationError):
+			get_search_author_counts(json.dumps([f"user{i}@example.com" for i in range(101)]))
 
 	def test_anonymous_caller_is_denied(self):
 		with self.as_user("Guest"), patch.dict(frappe.conf, gameplan_public_access_enabled=0):

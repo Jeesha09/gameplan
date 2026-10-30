@@ -56,6 +56,7 @@ READ_ONLY_ENDPOINTS = frozenset(
 		# Search. The SQLite index lives outside the transaction, but these only query it.
 		"gameplan.api.search_sqlite",
 		"gameplan.api.get_search_filter_options",
+		"gameplan.api.get_search_author_counts",
 		"gameplan.command_palette.search_sqlite",
 		# Permission-checked list/report queries.
 		"gameplan.extends.client.get_list",

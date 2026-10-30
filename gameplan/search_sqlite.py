@@ -41,6 +41,9 @@ CONTENT_PREVIEW_LENGTH = 300
 SEARCH_FILTER_FIELDS = frozenset({"owner", "project", "team", "doctype", "tags"})
 MARK_START = "\x02"
 MARK_END = "\x03"
+FILTER_OPTIONS_CACHE_KEY = "gameplan:search_filter_options"
+FILTER_OPTIONS_CACHE_TTL = 600
+AUTHOR_OPTION_LIMIT = 100
 
 
 class GameplanSearch(SQLiteSearch):
@@ -128,6 +131,7 @@ class GameplanSearch(SQLiteSearch):
 		return any(
 			row["name"] == "content_hash" for row in self.sql("PRAGMA table_info(search_fts)", read_only=True)
 		)
+
 	def raise_if_not_indexed(self):
 		if not self.index_exists():
 			raise GameplanSearchIndexMissingError
@@ -568,21 +572,45 @@ class GameplanSearch(SQLiteSearch):
 
 		Returns:
 			dict: Available filter options with counts
-				- authors: dict mapping user names to counts
+				- authors: dict mapping the AUTHOR_OPTION_LIMIT most active user names to counts
 				- projects: dict mapping project names to counts
 				- teams: dict mapping team names to counts
 				- doctypes: dict mapping doctype names to counts
 				- tags: dict mapping tag names to counts
 		"""
+		options = self._cached_filter_options()
+		if options is None:
+			return {"authors": {}, "projects": {}, "teams": {}, "doctypes": {}, "tags": {}}
+		top_authors = sorted(options["authors"].items(), key=lambda author: author[1], reverse=True)
+		return {**options, "authors": dict(top_authors[:AUTHOR_OPTION_LIMIT])}
+
+	def get_author_counts(self, authors):
+		counts = (self._cached_filter_options() or {}).get("authors", {})
+		return {author: counts[author] for author in authors if author in counts}
+
+	def _cached_filter_options(self):
 		if not self.is_search_enabled() or not self.index_exists():
-			return {"authors": {}, "projects": {}, "teams": {}, "doctypes": {}, "tags": {}}
-
+			return None
 		accessible_projects = self._get_accessible_projects()
-
-		# If no accessible projects, return empty results
 		if not accessible_projects:
-			return {"authors": {}, "projects": {}, "teams": {}, "doctypes": {}, "tags": {}}
+			return None
+		spaces = hashlib.sha1(",".join(sorted(accessible_projects)).encode()).hexdigest()
+		key = f"{FILTER_OPTIONS_CACHE_KEY}:{self.db_name}:{spaces}"
+		options = frappe.cache.get_value(key)
+		if options is None:
+			options = self._count_filter_options(accessible_projects)
+			frappe.cache.set_value(key, options, expires_in_sec=FILTER_OPTIONS_CACHE_TTL)
+		return options
 
+	def _index_documents(self, documents):
+		super()._index_documents(documents)
+		clear_filter_options_cache()
+
+	def remove_doc(self, doctype, docname):
+		super().remove_doc(doctype, docname)
+		clear_filter_options_cache()
+
+	def _count_filter_options(self, accessible_projects):
 		conn = self._get_connection(read_only=True)
 		try:
 			# Get authors
@@ -669,6 +697,10 @@ class GameplanSearch(SQLiteSearch):
 			"doctypes": doctype_counts,
 			"tags": tag_counts,
 		}
+
+
+def clear_filter_options_cache():
+	frappe.cache.delete_keys(FILTER_OPTIONS_CACHE_KEY)
 
 
 def content_fingerprint(title, content):
