@@ -1,6 +1,6 @@
 <template>
   <div class="flex min-h-0 flex-1 flex-col">
-    <div v-if="switchableUsers.length > 6" class="px-3 pt-2">
+    <div class="px-3 pt-2">
       <TextInput v-model="query" size="sm" placeholder="Filter" autofocus />
     </div>
 
@@ -27,7 +27,7 @@
         />
       </button>
 
-      <p v-if="!filteredUsers.length" class="px-2 py-3 text-p-sm text-ink-gray-5">
+      <p v-if="!filteredUsers.length && !loading" class="px-2 py-3 text-p-sm text-ink-gray-5">
         No user matches "{{ query }}".
       </p>
     </div>
@@ -49,10 +49,10 @@
  * server with an explicit site config key — see `gameplan/dev_user_switcher.py`,
  * which also explains why frappe's own `impersonate` is the wrong tool.
  */
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { LoadingIndicator, TextInput, useCall } from 'frappe-ui'
 import UserAvatar from '@/components/UserAvatar.vue'
-import { activeUsers, useSessionUser, type UserInfo } from '@/data/users'
+import { useSessionUser, useUserSearch, type UserInfo } from '@/data/users'
 
 defineOptions({ name: 'DevUserList' })
 
@@ -70,15 +70,10 @@ const switchUser = useCall<{ user: string }, { user: string }>({
   immediate: false,
 })
 
-const switchableUsers = computed(() => activeUsers.value)
-
-const filteredUsers = computed(() => {
-  const search = query.value.trim().toLowerCase()
-  if (!search) return switchableUsers.value
-  return switchableUsers.value.filter((user) => {
-    return `${user.full_name} ${user.name}`.toLowerCase().includes(search)
-  })
-})
+const { results: filteredUsers, loading } = useUserSearch(() => ({
+  query: query.value.trim(),
+  limit: 50,
+}))
 
 function shortRole(user: UserInfo) {
   return user.role?.replace('Gameplan ', '') || 'User'

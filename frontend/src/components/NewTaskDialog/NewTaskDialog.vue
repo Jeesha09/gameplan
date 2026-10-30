@@ -15,11 +15,7 @@
         @keydown.enter="onCreateClick"
       />
       <div class="grid grid-cols-2 gap-2">
-        <Combobox
-          placeholder="Assign a user"
-          :options="assignableUsers"
-          v-model="newTask.doc.assigned_to"
-        />
+        <UserCombobox placeholder="Assign a user" v-model="newTask.doc.assigned_to" />
         <DatePicker
           v-model="newTask.doc.due_date"
           placeholder="Set due date"
@@ -56,7 +52,7 @@
 import { computed, h } from 'vue'
 import { Dialog, FormControl, Dropdown, Combobox, DatePicker } from 'frappe-ui'
 import TaskStatusIcon from './TaskStatusIcon.vue'
-import { activeUsers } from '@/data/users'
+import UserCombobox from '@/components/UserCombobox.vue'
 import { GPTask } from '@/types/doctypes'
 import { showDialog, newTask, _onSuccess } from './state'
 import { useGroupedSpaceOptions } from '@/data/groupedSpaces'
@@ -79,13 +75,6 @@ function statusOptions() {
     },
   )
 }
-
-const assignableUsers = computed(() => {
-  return activeUsers.value.map((user) => ({
-    label: user.full_name,
-    value: user.name,
-  }))
-})
 
 function onCreateClick(e: KeyboardEvent) {
   if (e instanceof KeyboardEvent && !(e.ctrlKey || e.metaKey)) {

@@ -5,6 +5,7 @@ import {
   richQuoteExtensions,
   DiscussionLinkPasteExtension,
   discussionLinkExtension,
+  mentionExtension,
 } from './config'
 import { collapsibleExtensions, slashCommandsWithCollapsible } from './collapsible'
 import { DiscussionCardExtension } from '@/components/DiscussionCard/discussion-card-extension'
@@ -35,6 +36,6 @@ export function richTextExtensions(opts: { suggestions?: boolean } = {}) {
     DiscussionCardExtension,
     LinkCardExtension,
     DiscussionLinkPasteExtension,
-    ...((opts.suggestions ?? true) ? [discussionLinkExtension()] : []),
+    ...((opts.suggestions ?? true) ? [discussionLinkExtension(), mentionExtension()] : []),
   ]
 }

@@ -56,7 +56,12 @@
       </div>
 
       <ScrollArea class="min-h-0 flex-1" viewport-class="px-2 py-2">
-        <div v-if="!usersReady" class="space-y-1" role="status" aria-label="Loading people">
+        <div
+          v-if="loading && !matches.length"
+          class="space-y-1"
+          role="status"
+          aria-label="Loading people"
+        >
           <div v-for="n in 8" :key="n" class="flex h-13 items-center gap-3 px-3">
             <Skeleton class="size-7 shrink-0 rounded-full" />
             <div class="min-w-0 flex-1 space-y-2">
@@ -66,7 +71,7 @@
           </div>
         </div>
 
-        <EmptyStateBox v-else-if="!addableUsers.length" class="mt-6">
+        <EmptyStateBox v-else-if="!matches.length && !searchTerm" class="mt-6">
           <span class="lucide-users size-5 text-ink-gray-4" aria-hidden="true" />
           <div class="mt-2 text-p-sm text-ink-gray-5">
             Everyone already belongs to this community.
@@ -156,7 +161,7 @@ import { List, ListCell, ListRow, ListRows } from 'frappe-ui/list'
 import UserAvatar from '@/components/UserAvatar.vue'
 import EmptyStateBox from '@/components/EmptyStateBox.vue'
 import { communities, type Community } from '@/data/communities'
-import { activeUsers, usersReady, useUser } from '@/data/users'
+import { useUser, useUserSearch } from '@/data/users'
 import type { GPTeam } from '@/types/doctypes'
 
 const props = defineProps<{
@@ -172,22 +177,16 @@ const submitError = ref<Error | string>()
 
 const searchTerm = computed(() => search.value.trim().toLowerCase())
 
-const addableUsers = computed(() => {
-  const existingMembers = new Set(props.community.members.map((member) => member.user))
-  return activeUsers.value
-    .filter((user) => user.isNotGuest && !existingMembers.has(user.name))
-    .sort((a, b) => a.full_name.localeCompare(b.full_name))
-})
-
-const matches = computed(() => {
-  const term = searchTerm.value
-  if (!term) return addableUsers.value
-  return addableUsers.value.filter(
-    (user) =>
-      user.full_name.toLowerCase().includes(term) ||
-      (user.email || '').toLowerCase().includes(term),
-  )
-})
+const { results: matches, loading } = useUserSearch(() =>
+  show.value
+    ? {
+        query: searchTerm.value,
+        include_guests: false,
+        exclude_community: props.community.name,
+        limit: 100,
+      }
+    : null,
+)
 
 const matchNames = computed(() => new Set(matches.value.map((user) => user.name)))
 const selectedSet = computed(() => new Set(selected.value))

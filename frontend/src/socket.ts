@@ -38,7 +38,7 @@ export type GameplanSocketEvents = {
     count: number
     notification: NotificationChange | null
   }
-  'gameplan:users_changed': void
+  'gameplan:users_changed': { profiles?: string[] } | undefined
 }
 
 type SocketEventName = keyof GameplanSocketEvents

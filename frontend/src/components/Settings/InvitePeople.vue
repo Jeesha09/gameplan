@@ -108,7 +108,7 @@
 import { ref, computed } from 'vue'
 import { Select, Tooltip, useCall, useList } from 'frappe-ui'
 import { GPInvitation } from '@/types/doctypes'
-import { users } from '@/data/users'
+import { loadMemberCount } from '@/data/users'
 
 type Role = 'Gameplan Admin' | 'Gameplan Member'
 
@@ -193,11 +193,8 @@ const inviteByEmail = useCall<
     role.value = 'Gameplan Member'
     emails.value = ''
     pendingInvitations.reload()
-    // Someone granted access holds a role now, so they belong in the members list
-    // behind this dialog. Reloading is safe here: the app gates on the `usersReady`
-    // latch, not on `users.isFinished`, which goes false during any refetch.
     if (data.granted.length) {
-      users.reload()
+      loadMemberCount()
     }
   },
 })

@@ -11,21 +11,61 @@ import RichQuoteNodeExtension from '@/components/RichQuoteExtension/rich-quote-n
 import QuoteBacklinkDecoration from '@/components/RichQuoteExtension/quote-backlink-decoration'
 import type { RichQuoteController } from '@/components/RichQuoteExtension/useRichQuotes'
 import TextEditorMentionComponent from '@/components/TextEditorMentionComponent.vue'
-import { activeUsers } from '@/data/users'
+import MentionList, { type MentionItem } from '@/components/editor/MentionList.vue'
+import { searchUsers } from '@/data/users'
 import { tags as tagList } from '@/data/tags'
 import { loadDiscussionPreview } from '@/data/discussionPreviews'
 import { discussionHref, parseDiscussionUrl } from '@/utils/discussionLinks'
 
 // @-mention items: gameplan users plus an "Everyone" entry. The mention node stores
 // `id`/`label`; the suggestion command maps value→id, so we provide all three.
-function mentionItems() {
-  return [{ id: '_everyone_', label: 'Everyone', value: '_everyone_' }].concat(
-    activeUsers.value.map((user) => ({
-      id: user.name,
-      label: user.full_name.trimEnd(),
-      value: user.name,
-    })),
-  )
+let mentionTimer: number | undefined
+let mentionRequest = 0
+let mentionWaiting: ((items: MentionItem[]) => void)[] = []
+
+function mentionItems(query: string): Promise<MentionItem[]> {
+  return new Promise((resolve) => {
+    mentionWaiting.push(resolve)
+    window.clearTimeout(mentionTimer)
+    mentionTimer = window.setTimeout(async () => {
+      const waiting = mentionWaiting
+      mentionWaiting = []
+      const current = ++mentionRequest
+      const users = await searchUsers({ query, limit: 10 }).catch(() => [])
+      if (current !== mentionRequest) return
+      const everyone = { id: '_everyone_', label: 'Everyone', value: '_everyone_' }
+      const items = ('everyone'.startsWith(query.toLowerCase()) ? [everyone] : []).concat(
+        users.map((user) => ({
+          id: user.name,
+          label: user.full_name.trimEnd(),
+          value: user.name,
+        })),
+      )
+      waiting.forEach((done) => done(items))
+    }, 150)
+  })
+}
+
+const MENTION_PREFIXES = [' ', ' ', '(', '[', '{', '<', '（', '【', '《', '「', '『', '«', '‹']
+
+export function mentionExtension() {
+  return SuggestionExtension.configure<MentionItem>({
+    name: 'mentionSearch',
+    trigger: '@',
+    items: mentionItems,
+    listComponent: MentionList as Component,
+    allowedPrefixes: MENTION_PREFIXES,
+    command: ({ editor, item, range }) => {
+      editor
+        .chain()
+        .focus()
+        .insertContentAt(range, [
+          { type: 'mention', attrs: { id: item.value, label: item.label } },
+          { type: 'text', text: ' ' },
+        ])
+        .run()
+    },
+  })
 }
 
 function tagItems() {
@@ -158,7 +198,7 @@ export const gameplanHeadingLevels = [2, 3, 4, 5, 6] as const
 export function suggestionConfig(suggestions = true) {
   return {
     mention: {
-      items: suggestions ? mentionItems : null,
+      items: null,
       nodeView: TextEditorMentionComponent as Component,
     },
     tag: { items: suggestions ? tagItems : null },

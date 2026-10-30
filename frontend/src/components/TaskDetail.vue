@@ -44,9 +44,9 @@
           "
         />
         <div class="mt-8 flex flex-wrap items-center gap-2 sm:hidden">
-          <Combobox
+          <UserCombobox
             placeholder="Assign a user"
-            :options="assignableUsers"
+            :extra-options="noAssignee"
             :modelValue="task.doc.assigned_to"
             :disabled="!canEditTask"
             @update:modelValue="changeAssignee"
@@ -96,10 +96,10 @@
       <div class="grid grid-cols-2 items-center gap-y-6 p-6 text-base text-ink-gray-6">
         <div>Assignee</div>
         <div>
-          <Combobox
+          <UserCombobox
             class="w-full"
             placeholder="Assign a user"
-            :options="assignableUsers"
+            :extra-options="noAssignee"
             :modelValue="task.doc.assigned_to"
             :disabled="!canEditTask"
             @update:modelValue="changeAssignee"
@@ -108,7 +108,7 @@
             <template #item-prefix="{ item }">
               <UserAvatar :user="item.value" size="xs" />
             </template>
-          </Combobox>
+          </UserCombobox>
         </div>
         <div>Due Date</div>
         <div>
@@ -196,7 +196,7 @@ import {
 } from 'frappe-ui'
 import UserAvatar from '@/components/UserAvatar.vue'
 import { vFocus } from '@/directives'
-import { activeUsers } from '@/data/users'
+import UserCombobox from '@/components/UserCombobox.vue'
 import { useGroupedSpaceOptions } from '@/data/groupedSpaces'
 import { getSpace } from '@/data/spaces'
 import { provideThreadReactions } from '@/data/reactions'
@@ -256,19 +256,7 @@ onUnmounted(
   }),
 )
 
-const assignableUsers = computed<{ label: string; value: string }[]>(() => {
-  return [
-    {
-      label: 'No Assignee',
-      value: '<no_assignee>',
-    },
-  ].concat(
-    ...activeUsers.value.map((user) => ({
-      label: user.full_name,
-      value: user.name,
-    })),
-  )
-})
+const noAssignee = [{ label: 'No Assignee', value: '<no_assignee>' }]
 
 const statusOptions = computed(() =>
   (['Backlog', 'Todo', 'In Progress', 'Done', 'Canceled'] as Array<GPTask['status']>).map(

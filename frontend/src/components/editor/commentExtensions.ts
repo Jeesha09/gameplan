@@ -14,6 +14,7 @@ import {
   richQuoteExtensions,
   DiscussionLinkPasteExtension,
   discussionLinkExtension,
+  mentionExtension,
 } from './config'
 import { collapsibleExtensions, slashCommandsWithCollapsible } from './collapsible'
 import { CustomEmojiExtension } from './customEmojiExtension'
@@ -63,6 +64,7 @@ export function commentExtensions(
     Highlight,
     CustomEmojiExtension,
     discussionLinkExtension(),
+    mentionExtension(),
     DiscussionCardExtension,
     LinkCardExtension,
     DiscussionLinkPasteExtension,

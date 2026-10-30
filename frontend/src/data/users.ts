@@ -1,5 +1,5 @@
 import { computed, reactive, readonly, ref, watch } from 'vue'
-import { call, useCall } from 'frappe-ui'
+import { call, debounce, useCall } from 'frappe-ui'
 import router from '@/router'
 import { setCommunityOrder } from './communityOrder'
 import {
@@ -13,6 +13,7 @@ import { setSidebarBadgeStyle, type SidebarBadgeStyle } from './sidebarPreferenc
 import { session } from './session'
 import { onSocketEvent } from '@/socket'
 import { isAnonymousVisitor } from '@/utils/publicAccess'
+import { getSessionUserFromCookie } from '@/utils/sessionCookie'
 
 export type EmailDigestFrequency = 'Off' | 'Weekly' | 'Fortnightly' | 'Monthly'
 export type EmailDigestDayOfWeek =
@@ -94,7 +95,8 @@ function mergeUserInfo(user: UserInfo) {
 
 export let users = useCall<UserInfo[]>({
   url: '/api/v2/method/gameplan.api.get_user_info',
-  cacheKey: 'Users',
+  params: () => ({ user: getSessionUserFromCookie() }),
+  cacheKey: 'SessionUser',
   initialData: [],
   transform(data) {
     for (let user of data) {
@@ -157,14 +159,117 @@ watch(
 // `immediate: false` and App.vue fetches it once the session is known, and reloading before
 // that would race that first fetch on the same instance. After a failed first fetch this
 // does allow a reload, which is wanted — it is the one path that can recover the list.
-onSocketEvent('gameplan:users_changed', () => {
-  if (usersReady.value && !isAnonymousVisitor()) users.reload()
+onSocketEvent('gameplan:users_changed', (payload) => {
+  if (!usersReady.value || isAnonymousVisitor()) return
+  if (!payload?.profiles) {
+    users.reload()
+    return
+  }
+  const profiles = new Set(payload.profiles)
+  for (const user of Object.values(usersByName)) {
+    if (!user.isPlaceholder && profiles.has(user.user_profile)) refetchUser(user.name)
+  }
 })
 
 export function updateUserInfo(user: UserInfo) {
   mergeUserInfo(user)
   const listedUser = users.data?.find((item) => item.name === user.name)
   if (listedUser) Object.assign(listedUser, user)
+}
+
+const requestedUsers = new Set<string>()
+const pendingUsers = new Set<string>()
+let userBatchTimer: number | null = null
+
+function requestUser(name: string) {
+  if (requestedUsers.has(name)) return
+  requestedUsers.add(name)
+  pendingUsers.add(name)
+  userBatchTimer ??= window.setTimeout(fetchPendingUsers, 0)
+}
+
+export function refetchUser(name: string) {
+  requestedUsers.delete(name)
+  requestUser(name)
+}
+
+async function fetchPendingUsers() {
+  userBatchTimer = null
+  const names = [...pendingUsers].slice(0, 100)
+  names.forEach((name) => pendingUsers.delete(name))
+  if (pendingUsers.size) userBatchTimer = window.setTimeout(fetchPendingUsers, 0)
+  try {
+    const rows = await call<UserInfo[]>('gameplan.api.get_user_info', { users: names })
+    rows.forEach(mergeUserInfo)
+  } catch (error) {
+    names.forEach((name) => requestedUsers.delete(name))
+    console.error('Could not load users', error)
+  }
+}
+
+export interface UserSearchParams {
+  query?: string
+  start?: number
+  limit?: number
+  order_by?: 'relevance' | 'full_name' | 'creation' | 'role'
+  descending?: boolean
+  include_guests?: boolean
+  include_disabled?: boolean
+  community?: string
+  exclude_community?: string
+  exclude_space?: string | number
+}
+
+export async function searchUsers(params: UserSearchParams = {}): Promise<UserInfo[]> {
+  const rows = await call<UserInfo[]>('gameplan.api.search_users', params)
+  rows.forEach(mergeUserInfo)
+  return rows.map((row) => usersByName[row.name])
+}
+
+export function useUserSearch(params: () => UserSearchParams | null, wait = 250) {
+  const results = ref<UserInfo[]>([])
+  const loading = ref(false)
+  let request = 0
+
+  async function run(current: number, value: UserSearchParams) {
+    try {
+      const rows = await searchUsers(value)
+      if (current === request) results.value = rows
+    } catch (error) {
+      if (current === request) results.value = []
+      console.error('Could not search users', error)
+    } finally {
+      if (current === request) loading.value = false
+    }
+  }
+  const runDebounced = debounce(run, wait)
+
+  function reload() {
+    const value = params()
+    const current = ++request
+    if (!value) {
+      loading.value = false
+      return
+    }
+    loading.value = true
+    runDebounced(current, value)
+  }
+
+  watch(params, reload, { immediate: true, deep: true })
+  return { results, loading, reload }
+}
+
+const memberCountCall = useCall<number>({
+  url: '/api/v2/method/gameplan.api.get_member_count',
+  cacheKey: 'MemberCount',
+  immediate: false,
+})
+
+/** How many people the People page lists: enabled accounts, guests excluded. */
+export const memberCount = computed(() => memberCountCall.data ?? 0)
+
+export function loadMemberCount() {
+  memberCountCall.reload()
 }
 
 // Shared so `useUser('')` is referentially stable across renders, and never lands in
@@ -193,7 +298,10 @@ export function useUser(...args: [] | [email: string | null | undefined]): UserI
   if (!usersByName[email]) {
     usersByName[email] = getPlaceholderUser(email, email.split('@')[0])
   }
-  if (usersByName[email].isPlaceholder && isAnonymousVisitor()) requestPublicProfile(email)
+  if (usersByName[email].isPlaceholder) {
+    if (isAnonymousVisitor()) requestPublicProfile(email)
+    else if (session.isLoggedIn) requestUser(email)
+  }
   return usersByName[email]
 }
 
@@ -270,24 +378,6 @@ function getPlaceholderUser(email: string, full_name: string) {
     user_type: 'Website User',
   } as UserInfo
 }
-
-export let activeUsers = computed(() => {
-  // Read through the store, which is reactive: `users.data` is a shallow ref, so a role
-  // change merged into a row would not show.
-  return (users.data || [])
-    .map((user) => usersByName[user.name] ?? user)
-    .filter((user) => user.enabled)
-})
-
-/**
- * How many people the People page lists: enabled accounts, guests excluded.
- *
- * Derived from the already-loaded user list rather than a count query, so the rail can
- * show it without a request of its own.
- */
-export const memberCount = computed(() => {
-  return activeUsers.value.filter((user) => user.isNotGuest).length
-})
 
 export function useSessionUser() {
   return useUser('sessionUser')

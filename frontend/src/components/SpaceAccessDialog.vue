@@ -42,8 +42,8 @@
           </div>
 
           <div v-if="canManageMembers" class="flex items-end gap-2">
-            <Combobox
-              :options="addableUsers"
+            <UserCombobox
+              :params="addableUserParams"
               v-model="selectedUser"
               placeholder="Jane Doe"
               class="w-full"
@@ -53,7 +53,7 @@
               <template #item-prefix="{ item }">
                 <UserAvatar :user="item.value" size="xs" />
               </template>
-            </Combobox>
+            </UserCombobox>
             <Button
               class="ml-auto w-13 shrink-0"
               @click="addMember"
@@ -142,22 +142,13 @@
 </template>
 <script setup lang="ts">
 import { ref, computed, reactive, watch } from 'vue'
-import {
-  Badge,
-  Combobox,
-  toast,
-  Tooltip,
-  TextInput,
-  useDoctype,
-  useList,
-  ScrollArea,
-} from 'frappe-ui'
+import { Badge, toast, Tooltip, TextInput, useDoctype, useList, ScrollArea } from 'frappe-ui'
 import EmptyStateBox from '@/components/EmptyStateBox.vue'
 import VisibilityDialog from '@/components/VisibilityDialog.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
-import { getCommunity } from '@/data/communities'
+import UserCombobox from '@/components/UserCombobox.vue'
 import { spaces as spaceList, useSpace } from '@/data/spaces'
-import { isGameplanAdmin, useSessionUser, useUser, users } from '@/data/users'
+import { isGameplanAdmin, useSessionUser, useUser } from '@/data/users'
 import { canInviteGuests, canManageSpace } from '@/utils/permissions'
 import { GPGuestAccess, GPInvitation, GPProject } from '@/types/doctypes'
 import {
@@ -228,15 +219,11 @@ const accessDescription = computed(() => {
   return 'Every community user can view this space. Guests need an explicit invite.'
 })
 
-let addableUsers = computed(() => {
-  let communityMembers = getCommunity(space.value?.team || '')?.members || []
-  let communityMemberNames = new Set(communityMembers.map((member) => member.user))
-
-  return (users.data || [])
-    .filter((user) => user.enabled && !space.value?.members.find((m) => m.user === user.name))
-    .filter((user) => user.isNotGuest && communityMemberNames.has(user.name))
-    .map((user) => ({ value: user.name, label: user.full_name }))
-})
+let addableUserParams = computed(() => ({
+  include_guests: false,
+  community: space.value?.team || '',
+  exclude_space: space.value?.name,
+}))
 
 let selectedUser = ref<string | null>(null)
 let guestEmail = ref('')

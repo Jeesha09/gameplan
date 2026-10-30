@@ -112,7 +112,7 @@ import { h, ref, computed, onBeforeUnmount, watch, nextTick, markRaw, useTemplat
 import { useEventListener, useMediaQuery } from '@vueuse/core'
 import { useRouter } from 'vue-router'
 import { Dialog, ScrollArea, dayjs, debounce, useCall, useNewDoc } from 'frappe-ui'
-import { activeUsers, isGameplanAdmin, useSessionUser, useUser } from '@/data/users'
+import { isGameplanAdmin, useSessionUser, useUser, useUserSearch } from '@/data/users'
 import ItemProject from './ItemProject.vue'
 import Item from './Item.vue'
 import UserAvatar from '../UserAvatar.vue'
@@ -160,6 +160,9 @@ const canCustomizeProfile = useMediaQuery('(min-width: 768px)')
 const normalizedQuery = computed(() => query.value.trim())
 const serverSearchQuery = ref('')
 const serverSearchResults = ref<SearchResult[]>([])
+const { results: people } = useUserSearch(() =>
+  normalizedQuery.value.length > 1 ? { query: normalizedQuery.value, limit: 5 } : null,
+)
 
 const titleSearch = useCall<SearchResult[], { query: string }>({
   url: '/api/v2/method/gameplan.command_palette.search_sqlite',
@@ -513,7 +516,7 @@ const searchList = computed(() => {
     })
   }
 
-  for (const user of activeUsers.value) {
+  for (const user of people.value) {
     for (const tab of personTabs) {
       list.push({
         type: 'People',
@@ -566,6 +569,8 @@ const {
   localGroups: localResultGroups,
   serverGroups: transformedSearchResults,
 })
+
+watch(people, updateLocalResults)
 
 function switchCommunity(communityId: string) {
   communityState.change(communityId)

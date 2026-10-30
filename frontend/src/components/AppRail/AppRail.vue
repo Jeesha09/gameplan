@@ -111,7 +111,7 @@ import { draftCount } from '@/data/drafts'
 import { unreadNotifications } from '@/data/notifications'
 import { currentSidebarBadgeStyle } from '@/data/sidebarPreferences'
 import { getSpaceUnreadCount, spaces } from '@/data/spaces'
-import { memberCount, useSessionUser } from '@/data/users'
+import { loadMemberCount, memberCount, useSessionUser } from '@/data/users'
 import AppDropdown from '../AppDropdown.vue'
 import CommunityImage from '../CommunityImage.vue'
 import CustomizeSidebarDialog from './CustomizeSidebarDialog.vue'
@@ -133,6 +133,7 @@ interface RailShortcut {
 const route = useRoute()
 const router = useRouter()
 const sessionUser = useSessionUser()
+if (!isAnonymousVisitor()) loadMemberCount()
 
 const communityScrollEl = useTemplateRef<HTMLElement>('communityScrollEl')
 const showTopGradient = ref(false)

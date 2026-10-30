@@ -78,7 +78,15 @@
           elsewhere stay available.
         </p>
         <div class="flex items-end gap-2">
-          <Select v-model="targetUser" label="User" class="min-w-0 flex-1" :options="userOptions" />
+          <div class="min-w-0 flex-1 space-y-1.5">
+            <FormLabel label="User" />
+            <UserCombobox
+              v-model="targetUser"
+              class="w-full"
+              placeholder="Choose a user"
+              :filter="canBeBanned"
+            />
+          </div>
           <Button :disabled="!targetUser" @click="banUser">Ban from Community</Button>
         </div>
         <div
@@ -112,10 +120,20 @@ import ApprovalSettings from '@/components/ApprovalSettings.vue'
 import ReportQueue from '@/components/ReportQueue.vue'
 import { useRoute, useRouter } from 'vue-router'
 import ModerationHistory from '@/components/ModerationHistory.vue'
-import { Button, Select, TabButtons, ErrorMessage, call, dialog, useDoctype } from 'frappe-ui'
+import {
+  Button,
+  FormLabel,
+  Select,
+  TabButtons,
+  ErrorMessage,
+  call,
+  dialog,
+  useDoctype,
+} from 'frappe-ui'
 import CommentEditor from '@/components/editor/CommentEditor.vue'
 import { useCommunity } from '@/data/communities'
-import { users, useSessionUser, useUser } from '@/data/users'
+import { useSessionUser, useUser, type UserInfo } from '@/data/users'
+import UserCombobox from '@/components/UserCombobox.vue'
 import { canModerateCommunity, canManageCommunity, isGlobalAdmin } from '@/utils/permissions'
 import { reloadDiscussionLists, useDiscussion } from '@/data/discussions'
 import { extractServerMessage } from '@/utils'
@@ -157,18 +175,14 @@ const hasMore = ref(false)
 const selected = ref('')
 const previewContent = ref('')
 const targetUser = ref('')
-const userOptions = computed(() => [
-  { label: 'Choose a user', value: '' },
-  ...(users.data || [])
-    .filter(
-      (user) =>
-        !isGlobalAdmin(user) &&
-        !community.value?.members.some(
-          (member) => member.user === user.name && (member.is_admin || member.is_moderator),
-        ),
+function canBeBanned(user: UserInfo) {
+  return (
+    !isGlobalAdmin(user) &&
+    !community.value?.members.some(
+      (member) => member.user === user.name && (member.is_admin || member.is_moderator),
     )
-    .map((user) => ({ label: user.full_name, value: user.name })),
-])
+  )
+}
 
 let request = 0
 async function load() {

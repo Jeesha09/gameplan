@@ -57,7 +57,10 @@
                 Clear All
               </Button>
               <Button
-                v-if="(activeFilters[type]?.length ?? 0) < selectAllValues[type].length"
+                v-if="
+                  type !== 'owner' &&
+                  (activeFilters[type]?.length ?? 0) < selectAllValues[type].length
+                "
                 variant="ghost"
                 size="sm"
                 class="ml-auto"
@@ -389,13 +392,12 @@ import {
 import { useNewDoc } from 'frappe-ui'
 import { List, ListCell, ListRow } from 'frappe-ui/list'
 import { GPSearchFeedback } from '@/types/doctypes'
-import { useSessionUser } from '@/data/users'
+import { useSessionUser, useUser, useUserSearch } from '@/data/users'
 import UserAvatarWithHover from '@/components/UserAvatarWithHover.vue'
 import { discussionSortChoices } from '@/data/discussionSort'
 import { useGroupedSpaceOptions } from '@/data/groupedSpaces'
 import { getSpace } from '@/data/spaces'
 import { activeCommunities } from '@/data/communities'
-import { users } from '@/data/users'
 import { vFocus } from '@/directives'
 import PublicLoginButtons from '@/components/Public/PublicLoginButtons.vue'
 import { communityState } from '@/data/communityState'
@@ -652,19 +654,29 @@ const teamsFilterOptions = computed(() => {
   }))
 })
 
+const authorQuery = computed(() => filterQueries.value.owner.trim())
+const { results: matchingAuthors } = useUserSearch(() =>
+  authorQuery.value ? { query: authorQuery.value, include_disabled: true, limit: 50 } : null,
+)
+
 const authorsFilterOptions = computed(() => {
-  // Convert the authors dict from API to a Map for lookups
-  const authorCounts = new Map()
-  if (filterOptions.data?.authors) {
-    Object.entries(filterOptions.data.authors).forEach(([authorName, count]) => {
-      authorCounts.set(authorName, count)
-    })
-  }
+  const authorCounts = new Map<string, number>(Object.entries(filterOptions.data?.authors ?? {}))
 
   // Disabled users stay in the list while they have indexed posts, so older posts
   // by people who have left can still be found by author.
-  return (users.data || [])
-    .filter((user) => user.enabled || authorCounts.get(user.name))
+  const candidates = authorQuery.value
+    ? matchingAuthors.value.filter((user) => user.enabled || authorCounts.get(user.name))
+    : [
+        ...new Set([
+          ...((activeFilters.value.owner || []) as string[]),
+          ...[...authorCounts.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, OPTION_LIMIT)
+            .map(([name]) => name),
+        ]),
+      ].map((name) => useUser(name))
+
+  return candidates
     .map((user) => ({
       value: user.name,
       label: user.full_name,

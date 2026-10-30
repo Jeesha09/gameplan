@@ -11,7 +11,7 @@
           <TextInput
             class="min-w-0 flex-1 md:w-72 md:flex-none"
             placeholder="Search by name or email"
-            @input="search = $event.target.value"
+            v-model="search"
             :debounce="300"
           >
             <template #prefix>
@@ -107,6 +107,9 @@
         </ListRow>
       </ListRows>
     </List>
+    <div class="p-3" v-if="hasMoreUsers">
+      <Button @click="loadUsers(false)" :loading="loadingUsers">Load more</Button>
+    </div>
   </PanelBody>
 
   <Dialog v-model:open="showInviteDialog">
@@ -132,23 +135,18 @@ import {
   ListRows,
 } from 'frappe-ui/list'
 import InvitePeople from './InvitePeople.vue'
-import { users, activeUsers, updateUserInfo, type UserInfo } from '@/data/users'
+import { loadMemberCount, searchUsers, updateUserInfo, type UserInfo } from '@/data/users'
 import { GPInvitation } from '@/types/doctypes'
 
 type SortField = 'name' | 'role' | 'creation'
 type SortDirection = 'asc' | 'desc'
-type UserRow = (typeof activeUsers.value)[number]
+type UserRow = UserInfo
 
 const roleOptions = [
   { label: 'Admin', value: 'Gameplan Admin', icon: 'lucide-shield-check' },
   { label: 'User', value: 'Gameplan Member', icon: 'lucide-user' },
   { label: 'Guest', value: 'Gameplan Guest', icon: 'lucide-user-lock' },
 ]
-
-// Index used to rank roles (Admin first) when sorting by role.
-const roleRank: Record<string, number> = Object.fromEntries(
-  roleOptions.map((option, index) => [option.value, index]),
-)
 
 const search = ref('')
 const sortField = ref<SortField>('name')
@@ -168,7 +166,10 @@ const pendingInvitesLabel = computed(() => {
 
 // Invites are sent/revoked inside the dialog, so refresh the count on close.
 watch(showInviteDialog, (open, wasOpen) => {
-  if (wasOpen && !open) pendingInvites.reload()
+  if (wasOpen && !open) {
+    pendingInvites.reload()
+    loadUsers()
+  }
 })
 
 // `users` is a useCall resource (no setData); refetch after mutations so the
@@ -183,20 +184,38 @@ const disableUserCall = useCall<string, { user: string }>({
   url: '/api/v2/method/gameplan.api.disable_user',
   method: 'POST',
   immediate: false,
-  onSuccess: () => users.reload(),
+  onSuccess: () => {
+    loadUsers()
+    loadMemberCount()
+  },
 })
 
-const filteredUsers = computed(() => {
-  let list = activeUsers.value
-  if (search.value) {
-    const term = search.value.toLowerCase()
-    list = list.filter(
-      (user) =>
-        user.name.toLowerCase().includes(term) || user.full_name.toLowerCase().includes(term),
-    )
+const PAGE_SIZE = 100
+const filteredUsers = ref<UserInfo[]>([])
+const hasMoreUsers = ref(false)
+const loadingUsers = ref(false)
+let usersRequest = 0
+
+async function loadUsers(reset = true) {
+  const current = ++usersRequest
+  loadingUsers.value = true
+  try {
+    const page = await searchUsers({
+      query: search.value,
+      start: reset ? 0 : filteredUsers.value.length,
+      limit: PAGE_SIZE,
+      order_by: sortField.value === 'name' ? 'full_name' : sortField.value,
+      descending: (sortDirection.value === 'desc') !== (sortField.value === 'role'),
+    })
+    if (current !== usersRequest) return
+    filteredUsers.value = reset ? page : [...filteredUsers.value, ...page]
+    hasMoreUsers.value = page.length === PAGE_SIZE
+  } finally {
+    if (current === usersRequest) loadingUsers.value = false
   }
-  return [...list].sort(compareUsers)
-})
+}
+
+watch([search, sortField, sortDirection], () => loadUsers(), { immediate: true })
 
 function toggleSort(field: SortField) {
   if (sortField.value === field) {
@@ -210,21 +229,6 @@ function toggleSort(field: SortField) {
 
 function directionFor(field: SortField) {
   return sortField.value === field ? sortDirection.value : null
-}
-
-function compareUsers(a: UserRow, b: UserRow) {
-  let result = 0
-  if (sortField.value === 'role') {
-    const rankA = roleRank[a.role] ?? Number.MAX_SAFE_INTEGER
-    const rankB = roleRank[b.role] ?? Number.MAX_SAFE_INTEGER
-    result = rankA - rankB
-  } else if (sortField.value === 'creation') {
-    result = (a.creation || '').localeCompare(b.creation || '')
-  } else {
-    result = (a.full_name || '').localeCompare(b.full_name || '')
-  }
-
-  return sortDirection.value === 'asc' ? result : -result
 }
 
 function defaultSortDirection(field: SortField): SortDirection {
