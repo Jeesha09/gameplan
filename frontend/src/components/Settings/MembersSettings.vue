@@ -172,8 +172,6 @@ watch(showInviteDialog, (open, wasOpen) => {
   }
 })
 
-// `users` is a useCall resource (no setData); refetch after mutations so the
-// list — role labels and membership — reflects the server-side change.
 const changeUserRoleCall = useCall<UserInfo, { user: string; role: string }>({
   url: '/api/v2/method/gameplan.api.change_user_role',
   method: 'POST',
@@ -205,7 +203,7 @@ async function loadUsers(reset = true) {
       start: reset ? 0 : filteredUsers.value.length,
       limit: PAGE_SIZE,
       order_by: sortField.value === 'name' ? 'full_name' : sortField.value,
-      descending: (sortDirection.value === 'desc') !== (sortField.value === 'role'),
+      descending: sortDirection.value === 'desc',
     })
     if (current !== usersRequest) return
     filteredUsers.value = reset ? page : [...filteredUsers.value, ...page]

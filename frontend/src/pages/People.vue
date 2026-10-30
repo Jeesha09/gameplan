@@ -300,7 +300,7 @@ revalidateOnReconnect(people)
 // app shows, so search matches it.
 const profiles = computed(() => {
   return (people.data || [])
-    .filter((profile) => useUser(profile.user).isNotGuest)
+    .filter((profile) => !useUser(profile.user).isGuest)
     .map((profile) => ({
       ...profile,
       email: useUser(profile.user).email,

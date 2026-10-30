@@ -9,7 +9,7 @@
       </Layout>
     </div>
     <NewTaskDialog />
-    <!-- usersReady, not users.isFinished: a mid-session reload of the user list would
+    <!-- usersReady, not users.isFinished: a mid-session reload of the session user would
          flip isFinished back to false and unmount the open settings dialog.
          Phones have no dialog: a /settings/* URL is an ordinary page there
          (pages/SettingsPage.vue). -->

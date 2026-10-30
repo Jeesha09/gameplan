@@ -64,7 +64,7 @@ export interface UserInfo {
   isDisabled?: boolean
   /**
    * True for a record `useUser` invented because the id is not in the store — either the
-   * user list has not loaded yet, or the user is not in it at all (`get_user_info` only
+   * user has not been fetched yet, or is not a Gameplan user at all (`get_user_info` only
    * returns users holding a Gameplan role). Its `full_name` is a guess (the local part of
    * the email), so callers with a better name of their own should prefer theirs.
    */
@@ -121,8 +121,8 @@ const firstFetchSettled = ref(false)
  *
  * Anything that renders the app shell must gate on this and NOT on `users.isFinished`
  * directly. `isFinished` only means "no request in flight", so it flips back to false on
- * every reload, and a profile edit anywhere broadcasts `gameplan:users_changed`, which
- * reloads this list mid-session. Gating on it unmounts the whole layout and any open
+ * every reload, and a community ban broadcasts `gameplan:users_changed`, which
+ * reloads the session user mid-session. Gating on it unmounts the whole layout and any open
  * dialog for the length of that refetch: the app visibly blanks out. A refetch must never
  * unmount anything.
  *
@@ -134,7 +134,7 @@ const firstFetchSettled = ref(false)
 export const usersReady = readonly(firstFetchSettled)
 
 /**
- * Start the app without the user list, for someone who is not signed in. `get_user_info`
+ * Start the app without fetching the session user, for someone who is not signed in. `get_user_info`
  * is closed to them; the authors on a public page are looked up one by one instead (see
  * `requestPublicProfile`).
  */
@@ -155,10 +155,11 @@ watch(
 )
 
 // A profile edit changes what everyone else renders (avatar, name, role), so the backend
-// broadcasts this to every session. Skipped until the first fetch has settled: `users` is
+// broadcasts the changed profile to every session, and only users loaded here are refetched.
+// A ban sends no profile and reloads the session user. Skipped until the first fetch has settled: `users` is
 // `immediate: false` and App.vue fetches it once the session is known, and reloading before
 // that would race that first fetch on the same instance. After a failed first fetch this
-// does allow a reload, which is wanted — it is the one path that can recover the list.
+// does allow a reload, which is wanted — it is the one path that can recover the session user.
 onSocketEvent('gameplan:users_changed', (payload) => {
   if (!usersReady.value || isAnonymousVisitor()) return
   if (!payload?.profiles) {

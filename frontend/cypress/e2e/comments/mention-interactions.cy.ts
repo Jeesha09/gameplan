@@ -13,11 +13,11 @@ describe('Mention interactions', () => {
     resetData('space_with_discussion').then(({ community, space, discussion }) => {
       discussionUrl = `/g/community/${community}/space/${space}/discussion/${discussion}`
       cy.loginAs('member')
-      cy.request('GET', '/api/v2/method/gameplan.api.get_user_info').then(({ body }) => {
-        profile = body.data.find(
-          (user: { name: string }) => user.name === 'member2@example.com',
-        ).user_profile
-      })
+      cy.request('GET', '/api/v2/method/gameplan.api.get_user_info?user=member2@example.com').then(
+        ({ body }) => {
+          profile = body.data[0].user_profile
+        },
+      )
       cy.request('PUT', `/api/v2/document/GP%20Discussion/${discussion}`, { content })
       cy.request('POST', '/api/v2/document/GP%20Comment', {
         reference_doctype: 'GP Discussion',

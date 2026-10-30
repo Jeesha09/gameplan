@@ -57,14 +57,11 @@
                 Clear All
               </Button>
               <Button
-                v-if="
-                  type !== 'owner' &&
-                  (activeFilters[type]?.length ?? 0) < selectAllValues[type].length
-                "
+                v-if="(activeFilters[type]?.length ?? 0) < (selectAllValues[type]?.length ?? 0)"
                 variant="ghost"
                 size="sm"
                 class="ml-auto"
-                @click="updateFilter(type, selectAllValues[type])"
+                @click="updateFilter(type, selectAllValues[type] ?? [])"
               >
                 Select All
               </Button>
@@ -536,14 +533,15 @@ function limitSpaceOptions<T extends { label: string; value: string }>(
 const authorOptions = computed(() => limitOptions(authorsFilterOptions.value, 'owner'))
 const spaceOptions = computed(() => limitSpaceOptions(spacesFilterOptions.value))
 const tagOptions = computed(() => limitOptions(tagsFilterOptions.value, 'tags'))
-const selectAllValues = computed(() => ({
-  owner: allOptionValues(authorsFilterOptions.value),
-  project: allOptionValues(spacesFilterOptions.value),
-  tags: allOptionValues(tagsFilterOptions.value),
-}))
+const selectAllValues = computed<Partial<Record<keyof typeof filterQueries.value, string[]>>>(
+  () => ({
+    project: allOptionValues(spacesFilterOptions.value),
+    tags: allOptionValues(tagsFilterOptions.value),
+  }),
+)
 
 const [DefineFilterFooter, ReuseFilterFooter] = createReusableTemplate<{
-  type: keyof typeof selectAllValues.value
+  type: keyof typeof filterQueries.value
   clear: () => void
 }>()
 

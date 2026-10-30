@@ -35,7 +35,7 @@ const query = ref('')
 const open = ref(false)
 
 const { results, loading } = useUserSearch(() =>
-  open.value ? { limit: 20, ...props.params, query: query.value } : null,
+  open.value ? { limit: props.filter ? 100 : 20, ...props.params, query: query.value } : null,
 )
 
 const options = computed(() => {

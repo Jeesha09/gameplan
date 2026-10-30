@@ -46,7 +46,31 @@ function mentionItems(query: string): Promise<MentionItem[]> {
   })
 }
 
-const MENTION_PREFIXES = [' ', ' ', '(', '[', '{', '<', '（', '【', '《', '「', '『', '«', '‹']
+const MENTION_PREFIXES = [
+  ' ',
+  ' ',
+  '(',
+  '[',
+  '{',
+  '<',
+  '（',
+  '【',
+  '《',
+  '「',
+  '『',
+  '«',
+  '‹',
+  '"',
+  "'",
+  '“',
+  '”',
+  '‘',
+  '’',
+  '」',
+  '』',
+  '»',
+  '›',
+]
 
 export function mentionExtension() {
   return SuggestionExtension.configure<MentionItem>({
@@ -191,7 +215,8 @@ export const gameplanHeadingLevels = [2, 3, 4, 5, 6] as const
 /**
  * Kit-member config for @-mentions + #-tags, applied via `kit.configure(...)`
  * (spec §3 — data-driven members configured, never proxied through props). Passing
- * getters keeps the live user/tag lists reactive. `suggestions: false` keeps the
+ * a getter keeps the live tag list reactive. Mention popups come from
+ * `mentionExtension()`, so the kit's own are always off. `suggestions: false` keeps the
  * nodes (so existing mentions/tags still render) but disables the live popups —
  * used by Pages, which never had them.
  */
