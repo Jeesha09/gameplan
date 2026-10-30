@@ -114,8 +114,8 @@ def unread_notification_count(user: str) -> int:
 	return rows[0][0] if rows else 0
 
 
-def notify_users_changed():
-	"""Tell every open session that the shared user list changed (name, avatar, role).
+def notify_users_changed(profile: str):
+	"""Tell every open session that one person's name, avatar or role changed.
 
 	Broadcast rather than per-user on purpose: a profile edit changes what *other* people
 	render, so telling only the editor — as the old `refetch_resource("Users")` call did,
@@ -125,4 +125,9 @@ def notify_users_changed():
 	and Gameplan members are Website Users, so a plain roomless broadcast would reach
 	nobody here. Every socket joins the website room.
 	"""
-	realtime.publish_realtime(USERS_CHANGED, room=realtime.get_website_room(), after_commit=True)
+	realtime.publish_realtime(
+		USERS_CHANGED,
+		{"profiles": [profile]},
+		room=realtime.get_website_room(),
+		after_commit=True,
+	)

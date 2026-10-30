@@ -192,11 +192,12 @@ class TestRealtimeEvents(GameplanTestCase):
 		nobody here — the same silent-no-op shape this whole module exists to prevent.
 		"""
 		with patch("frappe.realtime.publish_realtime") as publish_realtime:
-			notify_users_changed()
+			notify_users_changed("some-profile")
 
 		[call] = events_named(publish_realtime, USERS_CHANGED)
 		self.assertEqual(call.kwargs.get("room"), frappe.realtime.get_website_room())
 		self.assertIsNone(call.kwargs.get("user"))
+		self.assertEqual(call.args[1], {"profiles": ["some-profile"]})
 
 	def test_renaming_a_user_reaches_every_session_not_just_their_own(self):
 		"""A rename changes what *other* people render: their avatars, their mention lists,
@@ -212,6 +213,8 @@ class TestRealtimeEvents(GameplanTestCase):
 		[call] = events_named(publish_realtime, USERS_CHANGED)
 		self.assertEqual(call.kwargs.get("room"), frappe.realtime.get_website_room())
 		self.assertIsNone(call.kwargs.get("user"))
+		profile = frappe.db.get_value("GP User Profile", {"user": self.member.name})
+		self.assertEqual(call.args[1], {"profiles": [profile]})
 
 	def test_disabling_a_user_reaches_every_session_not_just_their_own(self):
 		"""A disabled member drops out of the shared user list everyone else renders from,
@@ -254,7 +257,7 @@ class TestRealtimeEvents(GameplanTestCase):
 		"""A rolled-back request must not tell the browser about a change that never landed."""
 		with patch("frappe.realtime.publish_realtime") as publish_realtime:
 			notify_unread_counts_changed(self.member.name)
-			notify_users_changed()
+			notify_users_changed("some-profile")
 
 		for call in publish_realtime.call_args_list:
 			self.assertTrue(call.kwargs.get("after_commit"), f"{call.args[0]} is not after_commit")

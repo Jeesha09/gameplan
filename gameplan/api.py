@@ -6,7 +6,8 @@ import json
 
 import frappe
 from frappe import _
-from frappe.query_builder.functions import Count
+from frappe.query_builder import Case, Order
+from frappe.query_builder.functions import Count, Max
 from frappe.utils import cint, split_emails, validate_email_address
 
 import gameplan
@@ -26,23 +27,47 @@ def require_admin():
 		frappe.throw(_("Only admins can perform this action"), frappe.PermissionError)
 
 
+USER_INFO_BATCH_LIMIT = 100
+
+
 @frappe.whitelist(allow_guest=True)
-def get_user_info(user=None):
-	"""Return Gameplan users with role, profile and recent activity counts. Pass `user` for one."""
+def get_user_info(user=None, users=None):
+	"""Return Gameplan users with role, profile and 3-month counts: `user` for one, `users` for up to 100."""
 	if frappe.session.user == "Guest":
 		frappe.throw("Authentication failed", exc=frappe.AuthenticationError)
 	if not has_app_access():
 		frappe.throw("Not permitted", frappe.PermissionError)
 
-	filters = {"roles.role": ["like", "Gameplan %"]}
+	from gameplan.guest_payload import users_for_handles
+
+	names = None
 	if user:
 		if gameplan.is_guest() and user != frappe.session.user:
-			from gameplan.guest_payload import users_for_handles
-
 			user = users_for_handles([user]).get(user)
 			if not user:
 				frappe.throw("Use a profile handle to look up another user.", frappe.PermissionError)
-		filters["name"] = user
+		names = [user]
+	elif users is not None:
+		names = frappe.parse_json(users)
+		if not isinstance(names, list) or len(names) > USER_INFO_BATCH_LIMIT:
+			frappe.throw(_("users must be a list of at most {0}").format(USER_INFO_BATCH_LIMIT))
+		if gameplan.is_guest():
+			handles = users_for_handles(names)
+			names = [
+				frappe.session.user if name == frappe.session.user else handles.get(name) for name in names
+			]
+		names = [name for name in names if name and isinstance(name, str)]
+
+	return user_info_rows(names)
+
+
+def user_info_rows(names=None):
+	if names is not None and not names:
+		return []
+
+	filters = {"roles.role": ["like", "Gameplan %"]}
+	if names is not None:
+		filters["name"] = ["in", names]
 
 	users = frappe.qb.get_query(
 		"User",
@@ -51,6 +76,8 @@ def get_user_info(user=None):
 		order_by="full_name asc",
 		distinct=True,
 	).run(as_dict=1)
+	if not users:
+		return []
 
 	# Get discussion counts for last 3 months
 	Discussion = frappe.qb.DocType("GP Discussion")
@@ -74,11 +101,10 @@ def get_user_info(user=None):
 	).run(as_dict=1)
 	comment_count_map = {c.owner: c.count for c in comment_counts}
 
-	roles = frappe.db.get_all(
-		"Has Role",
-		filters={"parenttype": "User", "role": ["in", GAMEPLAN_ROLES]},
-		fields=["role", "parent"],
-	)
+	role_filters = {"parenttype": "User", "role": ["in", GAMEPLAN_ROLES]}
+	if names is not None:
+		role_filters["parent"] = ["in", [u.name for u in users]]
+	roles = frappe.db.get_all("Has Role", filters=role_filters, fields=["role", "parent"])
 	# GAMEPLAN_ROLES is ordered by privilege, so after sorting the last role per user wins.
 	role_map = {r.parent: r.role for r in sorted(roles, key=lambda r: GAMEPLAN_ROLES.index(r.role))}
 	user_profiles = frappe.db.get_all(
@@ -147,6 +173,10 @@ def get_user_info(user=None):
 		user.discussions_count_3m = discussion_count_map.get(user.name, 0)
 		user.comments_count_3m = comment_count_map.get(user.name, 0)
 
+	if names is not None:
+		position = {name: index for index, name in enumerate(names)}
+		users.sort(key=lambda user: position.get(user.name, len(position)))
+
 	# Guests get the directory for @-mentions/avatars but not other members' emails.
 	if gameplan.is_guest():
 		for user in users:
@@ -156,6 +186,132 @@ def get_user_info(user=None):
 		users = for_guest(users)
 
 	return users
+
+
+USER_SEARCH_ORDER = ("relevance", "full_name", "creation", "role")
+
+
+@frappe.whitelist()
+@validate_type
+def search_users(
+	query: str = "",
+	start: int = 0,
+	limit: int = 20,
+	order_by: str = "relevance",
+	descending: bool = False,
+	include_guests: bool = True,
+	include_disabled: bool = False,
+	community: str | None = None,
+	exclude_community: str | None = None,
+	exclude_space: str | int | None = None,
+):
+	"""Page through Gameplan users whose name or email matches `query`, in get_user_info's shape."""
+	if not has_app_access():
+		frappe.throw("Not permitted", frappe.PermissionError)
+	if order_by not in USER_SEARCH_ORDER:
+		frappe.throw(_("order_by must be one of {0}").format(", ".join(USER_SEARCH_ORDER)))
+
+	User = frappe.qb.DocType("User")
+	order = Order.desc if descending else Order.asc
+	q = user_search_query(
+		query, include_guests, include_disabled, community, exclude_community, exclude_space
+	)
+	if order_by == "role":
+		q = order_by_role(q, order).orderby(User.full_name)
+	elif order_by == "relevance":
+		if query.strip():
+			q = q.orderby(match_rank(User.full_name, query.strip()))
+		q = q.orderby(User.full_name)
+	else:
+		q = q.orderby(User[order_by], order=order)
+	q = q.orderby(User.name).offset(max(start, 0)).limit(min(max(limit, 1), USER_INFO_BATCH_LIMIT))
+	return user_info_rows([row.name for row in q.run(as_dict=1)])
+
+
+@frappe.whitelist()
+def get_member_count():
+	"""How many enabled people hold a Gameplan Member or Admin role."""
+	if not has_app_access():
+		frappe.throw("Not permitted", frappe.PermissionError)
+	count = frappe.cache.get_value("gameplan:member_count")
+	if count is None:
+		count = frappe.qb.from_(user_search_query(include_guests=False)).select(Count("*")).run()[0][0]
+		frappe.cache.set_value("gameplan:member_count", count, expires_in_sec=300)
+	return count
+
+
+def match_rank(field, query):
+	return (
+		Case()
+		.when(field == query, 0)
+		.when(field.like(f"{query}%"), 1)
+		.when(field.like(f"% {query}%"), 2)
+		.else_(3)
+	)
+
+
+def user_search_query(
+	query="",
+	include_guests=True,
+	include_disabled=False,
+	community=None,
+	exclude_community=None,
+	exclude_space=None,
+):
+	User = frappe.qb.DocType("User")
+	HasRole = frappe.qb.DocType("Has Role")
+	Member = frappe.qb.DocType("GP Member")
+	roles = [role for role in GAMEPLAN_ROLES if include_guests or role != "Gameplan Guest"]
+
+	q = (
+		frappe.qb.from_(User)
+		.select(User.name)
+		.where(
+			User.name.isin(
+				frappe.qb.from_(HasRole)
+				.select(HasRole.parent)
+				.where((HasRole.parenttype == "User") & HasRole.role.isin(roles))
+			)
+		)
+	)
+	if not include_disabled:
+		q = q.where(User.enabled == 1)
+	if query := (query or "").strip():
+		pattern = f"%{query}%"
+		if gameplan.is_guest():
+			q = q.where(User.full_name.like(pattern))
+		else:
+			q = q.where(User.full_name.like(pattern) | User.name.like(pattern))
+
+	def members_of(doctype, name):
+		return (
+			frappe.qb.from_(Member)
+			.select(Member.user)
+			.where((Member.parenttype == doctype) & (Member.parent == name))
+		)
+
+	if community:
+		q = q.where(User.name.isin(members_of("GP Team", community)))
+	if exclude_community:
+		q = q.where(User.name.notin(members_of("GP Team", exclude_community)))
+	if exclude_space:
+		q = q.where(User.name.notin(members_of("GP Project", exclude_space)))
+	return q
+
+
+def order_by_role(q, order):
+	User = frappe.qb.DocType("User")
+	HasRole = frappe.qb.DocType("Has Role")
+	rank = Case()
+	for index, role in enumerate(GAMEPLAN_ROLES):
+		rank = rank.when(HasRole.role == role, index)
+	return (
+		q.join(HasRole)
+		.on((HasRole.parent == User.name) & (HasRole.parenttype == "User"))
+		.where(HasRole.role.isin(GAMEPLAN_ROLES))
+		.groupby(User.name, User.full_name)
+		.orderby(Max(rank), order=order)
+	)
 
 
 @frappe.whitelist(allow_guest=True)

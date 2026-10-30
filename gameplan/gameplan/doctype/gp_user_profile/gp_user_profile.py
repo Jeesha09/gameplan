@@ -157,7 +157,7 @@ class GPUserProfile(HasAttachments, Document):
 		self.image_background_color = None
 		self.original_image = None
 		self.save()
-		notify_users_changed()
+		notify_users_changed(self.name)
 
 	def foreign_private_images(self, images):
 		"""Which of `images` name a private file this profile has no claim on.
@@ -297,7 +297,7 @@ def on_user_update(doc, method=None):
 		profile.save(ignore_permissions=True)
 		# A rename changes what *other* sessions render, and their cached user list has
 		# no other reason to refetch.
-		notify_users_changed()
+		notify_users_changed(profile.name)
 
 
 @frappe.whitelist()
