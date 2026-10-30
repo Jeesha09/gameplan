@@ -169,7 +169,7 @@ const sessionUser = useSessionUser()
 
 const channelOptions: Array<{ value: NotificationChannel; label: string }> = [
   { value: 'In-app', label: 'In-app only' },
-  { value: 'Email', label: 'Email' },
+  { value: 'Email', label: 'Email + In-app' },
 ]
 const participationOptions: Array<{ value: ParticipationLevel; label: string }> = [
   { value: 'Watch', label: 'Watch' },
