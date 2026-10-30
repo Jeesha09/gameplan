@@ -99,7 +99,7 @@ function updateScrollFades() {
     <template #default="{ editor: e, isEmpty }">
       <slot name="top" :editor="e" />
       <EditorBubbleMenu v-if="bubbleMenu" :editor="e" :items="bubbleMenu" />
-      <EditorTableMenu :editor="e" />
+      <EditorTableMenu v-if="editable" :editor="e" />
       <LinkToolbar v-if="editable && e" :editor="e" />
       <EditorFloatingMenu v-if="floatingMenu" :editor="e" :items="floatingMenu" />
       <EditorFixedMenu
