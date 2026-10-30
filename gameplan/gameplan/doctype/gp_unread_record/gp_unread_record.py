@@ -5,6 +5,7 @@ from datetime import timedelta
 
 import frappe
 from frappe.model.document import Document, bulk_insert
+from frappe.query_builder.functions import Cast
 
 from gameplan.realtime import notify_unread_counts_changed
 from gameplan.visibility import is_member_access
@@ -228,7 +229,7 @@ class GPUnreadRecord(Document):
 			# index range scan instead of full-scanning every discussion across all communities.
 			discussions_within_cutoff = (
 				frappe.qb.from_(Discussion)
-				.select(Discussion.name)
+				.select(Cast(Discussion.name, "char"))
 				.where(Discussion.project.isin(projects) & (Discussion.last_post_at < cutoff))
 			)
 			condition &= UnreadRecord.discussion.isin(discussions_within_cutoff)
@@ -397,7 +398,7 @@ class GPUnreadRecord(Document):
 			.select(UnreadRecord.name)
 			.where(
 				(UnreadRecord.user == user)
-				& (UnreadRecord.discussion == Discussion.name)
+				& (UnreadRecord.discussion == Cast(Discussion.name, "char"))
 				& (UnreadRecord.is_unread == 1)
 			)
 		)

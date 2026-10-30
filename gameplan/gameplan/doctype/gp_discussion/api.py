@@ -4,7 +4,7 @@
 
 import frappe
 from frappe import _
-from frappe.query_builder.functions import Count
+from frappe.query_builder.functions import Cast, Count
 from frappe.utils import cint, cstr
 from pypika.terms import ExistsCriterion
 
@@ -141,7 +141,7 @@ def get_discussions(filters=None, order_by=None, start=None, limit=None):
 			.select(UnreadRecord.name)
 			.where(
 				(UnreadRecord.user == frappe.session.user)
-				& (UnreadRecord.discussion == Discussion.name)
+				& (UnreadRecord.discussion == Cast(Discussion.name, "char"))
 				& (UnreadRecord.is_unread == 1)
 			)
 		)
@@ -190,7 +190,7 @@ def include_unread_counts(discussions):
 	if not discussions:
 		return discussions
 
-	discussion_names = [d.name for d in discussions]
+	discussion_names = [str(d.name) for d in discussions]
 	UnreadRecord = frappe.qb.DocType("GP Unread Record")
 
 	# Get unread counts for all discussions in one query
@@ -334,4 +334,4 @@ def clause_discussions_commented_by_user(user):
 		.select(Comment.reference_name)
 		.where((Comment.reference_doctype == "GP Discussion") & (Comment.owner == user))
 	)
-	return Discussion.name.isin(commented_in)
+	return Cast(Discussion.name, "char").isin(commented_in)
