@@ -80,6 +80,8 @@ import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { BottomSheet } from 'frappe-ui'
 import { isGameplanAdmin, useSessionUser } from '@/data/users'
 import { session } from '@/data/session'
+import { communities } from '@/data/communities'
+import { canModerateCommunity } from '@/utils/permissions'
 import { useIsMobile } from '@/utils/useIsMobile'
 import { useTheme, type Theme } from '@/utils/useTheme'
 import { WINDOW_OPTIONS, offlineWindow } from '@/data/offlineDownloads'
@@ -136,6 +138,9 @@ const offlineLabel = computed(
 
 const itemGroups = computed<MoreItemGroup[]>(() => {
   const workspaceItems: MoreItem[] = [
+    ...(communities.data?.some((community) => canModerateCommunity(community, sessionUser))
+      ? [{ label: 'Moderation', icon: 'lucide-shield-check', route: { name: 'Moderation' } }]
+      : []),
     { label: 'Drafts', icon: 'lucide-pencil-line', route: { name: 'Drafts' } },
     { label: 'My submissions', icon: 'lucide-clipboard-check', route: { name: 'MySubmissions' } },
     { label: 'Bookmarks', icon: 'lucide-bookmark', route: { name: 'Bookmarks' } },
