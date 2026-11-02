@@ -77,6 +77,7 @@ loaded_tables = set()
 file_hashes = {}
 memory_added = []
 spaces = {}
+tag_ids = {}
 batch = frappe._dict()
 DELETED_USER = frappe._dict(
 	id="deleted",
@@ -178,7 +179,7 @@ def load_config(options):
 def start_run():
 	outcomes.clear()
 	writes.clear()
-	for cache in (id_map, loaded_tables, file_hashes, memory_added, spaces, batch):
+	for cache in (id_map, loaded_tables, file_hashes, memory_added, spaces, tag_ids, batch):
 		cache.clear()
 	config.started_at = time.monotonic()
 	stamp = now().replace(" ", "_").replace(":", "-").split(".")[0]
@@ -451,6 +452,7 @@ def get_topics_batch(last_id, limit):
 		batch.comments = group_by(comments, "topic_id")
 		batch.likes = group_by(get_likes(post_ids), "post_id")
 		batch.visits = group_by(get_visits(topic_ids), "topic_id")
+		batch.tags = group_by(get_topic_tags(topic_ids), "topic_id")
 	return topics
 
 
@@ -523,6 +525,19 @@ def get_visits(topic_ids):
 	)
 
 
+def get_topic_tags(topic_ids):
+	return run_query(
+		"""
+		select topic_tags.topic_id, tags.name
+		from topic_tags
+		join tags on tags.id = topic_tags.tag_id
+		where topic_tags.topic_id in %s
+		order by topic_tags.topic_id asc, topic_tags.id asc
+	""",
+		(topic_ids,),
+	)
+
+
 def migrate_topic(topic):
 	project = get_project(topic.category_id)
 	if not project:
@@ -547,6 +562,7 @@ def migrate_topic(topic):
 	)
 	set_new_name(doc)
 	doc.content = convert_html(content, doc, space.is_private)
+	add_tags(doc, [tag.name for tag in batch.tags.get(topic.id, [])])
 	comments = [
 		comment_doc
 		for comment in batch.comments.get(topic.id, [])
@@ -554,6 +570,8 @@ def migrate_topic(topic):
 	]
 	doc.update(get_discussion_meta(doc, comments))
 	db_insert(doc)
+	for row in doc.tags:
+		db_insert(row)
 	insert_reactions(doc, topic.post_id)
 	insert_visits(doc, topic.id)
 	log_discourse_map(doc, "topics", topic.id)
@@ -563,6 +581,41 @@ def shorten_title(title):
 	if len(title) <= TITLE_LENGTH:
 		return title
 	return title[: TITLE_LENGTH - 1].rsplit(" ", 1)[0].rstrip(" ,.;:-") + "…"
+
+
+def add_tags(doc, labels):
+	if not labels:
+		return
+	chips = []
+	for label in labels:
+		tag = get_tag(label)
+		chips.append(
+			f'<span data-tag-id="{escape(str(tag))}" data-tag-label="{escape(label)}" class="tag-item">'
+			f"#{escape(label)}</span>"
+		)
+		doc.append(
+			"tags",
+			{
+				"tag": tag,
+				"label": label,
+				"creation": doc.creation,
+				"modified": doc.modified,
+				"owner": doc.owner,
+				"modified_by": doc.owner,
+			},
+		)
+	doc.content = f"{doc.content}<p>{' '.join(chips)}</p>"
+
+
+def get_tag(label):
+	if label not in tag_ids:
+		name = frappe.db.get_value("GP Tag", {"label": label}, "name")
+		if not name:
+			tag = frappe.get_doc(doctype="GP Tag", label=label)
+			insert(tag, ignore_permissions=True)
+			name = tag.name or f"dry-run:tag:{label}"
+		remember(tag_ids, label, name)
+	return tag_ids[label]
 
 
 def migrate_comment(discussion, space, comment):
