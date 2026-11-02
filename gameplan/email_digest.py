@@ -12,6 +12,7 @@ from frappe.utils.verified_command import get_signed_params, verify_request
 
 from gameplan.permissions import apply_accessible_project_filter, visible_discussion_criterion
 from gameplan.utils import html_to_text_preview
+from gameplan.watched_word_matching import censor
 
 EMAIL_DIGEST_FREQUENCY_DAYS = {
 	"Weekly": 7,
@@ -377,8 +378,12 @@ def format_notification_group(notifications, avatar_map, user: str):
 
 
 def format_notification_item(notification, avatar_map, user: str):
-	target = notification.discussion_title or notification.task_title or notification.type
-	message = html_to_text_preview(notification.message, 160) or notification.type
+	target = (
+		censor(notification.team, notification.discussion_title)
+		if notification.discussion_title
+		else notification.task_title or notification.type
+	)
+	message = censor(notification.team, html_to_text_preview(notification.message, 160)) or notification.type
 	metadata = location_text(notification.team_title, notification.project_title)
 	return {
 		"title": message or "Untitled",
@@ -424,7 +429,7 @@ def format_discussion_groups(discussions, avatar_map, user: str):
 def format_discussion_item(discussion, avatar_map, user: str):
 	metadata = activity_text(discussion.project_title, discussion.comments_count, discussion.reactions_count)
 	return {
-		"title": discussion.title or "Untitled",
+		"title": censor(discussion.team, discussion.title) or "Untitled",
 		"description": "",
 		"metadata": metadata,
 		"unread_label": f"{discussion.unread_count} unread",

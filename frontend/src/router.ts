@@ -221,8 +221,8 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/Bookmarks.vue'),
   },
   {
-    path: '/submissions',
     name: 'MySubmissions',
+    path: '/submissions',
     component: () => import('@/pages/MySubmissions.vue'),
   },
   {
