@@ -28,6 +28,7 @@ from frappe.utils import (
 )
 from psycopg2.extras import DictCursor
 
+from gameplan.activity_counts import backfill_activity_counts
 from gameplan.gameplan.doctype.gp_project.gp_project import DEFAULT_SPACE_ICON
 from gameplan.search_sqlite import rebuild_index
 from gameplan.utils import remove_empty_trailing_paragraphs, url_safe_slug
@@ -41,19 +42,26 @@ COMMUNITIES = {
 	"Framework & Development": [5, 12, 16, 18, 24, 28, 30, 32, 13, 21, 29, 33, 27, 77],
 	"Business Apps": [89, 69, 70, 74, 76, 82, 22, 58, 23],
 	"Productivity Suite": [90, 72, 75, 80, 93, 83, 84, 92],
-	"Community": [37, 15, 25, 35, 38, 50, 52, 61, 78, 81, 87, 88, 63, 62, 91, 3, 47, 42, 4, 2, 41, 44, 45],
-	"Announcements": [20],
-	"Events": [79, 85],
+	"Community": [37, 15, 25, 35, 38, 50, 52, 61, 78, 81, 87, 88, 63, 62, 91, 3, 47, 42, 4, 2, 41, 44, 45, 1],
+	"Events and Announcements": [20, 79, 85],
 }
 GENERAL_SPACES = {6, 37, 89, 90}
 FOLDED_CATEGORIES = {48: 47, 49: 47}
 ADMINS_GROUP = 1
+LIKE_EMOJI = "👍"
+TOPIC_STATES = {0: "Mute", 3: "Watch"}
+WATCHED_CATEGORY_LEVELS = (3, 4)
 TITLE_LENGTH = 140
 FILE_NAME_LENGTH = 140
 FILE_NAME_BYTES = 255
 FILE_NAME_ATTEMPTS = 5
 FORUM_UPLOAD = re.compile(r"^(?:(?:https?:)?//discuss\.frappe\.io)?/uploads/default/([^?#]+)")
 OPTIMIZED_UPLOAD = re.compile(r"^optimized/.+/([0-9a-f]{40})_\d+_\d+x\d+\.\w+$")
+SHORT_UPLOAD = re.compile(
+	r"^(?:(?:https?:)?//discuss\.frappe\.io)?/uploads/short-url/([0-9a-zA-Z]+)(?:\.\w+)?$"
+)
+BASE62 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+IMAGE_SIZE_SUFFIX = re.compile(r"\|\d+x\d+$")
 
 OPTIONS = {
 	"postgres": None,
@@ -358,7 +366,11 @@ def bulk_insert(doctype, fields, rows):
 	writes[doctype] += len(rows)
 	if config.dry_run or not rows:
 		return
-	rows = [[name, *row] for name, row in zip(next_names(doctype, len(rows)), rows, strict=True)]
+	if frappe.get_meta(doctype).autoname == "hash":
+		names = [frappe.generate_hash() for _ in rows]
+	else:
+		names = next_names(doctype, len(rows))
+	rows = [[name, *row] for name, row in zip(names, rows, strict=True)]
 	frappe.db.bulk_insert(doctype, ["name", *fields], rows)
 
 
@@ -411,6 +423,10 @@ def migrate_posts():
 		update_discussions_count()
 		frappe.db.commit()
 		started_at = time.monotonic()
+		backfill_activity_counts()
+		frappe.db.commit()
+		log(f"[topics] activity counts recounted in {(time.monotonic() - started_at) / 60:.1f} min")
+		started_at = time.monotonic()
 		rebuild_index()
 		log(f"[topics] search index rebuilt in {(time.monotonic() - started_at) / 60:.1f} min")
 
@@ -453,6 +469,7 @@ def get_topics_batch(last_id, limit):
 		batch.likes = group_by(get_likes(post_ids), "post_id")
 		batch.visits = group_by(get_visits(topic_ids), "topic_id")
 		batch.tags = group_by(get_topic_tags(topic_ids), "topic_id")
+		batch.subscriptions = group_by(get_topic_subscriptions(topic_ids), "topic_id")
 	return topics
 
 
@@ -488,8 +505,12 @@ def get_comments(topic_ids):
 	return run_query(
 		f"""
 		select posts.id, posts.topic_id, posts.user_id, {local_time("posts.created_at")} as creation,
-			{local_time("posts.updated_at")} as modified, posts.cooked as content
+			{local_time("posts.updated_at")} as modified, posts.cooked as content,
+			solved.id is not null as is_solution, solved.accepter_user_id,
+			{local_time("solved.created_at")} as solved_at
 		from posts
+		left join discourse_solved_solved_topics solved
+			on solved.answer_post_id = posts.id and solved.topic_id = posts.topic_id
 		where posts.topic_id in %s and posts.post_number > 1 and {POST_FILTER}
 		order by posts.topic_id asc, posts.post_number asc
 	""",
@@ -538,6 +559,32 @@ def get_topic_tags(topic_ids):
 	)
 
 
+def get_topic_subscriptions(topic_ids):
+	return run_query(
+		"""
+		select topic_users.topic_id, topic_users.user_id, topic_users.notification_level
+		from topic_users
+		where topic_users.topic_id in %s and topic_users.user_id > 0
+			and topic_users.notification_level in %s
+	""",
+		(topic_ids, tuple(TOPIC_STATES)),
+	)
+
+
+def insert_subscriptions(doc, subscriptions):
+	stamp = now()
+	rows = [
+		[user, doc.name, TOPIC_STATES[row.notification_level], stamp, stamp, user, user]
+		for row in subscriptions
+		if (user := get_user(row.user_id))
+	]
+	bulk_insert(
+		"GP Discussion Subscription",
+		["user", "discussion", "state", "creation", "modified", "owner", "modified_by"],
+		rows,
+	)
+
+
 def migrate_topic(topic):
 	project = get_project(topic.category_id)
 	if not project:
@@ -574,6 +621,7 @@ def migrate_topic(topic):
 		db_insert(row)
 	insert_reactions(doc, topic.post_id)
 	insert_visits(doc, topic.id)
+	insert_subscriptions(doc, batch.subscriptions.get(topic.id, []))
 	log_discourse_map(doc, "topics", topic.id)
 
 
@@ -629,6 +677,9 @@ def migrate_comment(discussion, space, comment):
 		owner=owner,
 		modified_by=owner,
 	)
+	if comment.is_solution:
+		doc.highlighted_by = get_author(comment.accepter_user_id)
+		doc.highlighted_at = comment.solved_at
 	set_new_name(doc)
 	doc.content = convert_html(comment.content, doc, space.is_private)
 	db_insert(doc)
@@ -688,7 +739,7 @@ def update_discussions_count():
 
 def insert_reactions(doc, post_id):
 	reactions = [
-		[user, "💖", doc.doctype, doc.name, like.creation, like.creation, user, user]
+		[user, LIKE_EMOJI, doc.doctype, doc.name, like.creation, like.creation, user, user]
 		for like in batch.likes.get(post_id, [])
 		if (user := get_user(like.user_id))
 	]
@@ -711,6 +762,7 @@ def insert_visits(doc, topic_id):
 
 def convert_html(html, doc, is_private):
 	soup = BeautifulSoup(html, "html.parser")
+	convert_oneboxes(soup)
 	for img in soup.find_all("img", attrs={"class": "emoji"}):
 		title = img.get("title") or img.get("alt") or ""
 		emoji = get_emoji(title.strip(":"))
@@ -729,17 +781,54 @@ def convert_html(html, doc, is_private):
 	for wrapper in soup.find_all("div", attrs={"class": "lightbox-wrapper"}):
 		wrapper.unwrap()
 
+	saved = {}
 	for img in soup.find_all("img"):
 		for attr in [attr for attr in img.attrs if attr == "srcset" or attr.startswith("data-")]:
 			del img[attr]
-		file = save_image(img.get("src"), img.get("alt"), doc, is_private)
-		if file:
-			img["src"] = file.file_url
+		file_url = save_upload(saved, img.get("src"), img.get("alt"), doc, is_private)
+		if file_url:
+			img["src"] = file_url
 
+	convert_upload_links(soup, doc, is_private, saved)
 	return sanitize_content(remove_empty_trailing_paragraphs(str(soup)))
 
 
+def convert_oneboxes(soup):
+	for box in soup.select("aside.onebox, div.lazy-video-container"):
+		url = box.get("data-onebox-src") or next((a["href"] for a in box.find_all("a", href=True)), None)
+		if not url:
+			box.decompose()
+			continue
+		paragraph = soup.new_tag("p")
+		link = soup.new_tag("a", href=url)
+		link.string = url
+		paragraph.append(link)
+		box.replace_with(paragraph)
+		outcomes["oneboxes", "converted"] += 1
+
+
+def convert_upload_links(soup, doc, is_private, saved=None):
+	saved = {} if saved is None else saved
+	for link in soup.find_all("a", href=True):
+		if not get_upload_path(link["href"]):
+			continue
+		file_url = save_upload(saved, link["href"], link.get_text(strip=True) or None, doc, is_private)
+		if file_url:
+			link["href"] = file_url
+			outcomes["upload links", "rewritten"] += 1
+
+
+def save_upload(saved, src, filename, doc, is_private):
+	if src not in saved:
+		file = save_image(src, filename, doc, is_private)
+		saved[src] = file and file.file_url
+	return saved[src]
+
+
 def get_upload_path(src):
+	short = src and SHORT_UPLOAD.match(src)
+	if short:
+		return get_short_upload_path(short.group(1))
 	match = src and FORUM_UPLOAD.match(src)
 	if not match:
 		return
@@ -751,6 +840,16 @@ def get_upload_path(src):
 	if original and not OPTIMIZED_UPLOAD.match(original[0].url):
 		return get_upload_path(original[0].url)
 	outcomes["uploads", "unknown optimized"] += 1
+
+
+def get_short_upload_path(code):
+	number = 0
+	for char in code:
+		number = number * 62 + BASE62.index(char)
+	upload = run_query("select uploads.url from uploads where uploads.sha1 = %s", (f"{number:040x}",))
+	if upload and FORUM_UPLOAD.match(upload[0].url):
+		return get_upload_path(upload[0].url)
+	outcomes["uploads", "unknown short url"] += 1
 
 
 def save_image(src, filename=None, doc=None, is_private=0):
@@ -766,7 +865,10 @@ def save_image(src, filename=None, doc=None, is_private=0):
 		return
 
 	_, extn = splitext(full_path)
-	stem = re.sub(r"[^\w.-]+", "-", splitext(filename or "")[0]).strip("-.")
+	stem = IMAGE_SIZE_SUFFIX.sub("", unquote(filename or ""))
+	if extn and stem.lower().endswith(extn.lower()):
+		stem = stem[: -len(extn)]
+	stem = re.sub(r"[^\w.-]+", "-", stem).strip("-.")
 	return save_file(content, f"{stem or 'image'}{extn}", doc, is_private)
 
 
@@ -891,8 +993,7 @@ def get_users(last_id, limit):
 			{local_time("users.created_at")} as created_at, uploads.url as avatar_url
 		from users
 		join user_emails on user_emails.user_id = users.id and user_emails.primary
-		left join user_avatars on user_avatars.user_id = users.id
-		left join uploads on uploads.id = user_avatars.custom_upload_id
+		left join uploads on uploads.id = users.uploaded_avatar_id
 		where users.id > 0 and not users.staged and users.id > %s {user_filter} {topic_user_filter}
 		order by users.id asc
 		limit %s
@@ -1013,6 +1114,66 @@ def insert_without_hooks(doc):
 def migrate_categories():
 	load_id_map("users")
 	run_batches("categories", "categories", get_categories, migrate_category)
+	run_row("staff", "all", migrate_staff)
+	if not config.dry_run:
+		frappe.db.commit()
+
+
+def migrate_staff():
+	staff = run_query("""
+		select users.id, users.admin, users.moderator from users
+		where users.id > 0 and users.active and not users.staged and (users.admin or users.moderator)
+		order by users.id
+	""")
+	stamp = now()
+	for title in COMMUNITIES:
+		team = get_mapped("communities", title)
+		if not team:
+			continue
+		members = {
+			row.user: row
+			for row in frappe.get_all(
+				"GP Member",
+				filters={"parenttype": "GP Team", "parent": team, "parentfield": "members"},
+				fields=["name", "user", "is_admin", "is_moderator"],
+			)
+		}
+		rows = []
+		for person in staff:
+			user = get_user(person.id)
+			if not user:
+				continue
+			is_admin, is_moderator = int(person.admin), int(person.moderator)
+			member = members.get(user)
+			if not member:
+				rows.append(
+					[user, is_admin, is_moderator, team, "GP Team", "members", len(members) + len(rows) + 1]
+				)
+			elif is_admin > member.is_admin or is_moderator > member.is_moderator:
+				values = {
+					"is_admin": max(is_admin, member.is_admin),
+					"is_moderator": max(is_moderator, member.is_moderator),
+				}
+				if not config.dry_run:
+					frappe.db.set_value("GP Member", member.name, values, update_modified=False)
+		bulk_insert(
+			"GP Member",
+			[
+				"user",
+				"is_admin",
+				"is_moderator",
+				"parent",
+				"parenttype",
+				"parentfield",
+				"idx",
+				"creation",
+				"modified",
+				"owner",
+				"modified_by",
+			],
+			[[*row, stamp, stamp, "Administrator", "Administrator"] for row in rows],
+		)
+		outcomes["staff", "added"] += len(rows)
 
 
 def get_category_ids():
@@ -1042,6 +1203,7 @@ def migrate_category(category):
 		if not project:
 			frappe.throw(f"Category {FOLDED_CATEGORIES[category.id]} is not migrated")
 		log_discourse_map(frappe._dict(doctype="GP Project", name=project), "categories", category.id)
+		insert_space_subscriptions(project, category.id)
 		return
 
 	doc = frappe.get_doc(
@@ -1061,6 +1223,27 @@ def migrate_category(category):
 	spaces[project] = frappe._dict(team=doc.team, is_private=doc.is_private)
 	if category.about and not category.about_is_boilerplate:
 		db_set(doc, "description", convert_html(category.about, doc, doc.is_private), update_modified=False)
+	insert_space_subscriptions(project, category.id)
+
+
+def insert_space_subscriptions(project, category_id):
+	rows = run_query(
+		"""
+		select distinct category_users.user_id from category_users
+		where category_users.category_id = %s and category_users.user_id > 0
+			and category_users.notification_level in %s
+		order by category_users.user_id
+	""",
+		(category_id, WATCHED_CATEGORY_LEVELS),
+	)
+	existing = set(frappe.get_all("GP Space Subscription", filters={"project": project}, pluck="user"))
+	stamp = now()
+	users = dict.fromkeys(user for row in rows if (user := get_user(row.user_id)) and user not in existing)
+	bulk_insert(
+		"GP Space Subscription",
+		["user", "project", "creation", "modified", "owner", "modified_by"],
+		[[user, project, stamp, stamp, user, user] for user in users],
+	)
 
 
 def get_community(category_id):
