@@ -9,12 +9,12 @@ The November 2 update includes upstream `develop` at `9459e355`.
 | PR | Feature | Merged head |
 | --- | --- | --- |
 | [#606](https://github.com/frappe/gameplan/pull/606) | Anonymous Community access and visibility tiers | `be558803` |
-| [#621](https://github.com/frappe/gameplan/pull/621) | Moderators, content removal, and Community bans | `8b0a6b91` |
-| [#637](https://github.com/frappe/gameplan/pull/637) | Moderation history | `b1f837c7` |
-| [#638](https://github.com/frappe/gameplan/pull/638) | Content reports and review queue | `f433fde1` |
-| [#639](https://github.com/frappe/gameplan/pull/639) | Bulk report review | `d7d0c4c5` |
-| [#642](https://github.com/frappe/gameplan/pull/642) | First-post approval policy and review queue | `5d607c09` |
-| [#647](https://github.com/frappe/gameplan/pull/647) | Discussion slow mode | `5a35e540` |
+| [#621](https://github.com/frappe/gameplan/pull/621) | Moderators, content removal, and Community bans | `aecfaf4d` |
+| [#637](https://github.com/frappe/gameplan/pull/637) | Moderation history | `c338d5da` |
+| [#638](https://github.com/frappe/gameplan/pull/638) | Content reports and review queue | `21e6fbdc` |
+| [#639](https://github.com/frappe/gameplan/pull/639) | Bulk report review | `f8432a95` |
+| [#642](https://github.com/frappe/gameplan/pull/642) | First-post approval policy and review queue | `3d767d06` |
+| [#647](https://github.com/frappe/gameplan/pull/647) | Discussion slow mode | `cadc5720` |
 | [#610](https://github.com/frappe/gameplan/pull/610) | Unified local and server draft identity | `f75d283d` |
 | [#571](https://github.com/frappe/gameplan/pull/571) | Offline reading and discussion downloads | `62306e28` |
 | [#596](https://github.com/frappe/gameplan/pull/596) | Discussion, Space, and away notifications | `4fee6a59` |
@@ -22,7 +22,7 @@ The November 2 update includes upstream `develop` at `9459e355`.
 | [#607](https://github.com/frappe/gameplan/pull/607) | Discussion references and link previews | `785c7c42` |
 | [#640](https://github.com/frappe/gameplan/pull/640) | Accepted answers | `ed7ddcbe` |
 
-Watched words are included from `feat/watched-words` at `d3611505`.
+Watched words are included from `feat/watched-words` at `2899b34b`.
 They include all four actions, CSV controls, manual rules, and private approval of edits.
 
 Jeesha09’s previously merged PRs remain included through `develop`.
@@ -111,3 +111,28 @@ The focused combined-branch run passes 234 backend tests and five browser access
 The full backend suite and the full browser suite were not rerun.
 
 The Space-move fix is included here. Source PR #596 belongs to another contributor and cannot be pushed from this account.
+
+## Moderation usability and forum-scale reads
+
+Moderation now has one app navigation entry and a Community switcher. Scoped links remain compatible.
+Report review keeps the reporter's note beside independently scrolling content. Reported versions load on request.
+Approval and bulk-review dialogs use the same layout. Controls use Frappe UI theme tokens in light and dark modes.
+CSV controls use download links. Removed and deleted content reject reactions, including after locking waits.
+
+Ban lists and removal metadata select latest logs in SQL. Ban lists use pages of 40 with one lookahead row.
+Approval bootstrap reads at most 100 qualifying posts, matching the maximum supported policy threshold.
+Watched-word response scope uses at most three batch reads, including mixed Communities and replies.
+Report poll previews batch parent and child reads. Slow-mode fallback excludes held edits from new-reply history.
+Submission list permissions retain the guest-only staff-role restriction used by detail access.
+
+Validation passes 271 focused backend tests, 29 browser tests with superseding runs, formatting, lint, and the production build.
+Two existing reaction concurrency tests are skipped on SQLite. Full suites and a million-discussion benchmark were not run.
+The existing large-community visibility regression still covers 32,149 simulated candidates and 19 Spaces.
+Presentation data is preserved. Test reset APIs run only on disposable sites.
+
+Existing sites receive new moderation and submission indexes through explicit migration patches.
+The indexes were verified after migrating the MariaDB presentation site. Stored content counts stayed unchanged.
+Live checks cover desktop/mobile review layout, persistent reporter feedback, app navigation, and an actual CSV download.
+
+The older full-thread comment/reaction readers still need pagination work before claiming end-to-end large-thread scalability.
+This moderation update does not change their response contract.
