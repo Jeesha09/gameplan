@@ -143,13 +143,13 @@
       :name="comment.name"
       fieldname="content"
     />
+    <ReportDialog
+      v-if="showReport"
+      v-model:open="showReport"
+      doctype="GP Comment"
+      :name="String(comment.name)"
+    />
   </div>
-  <ReportDialog
-    v-if="showReport"
-    v-model:open="showReport"
-    doctype="GP Comment"
-    :name="String(comment.name)"
-  />
 </template>
 
 <script setup lang="ts">
