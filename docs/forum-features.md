@@ -13,8 +13,8 @@ The November 2 update includes upstream `develop` at `9459e355`.
 | [#637](https://github.com/frappe/gameplan/pull/637) | Moderation history | `87f018a0` |
 | [#638](https://github.com/frappe/gameplan/pull/638) | Content reports and review queue | `c5622bc1` |
 | [#639](https://github.com/frappe/gameplan/pull/639) | Bulk report review | `32cd6817` |
-| [#642](https://github.com/frappe/gameplan/pull/642) | First-post approval policy and review queue | `09bbdbfa` |
-| [#647](https://github.com/frappe/gameplan/pull/647) | Discussion slow mode | `14f2985d` |
+| [#642](https://github.com/frappe/gameplan/pull/642) | First-post approval policy and review queue | `3fba62a6` |
+| [#647](https://github.com/frappe/gameplan/pull/647) | Discussion slow mode | `aa500a3b` |
 | [#610](https://github.com/frappe/gameplan/pull/610) | Unified local and server draft identity | `f75d283d` |
 | [#571](https://github.com/frappe/gameplan/pull/571) | Offline reading and discussion downloads | `62306e28` |
 | [#596](https://github.com/frappe/gameplan/pull/596) | Discussion, Space, and away notifications | `4fee6a59` |
@@ -22,7 +22,7 @@ The November 2 update includes upstream `develop` at `9459e355`.
 | [#607](https://github.com/frappe/gameplan/pull/607) | Discussion references and link previews | `785c7c42` |
 | [#640](https://github.com/frappe/gameplan/pull/640) | Accepted answers | `ed7ddcbe` |
 
-Watched words are included from `feat/watched-words` at `7223e486`.
+Watched words are included from `feat/watched-words` at `19c67dcf`.
 They include all four actions, CSV controls, manual rules, and private approval of edits.
 
 Jeesha09’s previously merged PRs remain included through `develop`.
@@ -93,3 +93,6 @@ Presentation data was not reset or reseeded.
 
 The portable draft-ID and notification-censor fixes also live on the watched-word source branch.
 The standalone branch passed 45 backend tests and six browser tests after the backport.
+
+Approval PR #642 uses the draft API return value for reply submission. The same fix is included in slow mode and watched words.
+Moonhollow was backed up and migrated on November 2. Content counts stayed unchanged. All three test roles passed live login and page checks.
