@@ -1,25 +1,29 @@
 # Forum features presentation branch
 
-`forum-features` combines 13 open PRs for a presentation on Ebrahim’s fork.
+`forum-features` combines 13 open PRs and watched-word moderation on Ebrahim’s fork.
 It starts from upstream `develop` at `2ab4ca6d` on October 27, 2026.
+The November 2 update includes upstream `develop` at `9459e355`.
 
 ## Included PRs
 
 | PR | Feature | Merged head |
 | --- | --- | --- |
-| [#606](https://github.com/frappe/gameplan/pull/606) | Anonymous Community access and visibility tiers | `09ac7df0` |
-| [#621](https://github.com/frappe/gameplan/pull/621) | Moderators, content removal, and Community bans | `39eacf0a` |
-| [#637](https://github.com/frappe/gameplan/pull/637) | Moderation history | `7ed984bb` |
-| [#638](https://github.com/frappe/gameplan/pull/638) | Content reports and review queue | `4170ccbe` |
-| [#639](https://github.com/frappe/gameplan/pull/639) | Bulk report review | `4cbfa44d` |
-| [#642](https://github.com/frappe/gameplan/pull/642) | First-post approval policy and review queue | `ade5a85b` |
-| [#647](https://github.com/frappe/gameplan/pull/647) | Discussion slow mode | `1829a941` |
+| [#606](https://github.com/frappe/gameplan/pull/606) | Anonymous Community access and visibility tiers | `086e808f` |
+| [#621](https://github.com/frappe/gameplan/pull/621) | Moderators, content removal, and Community bans | `7674bc8f` |
+| [#637](https://github.com/frappe/gameplan/pull/637) | Moderation history | `87f018a0` |
+| [#638](https://github.com/frappe/gameplan/pull/638) | Content reports and review queue | `c5622bc1` |
+| [#639](https://github.com/frappe/gameplan/pull/639) | Bulk report review | `32cd6817` |
+| [#642](https://github.com/frappe/gameplan/pull/642) | First-post approval policy and review queue | `09bbdbfa` |
+| [#647](https://github.com/frappe/gameplan/pull/647) | Discussion slow mode | `14f2985d` |
 | [#610](https://github.com/frappe/gameplan/pull/610) | Unified local and server draft identity | `f75d283d` |
-| [#571](https://github.com/frappe/gameplan/pull/571) | Offline reading and discussion downloads | `7a2c5102` |
+| [#571](https://github.com/frappe/gameplan/pull/571) | Offline reading and discussion downloads | `62306e28` |
 | [#596](https://github.com/frappe/gameplan/pull/596) | Discussion, Space, and away notifications | `4fee6a59` |
 | [#602](https://github.com/frappe/gameplan/pull/602) | Search sorting and filter-only queries | `e3ad0e82` |
 | [#607](https://github.com/frappe/gameplan/pull/607) | Discussion references and link previews | `785c7c42` |
 | [#640](https://github.com/frappe/gameplan/pull/640) | Accepted answers | `ed7ddcbe` |
+
+Watched words are included from `feat/watched-words` at `967e25a8`.
+They include all four actions, CSV controls, manual rules, and private approval of edits.
 
 Jeesha09’s previously merged PRs remain included through `develop`.
 Closed, unmerged PRs are excluded.
@@ -31,7 +35,10 @@ Previously released changes in `develop`, including #619, remain in the base.
 
 ## Integration fixes
 
-- Keep approval submission when draft identity changes.
+- Keep approval submission when draft identity changes. Use the current draft API for watched-word discussion and reply edits.
+- Keep offline write guards when edits enter watched-word approval.
+- Keep network and server reconnect refreshes alongside row-aware notifications.
+- Censor notification messages and email titles from the combined notification feature.
 - Keep moderation prompts available through the offline dialog wrapper.
 - Keep notification refresh events and moderation-aware unread counts.
 - Use visibility tiers when clearing subscriptions after membership changes.
@@ -75,3 +82,11 @@ TypeScript type check is not clean; the production build passes.
 The local Moonhollow presentation has a verified 20-minute video in ten chapters,
 with 30 individual feature parts. Its runbook, accounts, recordings, backups, and
 resume checkpoint remain outside Git.
+
+## November 2 update validation
+
+Updated all 13 included PR heads and merged watched words without rewriting the source branches.
+The production build, lint, 14 offline-worker tests, and 255 focused backend tests pass.
+All 38 selected browser tests have passing runs, including follow-up runs after integration fixes.
+The full backend and browser suites were not rerun for this update.
+Presentation data was not reset or reseeded.

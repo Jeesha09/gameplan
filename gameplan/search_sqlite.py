@@ -128,6 +128,7 @@ class GameplanSearch(SQLiteSearch):
 		return any(
 			row["name"] == "content_hash" for row in self.sql("PRAGMA table_info(search_fts)", read_only=True)
 		)
+
 	def raise_if_not_indexed(self):
 		if not self.index_exists():
 			raise GameplanSearchIndexMissingError

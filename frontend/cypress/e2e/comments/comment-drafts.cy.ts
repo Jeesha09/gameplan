@@ -89,17 +89,22 @@ describe('Comment drafts', () => {
       cy.wait('@editDraft')
       cy.intercept(
         { method: 'DELETE', url: '**/api/v2/document/GP%20Draft/*', times: 1 },
-        { statusCode: 503 },
+        {
+          statusCode: 503,
+          body: {
+            errors: [{ type: 'ValidationError', message: 'Discard temporarily unavailable' }],
+          },
+        },
       ).as('failedDiscard')
       cy.get(comment).contains('button', 'Discard').click()
       cy.wait('@failedDiscard')
-      cy.get(comment).contains('Error').should('be.visible')
+      cy.get(comment).contains('Discard temporarily unavailable').should('be.visible')
       cy.get(`${comment} [contenteditable=true]`).should('contain.text', 'with unsent edits')
       cy.get(comment).contains('button', 'Discard').click()
       cy.get(`${comment} [contenteditable=true]`).should('not.exist')
       cy.get(comment).contains('Original comment').should('be.visible')
       cy.get(comment).contains('with unsent edits').should('not.exist')
-      cy.get(comment).contains('Error').should('not.exist')
+      cy.get(comment).contains('Discard temporarily unavailable').should('not.exist')
     })
   })
 
@@ -123,10 +128,10 @@ describe('Comment drafts', () => {
     cy.get('[contenteditable=true]').should('be.visible')
     cy.get('[contenteditable=true]').type('Reply after failed discard')
     cy.intercept(
-      { method: 'POST', url: '**/api/v2/document/GP%20Comment', times: 1 },
+      { method: 'POST', url: '**/api/method/gameplan.approvals.submit', times: 1 },
       {
         statusCode: 503,
-        body: { errors: [{ type: 'ValidationError', message: 'Posting temporarily unavailable' }] },
+        body: { exc_type: 'ValidationError', message: 'Posting temporarily unavailable' },
       },
     ).as('failedPost')
     cy.button('Submit').click()

@@ -185,7 +185,6 @@ export function notificationLocation(notification: {
   return [community, space].filter(Boolean).join(' / ')
 }
 
-
 // Open lists catch up after reconnect when the unread count changed while disconnected.
 onSocketReconnect(async () => {
   if (isAnonymousVisitor()) return
