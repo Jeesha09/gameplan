@@ -115,20 +115,18 @@ export function initSocket() {
     if (hasConnected) runEach(reconnectListeners, 'Socket reconnect listener')
     hasConnected = true
   })
-  // Reconnection attempts are spent within seconds offline and then never retried, so
-  // pause the socket while offline and connect again once the connection returns.
+  // Pause while offline; the network callback resumes connection attempts.
   watch(isOnline, (online) => {
-    if (!online) socket?.disconnect()
+    if (!online) appSocket.disconnect()
   })
-  onReconnect(() => socket?.connect())
+  onReconnect(() => appSocket.connect())
 
-
-  // Frappe rejects the handshake when its auth call to the web server fails, which happens
-  // while a deploy restarts the web server. socket.io never retries a rejected handshake.
-  // Retrying is safe: a logged-out session passes auth as Guest instead of failing.
+  // A rejected handshake needs an explicit retry, but never while the browser is offline.
   appSocket.on('connect_error', () => {
-    if (!appSocket.active && isOnline.value) {
-      setTimeout(() => isOnline.value && appSocket.connect(), HANDSHAKE_RETRY_DELAY)
+    if (!appSocket.active) {
+      setTimeout(() => {
+        if (isOnline.value) appSocket.connect()
+      }, HANDSHAKE_RETRY_DELAY)
     }
   })
 
