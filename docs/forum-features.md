@@ -22,7 +22,7 @@ The November 2 update includes upstream `develop` at `9459e355`.
 | [#607](https://github.com/frappe/gameplan/pull/607) | Discussion references and link previews | `785c7c42` |
 | [#640](https://github.com/frappe/gameplan/pull/640) | Accepted answers | `ed7ddcbe` |
 
-Watched words are included from `feat/watched-words` at `967e25a8`.
+Watched words are included from `feat/watched-words` at `7223e486`.
 They include all four actions, CSV controls, manual rules, and private approval of edits.
 
 Jeesha09’s previously merged PRs remain included through `develop`.
@@ -90,3 +90,6 @@ The production build, lint, 14 offline-worker tests, and 255 focused backend tes
 All 38 selected browser tests have passing runs, including follow-up runs after integration fixes.
 The full backend and browser suites were not rerun for this update.
 Presentation data was not reset or reseeded.
+
+The portable draft-ID and notification-censor fixes also live on the watched-word source branch.
+The standalone branch passed 45 backend tests and six browser tests after the backport.
