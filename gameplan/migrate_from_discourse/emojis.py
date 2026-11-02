@@ -3,12 +3,103 @@
 
 
 def get_emoji(name):
-	for emoji in emojis:
-		if name == emoji["name"]:
-			codes = emoji["code"].split("-")
-			ints = [int(d, 16) for d in codes]
-			uni = [chr(d) for d in ints]
-			return "".join(uni)
+	code = emoji_codes.get(name.split(":")[0])
+	if code:
+		return "".join(chr(int(d, 16)) for d in code.split("-"))
+
+
+discourse_aliases = {
+	"slight_smile": "1f642",
+	"frowning": "1f626",
+	"cross_mark": "274c",
+	"folded_hands": "1f64f",
+	"waving_hand": "1f44b",
+	"check_mark": "2714",
+	"backhand_index_pointing_right": "1f449",
+	"thumbsup": "1f44d",
+	"magnifying_glass_tilted_left": "1f50d",
+	"light_bulb": "1f4a1",
+	"raising_hands": "1f64c",
+	"check_box_with_check": "2611",
+	"high_voltage": "26a1",
+	"bullseye": "1f3af",
+	"backhand_index_pointing_down": "1f447",
+	"red_question_mark": "2753",
+	"mobile_phone": "1f4f1",
+	"puzzle_piece": "1f9e9",
+	"grinning_face_with_smiling_eyes": "1f604",
+	"grinning_face": "1f600",
+	"red_exclamation_mark": "2757",
+	"counterclockwise_arrows_button": "1f504",
+	"victory_hand": "270c",
+	"knife": "1f52a",
+	"glowing_star": "1f31f",
+	"camera_with_flash": "1f4f8",
+	"right_arrow": "27a1",
+	"mobile_phone_with_arrow": "1f4f2",
+	"police_car_light": "1f6a8",
+	"frowning2": "2639",
+	"e_mail": "1f4e7",
+	"repeat_button": "1f501",
+	"money_bag": "1f4b0",
+	"locked_with_key": "1f510",
+	"spouting_whale": "1f433",
+	"slight_frown": "1f641",
+	"magnifying_glass_tilted_right": "1f50e",
+	"globe_showing_europe_africa": "1f30d",
+	"three_o_clock": "1f552",
+	"play_button": "25b6",
+	"map": "1f5fa",
+	"laptop": "1f4bb",
+	"flexed_biceps": "1f4aa",
+	"clinking_beer_mugs": "1f37b",
+	"chart_increasing": "1f4c8",
+	"blue_circle": "1f535",
+	"artist_palette": "1f3a8",
+	"united_states": "1f1fa-1f1f8",
+	"tear_off_calendar": "1f4c6",
+	"satellite_antenna": "1f4e1",
+	"office_building": "1f3e2",
+	"nerd": "1f913",
+	"locked": "1f512",
+	"hourglass_not_done": "23f3",
+	"book": "1f4d6",
+	"wrapped_gift": "1f381",
+	"vulcan": "1f596",
+	"unamused_face": "1f612",
+	"ten": "1f51f",
+	"smirking_face": "1f60f",
+	"smiling_face_with_sunglasses": "1f60e",
+	"six_o_clock": "1f555",
+	"see_no_evil_monkey": "1f648",
+	"rolling_eyes": "1f644",
+	"relieved_face": "1f60c",
+	"pensive_face": "1f614",
+	"open_mailbox_with_raised_flag": "1f4ec",
+	"one_o_clock": "1f550",
+	"nine_o_clock": "1f558",
+	"medal": "1f3c5",
+	"man_raising_hand": "1f64b-200d-2642-fe0f",
+	"index_pointing_up": "261d",
+	"hot_beverage": "2615",
+	"hankey": "1f4a9",
+	"graduation_cap": "1f393",
+	"germany": "1f1e9-1f1ea",
+	"gem_stone": "1f48e",
+	"france": "1f1eb-1f1f7",
+	"fork_and_knife_with_plate": "1f37d",
+	"face_with_steam_from_nose": "1f624",
+	"envelope": "2709",
+	"delivery_truck": "1f69a",
+	"construction_worker": "1f477",
+	"collision": "1f4a5",
+	"chequered_flag": "1f3c1",
+	"beer_mug": "1f37a",
+	"beating_heart": "1f493",
+	"ballot_box_with_ballot": "1f5f3",
+	"backhand_index_pointing_up": "1f446",
+	"admission_tickets": "1f39f",
+}
 
 
 emojis = [
@@ -1868,3 +1959,6 @@ emojis = [
 	{"code": "1f3f4-e0067-e0062-e0073-e0063-e0074-e007f", "name": "scotland"},
 	{"code": "1f3f4-e0067-e0062-e0077-e006c-e0073-e007f", "name": "wales"},
 ]
+
+
+emoji_codes = {**{emoji["name"]: emoji["code"] for emoji in emojis}, **discourse_aliases}
