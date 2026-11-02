@@ -8,13 +8,13 @@ The November 2 update includes upstream `develop` at `9459e355`.
 
 | PR | Feature | Merged head |
 | --- | --- | --- |
-| [#606](https://github.com/frappe/gameplan/pull/606) | Anonymous Community access and visibility tiers | `086e808f` |
-| [#621](https://github.com/frappe/gameplan/pull/621) | Moderators, content removal, and Community bans | `7674bc8f` |
-| [#637](https://github.com/frappe/gameplan/pull/637) | Moderation history | `87f018a0` |
-| [#638](https://github.com/frappe/gameplan/pull/638) | Content reports and review queue | `c5622bc1` |
-| [#639](https://github.com/frappe/gameplan/pull/639) | Bulk report review | `32cd6817` |
-| [#642](https://github.com/frappe/gameplan/pull/642) | First-post approval policy and review queue | `3fba62a6` |
-| [#647](https://github.com/frappe/gameplan/pull/647) | Discussion slow mode | `aa500a3b` |
+| [#606](https://github.com/frappe/gameplan/pull/606) | Anonymous Community access and visibility tiers | `be558803` |
+| [#621](https://github.com/frappe/gameplan/pull/621) | Moderators, content removal, and Community bans | `8b0a6b91` |
+| [#637](https://github.com/frappe/gameplan/pull/637) | Moderation history | `b1f837c7` |
+| [#638](https://github.com/frappe/gameplan/pull/638) | Content reports and review queue | `f433fde1` |
+| [#639](https://github.com/frappe/gameplan/pull/639) | Bulk report review | `d7d0c4c5` |
+| [#642](https://github.com/frappe/gameplan/pull/642) | First-post approval policy and review queue | `5d607c09` |
+| [#647](https://github.com/frappe/gameplan/pull/647) | Discussion slow mode | `5a35e540` |
 | [#610](https://github.com/frappe/gameplan/pull/610) | Unified local and server draft identity | `f75d283d` |
 | [#571](https://github.com/frappe/gameplan/pull/571) | Offline reading and discussion downloads | `62306e28` |
 | [#596](https://github.com/frappe/gameplan/pull/596) | Discussion, Space, and away notifications | `4fee6a59` |
@@ -22,7 +22,7 @@ The November 2 update includes upstream `develop` at `9459e355`.
 | [#607](https://github.com/frappe/gameplan/pull/607) | Discussion references and link previews | `785c7c42` |
 | [#640](https://github.com/frappe/gameplan/pull/640) | Accepted answers | `ed7ddcbe` |
 
-Watched words are included from `feat/watched-words` at `19c67dcf`.
+Watched words are included from `feat/watched-words` at `d3611505`.
 They include all four actions, CSV controls, manual rules, and private approval of edits.
 
 Jeesha09’s previously merged PRs remain included through `develop`.
@@ -96,3 +96,18 @@ The standalone branch passed 45 backend tests and six browser tests after the ba
 
 Approval PR #642 uses the draft API return value for reply submission. The same fix is included in slow mode and watched words.
 Moonhollow was backed up and migrated on November 2. Content counts stayed unchanged. All three test roles passed live login and page checks.
+
+## Access audience fixes
+
+The visibility preview loads permission roles once for all affected Spaces and both visibility states.
+Unread recipients now follow Community access, including General Spaces inside restricted Communities.
+Removed-content audiences exclude ordinary readers and follow the moderator's current Space access.
+Removed-content and history queues resolve the moderator's Space scope with a single filtered query.
+Space-move notifications use the same batched audience resolver.
+
+The 32,149-candidate, 19-Space regression uses a simulated roster, not a migrated production database.
+It records zero per-recipient role reads and one batch role lookup for the preview.
+The focused combined-branch run passes 234 backend tests and five browser access-control tests.
+The full backend suite and the full browser suite were not rerun.
+
+The Space-move fix is included here. Source PR #596 belongs to another contributor and cannot be pushed from this account.
