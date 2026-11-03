@@ -39,6 +39,7 @@ export type GameplanSocketEvents = {
     notification: NotificationChange | null
   }
   'gameplan:users_changed': void
+  'gameplan:restrictions_changed': void
 }
 
 type SocketEventName = keyof GameplanSocketEvents
@@ -50,6 +51,7 @@ const GAMEPLAN_SOCKET_EVENTS = [
   'gameplan:notification_count_changed',
   'gameplan:notification_changed',
   'gameplan:users_changed',
+  'gameplan:restrictions_changed',
 ] as const satisfies readonly SocketEventName[]
 
 let socket: Socket | null = null
