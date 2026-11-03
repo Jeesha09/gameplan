@@ -10,7 +10,7 @@ from collections import Counter
 from functools import partial
 from html import escape
 from posixpath import splitext
-from urllib.parse import unquote
+from urllib.parse import unquote, urlparse
 
 import frappe
 import psutil
@@ -30,7 +30,7 @@ from psycopg2.extras import DictCursor
 
 from gameplan.activity_counts import backfill_activity_counts
 from gameplan.gameplan.doctype.gp_project.gp_project import DEFAULT_SPACE_ICON
-from gameplan.search_sqlite import rebuild_index
+from gameplan.search_sqlite import GameplanSearch, rebuild_index
 from gameplan.utils import remove_empty_trailing_paragraphs, url_safe_slug
 from gameplan.utils.sanitizer import sanitize_content
 from gameplan.visibility import VISIBILITY_GENERAL, VISIBILITY_MEMBER_ACCESS
@@ -62,12 +62,15 @@ SHORT_UPLOAD = re.compile(
 )
 BASE62 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 IMAGE_SIZE_SUFFIX = re.compile(r"\|\d+x\d+$")
+BIO_LENGTH = 280
+FORUM_URL = "https://discuss.frappe.io"
+FORUM_HOSTS = {None, "discuss.frappe.io", "www.discuss.frappe.io", "discuss.erpnext.com"}
 
 OPTIONS = {
 	"postgres": None,
 	"uploads_folder": None,
 	"log_folder": None,
-	"steps": ["users", "categories", "topics", "backlinks"],
+	"steps": ["users", "categories", "topics", "links", "backlinks"],
 	"category_ids": None,
 	"topic_ids": None,
 	"user_ids": None,
@@ -79,6 +82,8 @@ OPTIONS = {
 config = frappe._dict()
 outcomes = Counter()
 writes = Counter()
+forum_users = {}
+discussion_info = {}
 pending_files = []
 id_map = {}
 loaded_tables = set()
@@ -153,6 +158,7 @@ def get_steps():
 		"users": migrate_users,
 		"categories": migrate_categories,
 		"topics": migrate_posts,
+		"links": migrate_links,
 		"backlinks": migrate_backlinks,
 	}
 
@@ -431,6 +437,116 @@ def migrate_posts():
 		log(f"[topics] search index rebuilt in {(time.monotonic() - started_at) / 60:.1f} min")
 
 
+def migrate_links():
+	for table in ("users", "topics", "posts"):
+		load_id_map(table)
+	load_forum_users()
+	discussion_info.clear()
+	search = GameplanSearch()
+	for doctype, step in (("GP Discussion", "discussion_links"), ("GP Comment", "comment_links")):
+		names = frappe.get_all(
+			doctype, or_filters=[["content", "like", "%/t/%"], ["content", "like", "%/u/%"]], pluck="name"
+		)
+		for start in range(0, len(names), config.batch_size):
+			rows = frappe.get_all(
+				doctype,
+				filters={"name": ("in", names[start : start + config.batch_size])},
+				fields=["name", "content"],
+			)
+			changed = [
+				row.name for row in rows if run_row(step, row.name, partial(update_links, doctype, row))
+			]
+			if not config.dry_run:
+				frappe.db.commit()
+				search.index_documents_by_name(doctype, changed)
+		log(f"[{step}] done {outcomes[step, 'done']} · failed {outcomes[step, 'failed']}")
+
+
+def update_links(doctype, row):
+	soup = BeautifulSoup(row.content, "html.parser")
+	if not convert_forum_links(soup):
+		return False
+	writes[doctype] += 1
+	if not config.dry_run:
+		frappe.db.set_value(doctype, row.name, "content", sanitize_content(str(soup)), update_modified=False)
+	return True
+
+
+def load_forum_users():
+	forum_users.clear()
+	profiles = {
+		profile.user: profile
+		for profile in frappe.get_all("GP User Profile", fields=["name", "user", "full_name"])
+	}
+	for row in run_query("select id, username_lower from users where id > 0"):
+		if profile := profiles.get(get_user(row.id)):
+			forum_users[row.username_lower] = profile
+
+
+def convert_forum_links(soup):
+	changed = False
+	for link in soup.find_all("a", href=True):
+		url = urlparse(link["href"])
+		parts = [unquote(part) for part in url.path.split("/") if part]
+		if url.hostname not in FORUM_HOSTS or len(parts) < 2 or parts[0] not in ("t", "u"):
+			continue
+		if parts[0] == "u":
+			converted = convert_user_link(soup, link, parts[1].lower())
+		else:
+			converted = convert_topic_link(link, parts[1:])
+		outcomes[f"{parts[0]} links", "converted" if converted else "kept"] += 1
+		if not converted and url.hostname is None:
+			link["href"] = FORUM_URL + link["href"]
+		changed = changed or converted or url.hostname is None
+	return changed
+
+
+def convert_user_link(soup, link, username):
+	profile = forum_users.get(username)
+	if "mention" in (link.get("class") or []):
+		if not profile:
+			link.replace_with(link.get_text())
+			return True
+		label = profile.full_name or profile.name
+		attrs = {"class": "mention", "data-type": "mention", "data-id": profile.user, "data-label": label}
+		mention = soup.new_tag("span", attrs=attrs)
+		mention.string = f"@{label}"
+		link.replace_with(mention)
+		return True
+	if not profile:
+		return False
+	link["href"] = f"/g/people/{profile.name}"
+	return True
+
+
+def convert_topic_link(link, parts):
+	ids = parts[:2] if parts[0].isdigit() else parts[1:3]
+	if not ids or not ids[0].isdigit() or not (discussion := get_mapped("topics", ids[0])):
+		return False
+	project, title = get_discussion_info(discussion)
+	href = f"/g/space/{project}/discussion/{discussion}"
+	post_number = int(ids[1]) if len(ids) > 1 and ids[1].isdigit() else 1
+	if post_number > 1 and (comment := get_comment_for_post(ids[0], post_number)):
+		href += f"?comment={comment}"
+	if link.get_text(strip=True) == link["href"]:
+		link.string = title
+	link["href"] = href
+	return True
+
+
+def get_discussion_info(discussion):
+	if discussion not in discussion_info:
+		discussion_info[discussion] = frappe.db.get_value("GP Discussion", discussion, ["project", "title"])
+	return discussion_info[discussion]
+
+
+def get_comment_for_post(topic_id, post_number):
+	rows = run_query(
+		"select id from posts where topic_id = %s and post_number = %s", (int(topic_id), post_number)
+	)
+	return rows and get_mapped("posts", rows[0].id)
+
+
 def migrate_backlinks():
 	for doctype, step in (("GP Discussion", "discussion_backlinks"), ("GP Comment", "comment_backlinks")):
 		for name in frappe.get_all(doctype, filters={"content": ("like", "%discussion/%")}, pluck="name"):
@@ -522,13 +638,28 @@ def get_likes(post_ids):
 	return run_query(
 		f"""
 		select post_actions.post_id, post_actions.user_id,
-			{local_time("post_actions.created_at")} as creation
+			{local_time("post_actions.created_at")} as creation, reactions.reaction_value
 		from post_actions
+		left join discourse_reactions_reaction_users reaction_users
+			on reaction_users.post_id = post_actions.post_id and reaction_users.user_id = post_actions.user_id
+		left join discourse_reactions_reactions reactions on reactions.id = reaction_users.reaction_id
 		where post_actions.post_id in %s and post_actions.post_action_type_id = 2
 			and post_actions.deleted_at is null and post_actions.user_id > 0
-		order by post_actions.id asc
+		union all
+		select reaction_users.post_id, reaction_users.user_id,
+			{local_time("reaction_users.created_at")} as creation, reactions.reaction_value
+		from discourse_reactions_reaction_users reaction_users
+		join discourse_reactions_reactions reactions on reactions.id = reaction_users.reaction_id
+		where reaction_users.post_id in %s and reaction_users.user_id > 0
+			and not exists (
+				select 1 from post_actions
+				where post_actions.post_id = reaction_users.post_id
+					and post_actions.user_id = reaction_users.user_id
+					and post_actions.post_action_type_id = 2 and post_actions.deleted_at is null
+			)
+		order by creation asc
 	""",
-		(post_ids,),
+		(post_ids, post_ids),
 	)
 
 
@@ -739,12 +870,16 @@ def update_discussions_count():
 
 def insert_reactions(doc, post_id):
 	reactions = [
-		[user, LIKE_EMOJI, doc.doctype, doc.name, like.creation, like.creation, user, user]
+		[user, get_reaction_emoji(like), doc.doctype, doc.name, like.creation, like.creation, user, user]
 		for like in batch.likes.get(post_id, [])
 		if (user := get_user(like.user_id))
 	]
 	fields = ["user", "emoji", "reference_doctype", "reference_name", "creation", "modified", "owner"]
 	bulk_insert("GP Reaction", [*fields, "modified_by"], reactions)
+
+
+def get_reaction_emoji(like):
+	return (like.reaction_value and get_emoji(like.reaction_value)) or LIKE_EMOJI
 
 
 def insert_visits(doc, topic_id):
@@ -990,10 +1125,16 @@ def get_users(last_id, limit):
 		f"""
 		select users.id, users.username, users.active, users.suspended_till,
 			users.name as full_name, user_emails.email as email,
-			{local_time("users.created_at")} as created_at, uploads.url as avatar_url
+			{local_time("users.created_at")} as created_at, uploads.url as avatar_url,
+			profiles.bio_cooked, profiles.location, profiles.website,
+			coalesce(profile_backgrounds.url, card_backgrounds.url) as cover_url
 		from users
 		join user_emails on user_emails.user_id = users.id and user_emails.primary
 		left join uploads on uploads.id = users.uploaded_avatar_id
+		left join user_profiles profiles on profiles.user_id = users.id
+		left join uploads profile_backgrounds
+			on profile_backgrounds.id = profiles.profile_background_upload_id
+		left join uploads card_backgrounds on card_backgrounds.id = profiles.card_background_upload_id
 		where users.id > 0 and not users.staged and users.id > %s {user_filter} {topic_user_filter}
 		order by users.id asc
 		limit %s
@@ -1031,11 +1172,42 @@ def migrate_user(user):
 		file = save_image(user.avatar_url, user.username, doc)
 		if file:
 			doc.user_image = file.file_url
-	insert_user(doc)
+	insert_user(doc, get_profile_fields(user, doc))
 	log_discourse_map(doc, "users", user.id)
 
 
-def insert_user(doc):
+def get_profile_fields(user, doc):
+	fields = {}
+	readme = convert_html(user.bio_cooked, doc, 0) if user.bio_cooked else ""
+	soup = BeautifulSoup(readme, "html.parser")
+	bio = " ".join(soup.get_text(" ").split())
+	tags = [tag.name for tag in soup.find_all(True) if tag.name != "br"]
+	if bio and len(bio) <= BIO_LENGTH and tags in ([], ["p"]):
+		fields["bio"] = bio
+		readme = ""
+	readme += get_location_line(user)
+	if readme:
+		fields["readme"] = sanitize_content(readme)
+	if user.cover_url and (file := save_image(user.cover_url, f"{user.username}-cover", doc)):
+		fields["cover_image"] = file.file_url
+	return fields
+
+
+def get_location_line(user):
+	parts = []
+	if location := " ".join((user.location or "").split()):
+		parts.append(f"📍 {escape(location)}")
+	website = (user.website or "").strip()
+	if website and "://" not in website:
+		website = f"https://{website}"
+	url = urlparse(website)
+	if url.scheme in ("http", "https") and url.hostname:
+		label = (url.netloc + url.path).removeprefix("www.").rstrip("/")
+		parts.append(f'<a href="{escape(website)}">{escape(label)}</a>')
+	return f"<p>{' · '.join(parts)}</p>" if parts else ""
+
+
+def insert_user(doc, profile_fields=None):
 	insert_without_hooks(doc)
 	share = frappe.get_doc(
 		doctype="DocShare",
@@ -1049,7 +1221,11 @@ def insert_user(doc):
 	share.flags.ignore_links = True
 	insert_without_hooks(share)
 	profile = frappe.get_doc(
-		doctype="GP User Profile", user=doc.name, full_name=doc.full_name, enabled=doc.enabled
+		doctype="GP User Profile",
+		user=doc.name,
+		full_name=doc.full_name,
+		enabled=doc.enabled,
+		**(profile_fields or {}),
 	)
 	profile.flags.ignore_profile_ownership = True
 	insert(profile, ignore_permissions=True)
