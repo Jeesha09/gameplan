@@ -34,7 +34,10 @@ export type Review = {
   name: string
   reference_doctype: string
   reference_name: string
-  creation?: string
+  discussion_title?: string
+  report_count: number
+  last_reported_at: string
+  report_reasons: { reason: string; count: number }[]
   decision?: string
 }
 export type ReviewDetails = {
@@ -59,6 +62,7 @@ export type ReviewDetails = {
     creation: string
     reason: string
     note: string
+    automatic_rule?: number
   }[]
   evidence: { name: string; reported_title?: string; reported_content: string } | null
   polls: GPPoll[]

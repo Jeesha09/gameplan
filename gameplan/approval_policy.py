@@ -1,5 +1,4 @@
 import frappe
-from frappe.query_builder.functions import Count
 from frappe.utils import cint
 
 from gameplan.approval_files import publishing_submission
@@ -27,6 +26,10 @@ def needs_approval(doc):
 	if not project:
 		return False
 	community = frappe.db.get_value("GP Project", project, "team")
+	from gameplan.watched_word_actions import requires_approval
+
+	if requires_approval(doc):
+		return True
 	threshold = cint(frappe.db.get_value("GP Team", community, "approval_post_count"))
 	if not threshold or can_moderate_community(community):
 		return False
@@ -83,25 +86,28 @@ def counter(community):
 		.where(Discussion.project.isin(projects))
 		.where(Discussion.hidden_at.isnull() & Discussion.spam_removed_at.isnull())
 	)
-	accepted = (
-		discussions.select(Count(Discussion.name)).where(Discussion.owner == user).for_update().run()[0][0]
+	# Thresholds cannot exceed 100; older contributions need no full-history count.
+	accepted = len(
+		discussions.select(Discussion.name).where(Discussion.owner == user).limit(100).for_update().run()
 	)
-	accepted += (
-		frappe.qb.from_(Comment)
-		.select(Count(Comment.name))
-		.where(
-			(Comment.reference_doctype == "GP Discussion")
-			& Comment.reference_name.isin(discussions.select(Discussion.name))
+	if accepted < 100:
+		accepted += len(
+			frappe.qb.from_(Comment)
+			.select(Comment.name)
+			.where(
+				(Comment.reference_doctype == "GP Discussion")
+				& Comment.reference_name.isin(discussions.select(Discussion.name))
+			)
+			.where(
+				(Comment.owner == user)
+				& Comment.deleted_at.isnull()
+				& Comment.hidden_at.isnull()
+				& Comment.spam_removed_at.isnull()
+			)
+			.limit(100 - accepted)
+			.for_update()
+			.run()
 		)
-		.where(
-			(Comment.owner == user)
-			& Comment.deleted_at.isnull()
-			& Comment.hidden_at.isnull()
-			& Comment.spam_removed_at.isnull()
-		)
-		.for_update()
-		.run()[0][0]
-	)
 	row = frappe.get_doc(doctype="GP Approval Counter", community=community, user=user, accepted=accepted)
 	row.insert(ignore_permissions=True)
 	return frappe._dict(name=row.name, accepted=accepted)

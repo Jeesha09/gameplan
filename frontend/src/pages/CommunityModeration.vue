@@ -1,31 +1,36 @@
 <template>
-  <div class="body-container py-5">
-    <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
-      <div class="flex flex-wrap items-center gap-3">
-        <h1 class="text-xl-semibold text-ink-gray-9">Community moderation</h1>
+  <div class="text-ink-gray-9">
+    <template v-if="canModerate">
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <TabButtons
+          v-model="tab"
+          class="shrink-0"
+          :options="[
+            { label: 'Approvals', value: 'approvals' },
+            { label: 'Reports', value: 'reports' },
+            { label: 'Removed content', value: 'removed' },
+            { label: 'Community bans', value: 'bans' },
+            ...(canManageCommunity(community, useSessionUser())
+              ? [{ label: 'Watched words', value: 'words' }]
+              : []),
+            { label: 'History', value: 'history' },
+          ]"
+        />
         <ApprovalSettings
           v-if="canManageCommunity(community, useSessionUser())"
           :key="communityId"
           :community-id="communityId"
+          class="ml-auto shrink-0"
         />
       </div>
-      <Button :route="{ name: 'Discussions', params: { communityId } }">Back to discussions</Button>
-    </div>
-    <template v-if="canModerate">
-      <TabButtons
-        v-model="tab"
-        :options="[
-          { label: 'Removed content', value: 'removed' },
-          { label: 'Community bans', value: 'bans' },
-          { label: 'Reports', value: 'reports' },
-          { label: 'Approvals', value: 'approvals' },
-          { label: 'History', value: 'history' },
-        ]"
-      />
       <ErrorMessage
         v-if="error"
         class="mt-4"
         :message="extractServerMessage(error) || 'Could not load moderation data'"
+      />
+      <WatchedWords
+        v-if="tab === 'words' && canManageCommunity(community, useSessionUser())"
+        :community-id="communityId"
       />
       <template v-if="tab === 'removed'">
         <Select
@@ -37,14 +42,14 @@
             { label: 'Replies', value: 'GP Comment' },
           ]"
         />
-        <div v-for="item in items" :key="item.name" class="border-b py-4">
+        <div v-for="item in items" :key="item.name" class="border-b border-outline-gray-2 py-5">
           <div class="text-base-medium text-ink-gray-9">{{ item.title }}</div>
           <p class="mt-1 text-base text-ink-gray-5">
             {{ item.spam_removed_at ? 'Spam removed' : 'Hidden' }} ·
             {{ useUser(item.owner).full_name }}
           </p>
           <p class="mt-2 whitespace-pre-wrap text-base text-ink-gray-7">{{ item.reason }}</p>
-          <div class="mt-3 flex gap-2">
+          <div class="mt-3 flex flex-wrap gap-2">
             <Button @click="preview(item)">Preview</Button>
             <Button
               :route="{
@@ -60,7 +65,10 @@
             >
             <Button @click="restore(item)">Restore</Button>
           </div>
-          <div v-if="selected === item.name" class="mt-3 rounded border p-3">
+          <div
+            v-if="selected === item.name"
+            class="mt-3 max-h-96 overflow-y-auto rounded-5 border border-outline-gray-2 bg-surface-gray-1 p-4"
+          >
             <CommentEditor :value="previewContent" :editable="false" />
           </div>
         </div>
@@ -74,36 +82,70 @@
       </template>
       <template v-else-if="tab === 'bans'">
         <p class="my-4 text-base text-ink-gray-5">
-          Bans block participation in this Community until lifted. Reading and participation
-          elsewhere stay available.
+          Bans block participation in this Community until lifted or expired. Reading and
+          participation elsewhere stay available.
         </p>
-        <div class="flex items-end gap-2">
-          <div class="min-w-0 flex-1 space-y-1.5">
-            <FormLabel label="User" />
-            <UserCombobox
-              v-model="targetUser"
-              class="w-full"
-              placeholder="Choose a user"
-              :filter="canBeBanned"
-            />
-          </div>
+        <div class="flex items-center gap-2">
+          <Combobox
+            v-model="targetUser"
+            v-model:query="userQuery"
+            :open="userPickerOpen"
+            :loading="userSearchLoading"
+            variant="outline"
+            open-on-click
+            label="User"
+            placeholder="Name or email"
+            description="Browse eligible members or type at least 2 characters to search."
+            class="min-w-0 flex-1"
+            :options="userOptions"
+            :filterable="false"
+            :empty-text="
+              userQuery.trim().length === 1
+                ? 'Type one more character to search.'
+                : 'No eligible members match this search.'
+            "
+            @update:open="setUserPickerOpen"
+          >
+            <template #item-prefix="{ item }">
+              <Avatar :image="item.image" :label="item.label" size="sm" />
+            </template>
+          </Combobox>
           <Button :disabled="!targetUser" @click="banUser">Ban from Community</Button>
         </div>
         <div
           v-for="ban in bans"
           :key="ban.user"
-          class="flex items-center justify-between gap-3 border-b py-4"
+          class="flex items-center justify-between gap-3 border-b border-outline-gray-2 py-5"
         >
           <div>
-            <div class="text-base-medium text-ink-gray-9">{{ useUser(ban.user).full_name }}</div>
+            <div class="text-base-medium text-ink-gray-9">
+              {{ ban.full_name || useUser(ban.user).full_name }}
+            </div>
             <p class="mt-1 whitespace-pre-wrap text-base text-ink-gray-5">{{ ban.reason }}</p>
+            <p class="mt-1 text-base text-ink-gray-6">{{ expiryLabel(ban.expires_at) }}</p>
           </div>
-          <Button @click="liftBan(ban.user)">Lift ban</Button>
+          <div class="flex gap-2">
+            <Button @click="editBan(ban)">Change</Button
+            ><Button @click="editBan(ban, true)">Lift ban</Button>
+          </div>
+        </div>
+        <div class="mt-4 flex gap-2">
+          <Button v-if="start" @click="start -= 40">Previous</Button>
+          <Button v-if="hasMore" @click="start += 40">Next</Button>
         </div>
         <p v-if="!loading && !bans.length" class="mt-5 text-base text-ink-gray-5">
           No active Community bans.
         </p>
       </template>
+      <RestrictionDialog
+        v-if="banTarget"
+        :key="`${banTarget.user}-${liftingBan}`"
+        v-model:open="banDialogOpen"
+        :user="banTarget"
+        :community="communityId"
+        :lifting="liftingBan"
+        @saved="banSaved"
+      />
       <ApprovalQueue v-if="tab === 'approvals'" :key="communityId" :community-id="communityId" />
       <ReportQueue v-if="tab === 'reports'" :communityId="communityId" />
       <ModerationHistory v-if="tab === 'history'" :communityId="communityId" />
@@ -114,15 +156,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import RestrictionDialog from '@/components/RestrictionDialog.vue'
+import { expiryLabel, type RestrictionUser } from '@/data/restrictions'
+import WatchedWords from '@/components/WatchedWords.vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import ApprovalQueue from '@/components/ApprovalQueue.vue'
 import ApprovalSettings from '@/components/ApprovalSettings.vue'
 import ReportQueue from '@/components/ReportQueue.vue'
 import { useRoute, useRouter } from 'vue-router'
 import ModerationHistory from '@/components/ModerationHistory.vue'
 import {
+  Avatar,
   Button,
-  FormLabel,
+  Combobox,
   Select,
   TabButtons,
   ErrorMessage,
@@ -132,9 +178,8 @@ import {
 } from 'frappe-ui'
 import CommentEditor from '@/components/editor/CommentEditor.vue'
 import { useCommunity } from '@/data/communities'
-import { useSessionUser, useUser, type UserInfo } from '@/data/users'
-import UserCombobox from '@/components/UserCombobox.vue'
-import { canModerateCommunity, canManageCommunity, isGlobalAdmin } from '@/utils/permissions'
+import { useSessionUser, useUser } from '@/data/users'
+import { canModerateCommunity, canManageCommunity } from '@/utils/permissions'
 import { reloadDiscussionLists, useDiscussion } from '@/data/discussions'
 import { extractServerMessage } from '@/utils'
 
@@ -145,11 +190,13 @@ const route = useRoute()
 const router = useRouter()
 const tab = computed({
   get: () =>
-    ['removed', 'bans', 'history', 'reports', 'approvals'].includes(String(route.query.tab))
+    ['approvals', 'reports', 'removed', 'bans', 'words', 'history'].includes(
+      String(route.query.tab),
+    )
       ? String(route.query.tab)
       : 'removed',
   set: (value) => {
-    router.replace({ query: { tab: value } })
+    router.replace({ query: { ...route.query, tab: value } })
   },
 })
 const doctype = ref('GP Discussion')
@@ -170,19 +217,90 @@ type RemovedItem = {
   spam_removed_at?: string
 }
 const items = ref<RemovedItem[]>([])
-const bans = ref<{ user: string; reason: string }[]>([])
+const bans = ref<RestrictionUser[]>([])
+const banTarget = ref<RestrictionUser | null>(null)
+const banDialogOpen = ref(false)
+const liftingBan = ref(false)
 const hasMore = ref(false)
 const selected = ref('')
 const previewContent = ref('')
 const targetUser = ref('')
-function canBeBanned(user: UserInfo) {
-  return (
-    !isGlobalAdmin(user) &&
-    !community.value?.members.some(
-      (member) => member.user === user.name && (member.is_admin || member.is_moderator),
-    )
-  )
+const userQuery = ref('')
+const userPickerOpen = ref(false)
+const userSearchLoading = ref(false)
+const userHasMore = ref(false)
+const userCursor = ref('')
+const userOptions = ref<{ label: string; value: string; image: string }[]>([])
+let userSearchRequest = 0
+let userSearchTimer: ReturnType<typeof setTimeout> | undefined
+async function loadBanCandidates(query: string, request: number, after = '') {
+  userSearchLoading.value = true
+  try {
+    const result = await call<{
+      items: { name: string; full_name: string; user_image: string }[]
+      has_more: boolean
+      next_cursor: string
+    }>('gameplan.moderation.ban_candidates', {
+      community: props.communityId,
+      query,
+      after,
+    })
+    if (request !== userSearchRequest || !userPickerOpen.value) return
+    const options = result.items.map((user) => ({
+      label: user.full_name || user.name,
+      value: user.name,
+      image: user.user_image,
+    }))
+    userOptions.value = after ? [...userOptions.value, ...options] : options
+    userHasMore.value = result.has_more
+    userCursor.value = result.next_cursor
+  } catch (e) {
+    if (request === userSearchRequest) error.value = e
+  } finally {
+    if (request === userSearchRequest) userSearchLoading.value = false
+  }
 }
+
+watch([userQuery, userPickerOpen, () => props.communityId], ([query, open]) => {
+  const request = ++userSearchRequest
+  clearTimeout(userSearchTimer)
+  userSearchLoading.value = false
+  if (!open) return
+
+  const term = query.trim()
+  userOptions.value = []
+  userHasMore.value = false
+  userCursor.value = ''
+  if (term.length === 1) return
+
+  userSearchTimer = setTimeout(() => loadBanCandidates(term, request), term ? 250 : 0)
+})
+
+function setUserPickerOpen(open: boolean) {
+  userPickerOpen.value = open
+  if (open) {
+    targetUser.value = ''
+    userQuery.value = ''
+  }
+}
+
+function loadMoreBanCandidatesOnScroll(event: Event) {
+  const viewport = event.target
+  if (
+    !(viewport instanceof HTMLElement) ||
+    !viewport.closest('[data-slot="content"]') ||
+    viewport.scrollTop + viewport.clientHeight < viewport.scrollHeight - 24 ||
+    !userPickerOpen.value ||
+    !userHasMore.value ||
+    userSearchLoading.value
+  ) {
+    return
+  }
+  loadBanCandidates(userQuery.value.trim(), userSearchRequest, userCursor.value)
+}
+
+onMounted(() => document.addEventListener('scroll', loadMoreBanCandidatesOnScroll, true))
+onBeforeUnmount(() => document.removeEventListener('scroll', loadMoreBanCandidatesOnScroll, true))
 
 let request = 0
 async function load() {
@@ -191,7 +309,7 @@ async function load() {
   bans.value = []
   selected.value = ''
   error.value = null
-  if (!canModerate.value || ['reports', 'approvals', 'history'].includes(tab.value)) {
+  if (!canModerate.value || ['reports', 'approvals', 'history', 'words'].includes(tab.value)) {
     loading.value = false
     return
   }
@@ -208,8 +326,12 @@ async function load() {
     } else {
       const result = await call<typeof bans.value>('gameplan.moderation.community_bans', {
         community: props.communityId,
+        start: start.value,
       })
-      if (current === request) bans.value = result
+      if (current === request) {
+        bans.value = result.slice(0, 40)
+        hasMore.value = result.length > 40
+      }
     }
   } catch (e) {
     if (current === request) error.value = e
@@ -250,38 +372,16 @@ function restore(item: RemovedItem) {
   })
 }
 function banUser() {
-  dialog.prompt({
-    title: 'Ban from Community',
-    message: `${
-      useUser(targetUser.value).full_name
-    } will lose participation rights here until the ban is lifted.`,
-    fields: [{ name: 'reason', label: 'Reason', type: 'textarea', required: true }],
-    confirmLabel: 'Ban',
-    onConfirm: async ({ values }) => {
-      await call('gameplan.community_bans.set_ban', {
-        community: props.communityId,
-        user: targetUser.value,
-        banned: 1,
-        reason: values.reason,
-      })
-      targetUser.value = ''
-      await load()
-    },
-  })
+  editBan({ user: targetUser.value, full_name: useUser(targetUser.value).full_name })
 }
-function liftBan(user: string) {
-  dialog.confirm({
-    title: 'Lift Community ban',
-    message: `Restore participation rights for ${useUser(user).full_name}?`,
-    confirmLabel: 'Lift ban',
-    onConfirm: async () => {
-      await call('gameplan.community_bans.set_ban', {
-        community: props.communityId,
-        user,
-        banned: 0,
-      })
-      await load()
-    },
-  })
+function editBan(user: RestrictionUser, lifting = false) {
+  banTarget.value = user
+  liftingBan.value = lifting
+  banDialogOpen.value = true
+}
+async function banSaved() {
+  targetUser.value = ''
+  banTarget.value = null
+  await load()
 }
 </script>

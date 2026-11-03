@@ -1,11 +1,37 @@
 <template>
   <form class="my-4 flex flex-wrap items-end gap-2" @submit.prevent="applyFilters">
     <Select v-model="kind" label="History type" :options="kinds" />
-    <TextInput
-      v-if="kind !== 'all'"
+    <Combobox
+      v-if="kind === 'user'"
       v-model="target"
-      :label="kind === 'user' ? 'User email' : 'Post ID'"
-      :placeholder="kind === 'user' ? 'All users' : 'All posts'"
+      v-model:query="userQuery"
+      :open="userPickerOpen"
+      :loading="userSearchLoading"
+      variant="outline"
+      open-on-click
+      label="User"
+      placeholder="Name or email"
+      description="Browse users with Community ban history or type at least 2 characters to search."
+      class="min-w-0 flex-1"
+      :options="userOptions"
+      :filterable="false"
+      :empty-text="
+        userQuery.trim().length === 1
+          ? 'Type one more character to search.'
+          : 'No users with Community ban history match this search.'
+      "
+      @update:open="setUserPickerOpen"
+      @update:query="updateUserQuery"
+    >
+      <template #item-prefix="{ item }">
+        <Avatar :image="item.image" :label="item.label" size="sm" />
+      </template>
+    </Combobox>
+    <TextInput
+      v-else-if="kind !== 'all'"
+      v-model="target"
+      label="Post ID"
+      placeholder="All posts"
       class="min-w-0 flex-1"
     />
     <Button type="submit">Apply filters</Button>
@@ -13,17 +39,30 @@
   <ErrorMessage v-if="error" :message="extractServerMessage(error) || 'Could not load history'" />
   <p v-if="loading" role="status" class="mt-4 text-base text-ink-gray-5">Loading history…</p>
   <template v-else>
-    <div v-for="item in items" :key="item.name" class="border-b py-4" data-testid="history-row">
+    <div
+      v-for="item in items"
+      :key="item.name"
+      class="border-b border-outline-gray-2 py-5 text-ink-gray-9"
+      data-testid="history-row"
+    >
       <div class="flex flex-wrap items-baseline justify-between gap-2">
         <p class="text-base-medium text-ink-gray-9">{{ item.action }} · {{ targetLabel(item) }}</p>
         <time :datetime="item.creation" class="text-p-sm text-ink-gray-5">
           {{ dayjsLocal(item.creation).format('D MMM YYYY [at] h:mm A') }}
         </time>
       </div>
-      <p class="mt-1 text-base text-ink-gray-5">By {{ useUser(item.owner).full_name }}</p>
+      <p class="mt-1 text-base text-ink-gray-5">
+        By {{ item.action === 'Restriction Expired' ? 'System' : useUser(item.owner).full_name }}
+      </p>
       <p v-if="item.action === 'Slow Mode Changed'" class="mt-2 text-base text-ink-gray-6">
         {{ slowModeLabel(item.previous_slow_mode_seconds) }} →
         {{ slowModeLabel(item.slow_mode_seconds) }}
+      </p>
+      <p
+        v-if="['Ban', 'Ban Changed', 'Unban', 'Restriction Expired'].includes(item.action)"
+        class="mt-2 text-base text-ink-gray-6"
+      >
+        {{ restrictionTransition(item) }}
       </p>
       <p v-if="item.reason" class="mt-2 whitespace-pre-wrap text-base text-ink-gray-7">
         {{ item.reason }}
@@ -40,9 +79,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Button, ErrorMessage, TextInput, Select, call, dayjsLocal } from 'frappe-ui'
+import {
+  Avatar,
+  Button,
+  Combobox,
+  ErrorMessage,
+  TextInput,
+  Select,
+  call,
+  dayjsLocal,
+} from 'frappe-ui'
+import { restrictionTransition } from '@/data/restrictions'
 import { slowModeLabel } from '@/data/slowMode'
 import { useUser } from '@/data/users'
 import { extractServerMessage } from '@/utils'
@@ -58,6 +107,14 @@ const kinds = [
 ]
 const kind = ref('all')
 const target = ref('')
+const userQuery = ref('')
+const userPickerOpen = ref(false)
+const userSearchLoading = ref(false)
+const userHasMore = ref(false)
+const userCursor = ref('')
+const userOptions = ref<{ label: string; value: string; image: string | null }[]>([])
+let userSearchRequest = 0
+let userSearchTimer: ReturnType<typeof setTimeout> | undefined
 const start = ref(0)
 const loading = ref(false)
 const error = ref<unknown>(null)
@@ -67,6 +124,8 @@ type HistoryItem = {
   action: string
   owner: string
   creation: string
+  previous_expires_at?: string
+  expires_at?: string
   previous_slow_mode_seconds?: number
   slow_mode_seconds?: number
   reason?: string
@@ -83,9 +142,15 @@ function targetLabel(item: HistoryItem) {
 function applyFilters() {
   router.replace({
     query: {
+      ...route.query,
       tab: 'history',
       kind: kind.value,
-      target: kind.value === 'all' ? undefined : target.value || undefined,
+      target:
+        kind.value === 'all'
+          ? undefined
+          : kind.value === 'user'
+            ? target.value || userQuery.value.trim() || undefined
+            : target.value || undefined,
     },
   })
 }
@@ -131,4 +196,78 @@ function changePage(delta: number) {
   start.value += delta
   load()
 }
+
+async function loadBanHistoryUsers(query: string, request: number, after = '') {
+  userSearchLoading.value = true
+  try {
+    const result = await call<{
+      items: { name: string; full_name: string; user_image: string | null }[]
+      has_more: boolean
+      next_cursor: string
+    }>('gameplan.moderation_history.ban_users', {
+      community: props.communityId,
+      query,
+      after,
+    })
+    if (request !== userSearchRequest || !userPickerOpen.value) return
+    const options = result.items.map((user) => ({
+      label: user.full_name || user.name,
+      value: user.name,
+      image: user.user_image,
+    }))
+    userOptions.value = after ? [...userOptions.value, ...options] : options
+    userHasMore.value = result.has_more
+    userCursor.value = result.next_cursor
+  } catch (e) {
+    if (request === userSearchRequest) error.value = e
+  } finally {
+    if (request === userSearchRequest) userSearchLoading.value = false
+  }
+}
+
+watch(
+  [userQuery, userPickerOpen, () => props.communityId, kind],
+  ([query, open, , selectedKind]) => {
+    const request = ++userSearchRequest
+    clearTimeout(userSearchTimer)
+    userSearchLoading.value = false
+    if (!open || selectedKind !== 'user') return
+
+    const term = query.trim()
+    userOptions.value = []
+    userHasMore.value = false
+    userCursor.value = ''
+    if (term.length === 1) return
+
+    userSearchTimer = setTimeout(() => loadBanHistoryUsers(term, request), term ? 250 : 0)
+  },
+)
+
+function setUserPickerOpen(open: boolean) {
+  userPickerOpen.value = open
+}
+
+function updateUserQuery(query: string) {
+  userQuery.value = query
+  const selected = userOptions.value.find((option) => option.value === target.value)
+  if (target.value && selected?.label !== query) target.value = ''
+}
+
+function loadMoreBanHistoryUsers(event: Event) {
+  const viewport = event.target
+  if (
+    !(viewport instanceof HTMLElement) ||
+    !viewport.closest('[data-slot="content"]') ||
+    viewport.scrollTop + viewport.clientHeight < viewport.scrollHeight - 24 ||
+    !userPickerOpen.value ||
+    !userHasMore.value ||
+    userSearchLoading.value
+  ) {
+    return
+  }
+  loadBanHistoryUsers(userQuery.value.trim(), userSearchRequest, userCursor.value)
+}
+
+onMounted(() => document.addEventListener('scroll', loadMoreBanHistoryUsers, true))
+onBeforeUnmount(() => document.removeEventListener('scroll', loadMoreBanHistoryUsers, true))
 </script>

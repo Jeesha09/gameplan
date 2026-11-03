@@ -32,6 +32,7 @@ from gameplan.per_user_state import notification_criterion
 UNREAD_COUNTS_CHANGED = "gameplan:unread_counts_changed"
 NOTIFICATION_COUNT_CHANGED = "gameplan:notification_count_changed"
 NOTIFICATION_CHANGED = "gameplan:notification_changed"
+RESTRICTIONS_CHANGED = "gameplan:restrictions_changed"
 USERS_CHANGED = "gameplan:users_changed"
 
 

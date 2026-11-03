@@ -1,5 +1,4 @@
 import frappe
-from frappe.utils import cint
 
 from gameplan.permissions import (
 	get_content_project,
@@ -27,34 +26,25 @@ def can_moderate_community(community, user=None, *, for_update=False):
 
 def is_banned(community, user=None, *, for_update=False):
 	user = user or frappe.session.user
-	if not community or is_global_admin(user):
+	if not community or user == "Guest" or is_global_admin(user):
 		return False
-	# Membership is deliberately not involved: leaving and rejoining cannot clear a ban.
-	return (
-		frappe.db.get_value(
-			"GP Moderation Log",
-			{"community": community, "user": user, "action": ["in", ["Ban", "Unban"]]},
-			"action",
-			order_by="creation desc, name desc",
-			for_update=for_update,
-		)
-		== "Ban"
-	)
+	from gameplan.restrictions import active, current_state
+
+	return active(current_state(user, community))
 
 
 def banned_communities(user):
 	if is_global_admin(user):
 		return []
-	rows = frappe.get_all(
-		"GP Moderation Log",
-		filters={"user": user, "action": ["in", ["Ban", "Unban"]]},
-		fields=["community", "action"],
-		order_by="creation desc, name desc",
+	from gameplan.restrictions import active_condition
+
+	Restriction = frappe.qb.DocType("GP User Restriction")
+	return (
+		frappe.qb.from_(Restriction)
+		.select(Restriction.community)
+		.where((Restriction.user == user) & (Restriction.community != "") & active_condition(Restriction))
+		.run(pluck=True)
 	)
-	latest = {}
-	for row in rows:
-		latest.setdefault(row.community, row.action)
-	return [community for community, action in latest.items() if action == "Ban"]
 
 
 def content_is_banned(doc, user=None):
@@ -98,28 +88,15 @@ def validate_participation(doc, method=None):
 
 
 @frappe.whitelist(methods=["POST"])
-def set_ban(community: str, user: str, banned: int, reason: str = ""):
-	if not can_moderate_community(community):
-		frappe.throw("Only community moderators can perform this action", frappe.PermissionError)
-	frappe.get_doc("GP Team", community, for_update=True)
-	if not can_moderate_community(community, for_update=True):
-		frappe.throw("Only community moderators can perform this action", frappe.PermissionError)
-	if not frappe.db.exists("User", user) or user == "Guest":
-		frappe.throw("Choose an existing user")
-	if cint(banned) and can_moderate_community(community, user, for_update=True):
-		frappe.throw("Remove the community staff role before banning this user")
-	if bool(cint(banned)) == is_banned(community, user, for_update=True):
-		return
-	if cint(banned) and (not isinstance(reason, str) or not reason.strip() or len(reason) > 500):
-		frappe.throw("Enter a reason of at most 500 characters")
-	frappe.get_doc(
-		doctype="GP Moderation Log",
-		community=community,
-		user=user,
-		action="Ban" if cint(banned) else "Unban",
-		reason=reason.strip(),
-	).insert(ignore_permissions=True)
+def set_ban(
+	community: str,
+	user: str,
+	banned: int,
+	reason: str = "",
+	expires_at: str = "",
+	expected_modified: str | None = None,
+):
+	"""Set, change or lift a Community participation ban with an optional expiry."""
+	from gameplan.restrictions import set_restriction
 
-	from gameplan.realtime import USERS_CHANGED
-
-	frappe.realtime.publish_realtime(USERS_CHANGED, user=user, after_commit=True)
+	return set_restriction(user, banned, reason, community, expires_at, expected_modified)

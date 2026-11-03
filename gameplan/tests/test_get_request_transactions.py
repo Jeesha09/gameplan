@@ -65,6 +65,11 @@ READ_ONLY_ENDPOINTS = frozenset(
 		"gameplan.api.get_people",
 		# Scoped moderation reads.
 		"gameplan.moderation.community_bans",
+		"gameplan.moderation.ban_candidates",
+		"gameplan.restriction_queries.account_suspensions",
+		"gameplan.restriction_queries.candidates",
+		"gameplan.restriction_queries.account_history",
+		"gameplan.restriction_queries.my_bans",
 		"gameplan.reporting.queue",
 		"gameplan.approvals.queue",
 		"gameplan.approvals.detail",
@@ -72,7 +77,11 @@ READ_ONLY_ENDPOINTS = frozenset(
 		"gameplan.reporting.detail",
 		"gameplan.moderation_history.history",
 		"gameplan.slow_mode.status",
+		"gameplan.moderation_history.ban_users",
 		"gameplan.moderation.removed_content",
+		"gameplan.watched_words.rules",
+		"gameplan.watched_words.download",
+		"gameplan.watched_word_edits.original",
 		# Revision history.
 		"gameplan.gameplan.doctype.gp_comment.gp_comment.GPComment.get_revisions",
 		"gameplan.gameplan.doctype.gp_discussion.gp_discussion.GPDiscussion.get_revisions",

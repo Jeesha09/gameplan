@@ -72,6 +72,7 @@ class TestReporting(GameplanTestCase):
 		self.assertEqual(self.review(first), self.review(second))
 		with self.as_user(self.outsider):
 			data = detail(self.community.name, self.review(first))
+		self.assertIsNone(data["evidence"])
 		self.assertEqual(len(data["reports"]), 2)
 		self.assertEqual(data["reports"][0].note, "First note")
 		self.assertEqual(data["reports"][0].owner, self.second_member.name)
@@ -82,7 +83,11 @@ class TestReporting(GameplanTestCase):
 		self.discussion.content = "Edited content"
 		self.discussion.save()
 		with self.as_user(self.outsider):
-			data = detail(self.community.name, review)
+			data = detail(
+				self.community.name,
+				review,
+				report=frappe.db.get_value("GP Report", {"review": review}, "name"),
+			)
 		self.assertIn("Original evidence", data["evidence"].reported_content)
 		self.assertIn("Edited content", data["current"]["content"])
 
@@ -166,7 +171,7 @@ class TestReporting(GameplanTestCase):
 		set_ban(self.community.name, self.second_member.name, 1, "Spam")
 		with self.assertRaises(frappe.PermissionError):
 			self.report()
-		set_ban(self.community.name, self.second_member.name, 0)
+		set_ban(self.community.name, self.second_member.name, 0, "Appeal accepted")
 		self.discussion.hide("Removed")
 		with self.assertRaises(frappe.PermissionError):
 			self.report()
@@ -231,3 +236,23 @@ class TestReporting(GameplanTestCase):
 			self.assertIn("Later reported version", data["evidence"].reported_content)
 			with self.assertRaises(frappe.PermissionError):
 				detail(self.community.name, self.review(first), report=other)
+
+	def test_embedded_poll_review_reads_do_not_grow_per_poll(self):
+		from unittest.mock import patch
+
+		from gameplan.reporting import review_polls
+		from gameplan.tests.fixtures import create_poll
+
+		create_poll("First poll", self.discussion).db_set("comment", str(self.reply.name))
+		review_polls(self.reply)
+		with patch.object(frappe.db, "sql", wraps=frappe.db.sql) as queries:
+			small = review_polls(self.reply)
+			budget = queries.call_count
+		for index in range(20):
+			create_poll(f"Poll {index}", self.discussion).db_set("comment", str(self.reply.name))
+		with patch.object(frappe.db, "sql", wraps=frappe.db.sql) as queries:
+			large = review_polls(self.reply)
+		self.assertEqual(queries.call_count, budget)
+		self.assertEqual(len(small), 1)
+		self.assertEqual(len(large), 21)
+		self.assertTrue(all([option.title for option in poll.options] == ["Yes", "No"] for poll in large))

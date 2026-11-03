@@ -7,7 +7,7 @@ from frappe.utils import get_fullname
 
 from gameplan.notifications import records
 from gameplan.notifications.resolver import bulk_discussion_states, discussion_of, is_muted
-from gameplan.permissions import _guest_users, _member_users, get_content_project, users_who_can_view_space
+from gameplan.permissions import _guest_users, _member_users, get_content_project, users_who_can_view_content
 from gameplan.utils import extract_mentions, extract_rich_quote_authors
 
 
@@ -79,7 +79,7 @@ class HasMentions:
 
 		Same rule as _can_notify (author excluded, no one who cannot view the content),
 		resolved in bulk. The author is filtered out here, before the permission call:
-		users_who_can_view_space answers only "who can see it", and the author
+		users_who_can_view_content answers only "who can see it", and the author
 		trivially can.
 		"""
 		project = get_content_project(self)
@@ -90,7 +90,7 @@ class HasMentions:
 		if not joined:
 			return []
 		users = frappe.get_all("User", filters={"name": ["in", list(joined)], "enabled": 1}, pluck="name")
-		return users_who_can_view_space(sorted(users), project)
+		return users_who_can_view_content(sorted(users), self)
 
 	def _can_notify(self, user_email):
 		"""Nobody gets notified about their own post, about content they cannot open, or

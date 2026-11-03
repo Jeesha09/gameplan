@@ -52,3 +52,70 @@ it('shows accepted answers and references together with discussion notifications
     })
   })
 })
+
+it('censors an accepted answer without changing its stored original', () => {
+  resetData('space_with_discussion').then((ids) => {
+    cy.switchUser('secondMember')
+    cy.request('POST', '/api/v2/document/GP Comment', {
+      reference_doctype: 'GP Discussion',
+      reference_name: ids.discussion,
+      content: '<p>forumsecret answer</p>',
+    }).then(({ body }) => {
+      const comment = String(body.data.name)
+      cy.switchUser('member')
+      cy.request(
+        'POST',
+        `/api/v2/document/GP Discussion/${ids.discussion}/method/highlight_comment`,
+        { comment },
+      )
+      cy.switchUser('admin')
+      cy.request('POST', '/api/method/gameplan.watched_words.add', {
+        community: ids.community,
+        action: 'Censor',
+        word: 'forumsecret',
+      })
+      cy.request(`/api/v2/document/GP Discussion/${ids.discussion}`)
+        .its('body.data.highlighted_reply.content')
+        .should('eq', '■■■■■■■■■■■ answer')
+      cy.visit(`/g/community/${ids.community}/space/${ids.space}/discussion/${ids.discussion}`)
+      cy.contains('Accepted answer').should('be.visible')
+      cy.contains('■■■■■■■■■■■ answer').should('be.visible')
+      cy.switchUser('secondMember')
+      cy.request(
+        `/api/method/gameplan.watched_word_edits.original?doctype=GP Comment&name=${comment}`,
+      )
+        .its('body.message.content')
+        .should('include', 'forumsecret answer')
+    })
+  })
+})
+
+it('queues a reply edit through the unified draft API', () => {
+  resetData('space_with_discussion').then((ids) => {
+    cy.switchUser('member')
+    cy.request('POST', '/api/v2/document/GP Comment', {
+      reference_doctype: 'GP Discussion',
+      reference_name: ids.discussion,
+      content: '<p>Original reply for editing</p>',
+    }).then(({ body }) => {
+      const comment = String(body.data.name)
+      cy.switchUser('admin')
+      cy.request('POST', '/api/method/gameplan.watched_words.add', {
+        community: ids.community,
+        action: 'Require approval',
+        word: 'reviewreply',
+      })
+      cy.switchUser('member')
+      cy.visit(`/g/community/${ids.community}/space/${ids.space}/discussion/${ids.discussion}`)
+      cy.get(`[data-id="${comment}"] button[aria-label="Comment Options"]`).click()
+      cy.contains('[role="menuitem"]', /^Edit$/).click()
+      cy.get('[contenteditable=true]').click().type('{selectall}reviewreply proposed edit')
+      cy.contains('button', /^\s*Submit\s*$/).click()
+      cy.contains('Edit submitted for moderator approval').should('be.visible')
+      cy.contains('p', 'Original reply for editing').should('be.visible')
+      cy.request(`/api/v2/document/GP Comment/${comment}`)
+        .its('body.data.content')
+        .should('include', 'Original reply for editing')
+    })
+  })
+})

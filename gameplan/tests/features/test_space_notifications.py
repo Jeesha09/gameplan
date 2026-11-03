@@ -2,6 +2,8 @@
 # See license.txt
 
 
+from unittest.mock import patch
+
 import frappe
 
 from gameplan.gameplan.doctype.gp_discussion.gp_discussion import move_discussion
@@ -205,6 +207,24 @@ class TestMoved(SpaceNotificationTestCase):
 		self.move(self.admin, to=private)
 
 		self.assertEqual(self.notifications_for(self.second_member), [])
+
+	def test_space_move_audience_batches_roles_and_checks_current_access(self):
+		from gameplan.notifications.resolver import notify_space_moved
+
+		private = create_space(
+			"Private move", self.community, visibility="Member Access", members=[self.member]
+		)
+		users = [self.member.name, self.second_member.name, self.admin.name, self.guest.name]
+		with (
+			patch("gameplan.notifications.resolver.space_subscribers", return_value=users),
+			patch("gameplan.notifications.resolver.get_fullname", return_value="Admin"),
+			patch(
+				"gameplan.notifications.resolver._fan_out",
+				side_effect=lambda recipients, **kwargs: recipients,
+			),
+			patch.object(frappe, "get_roles", side_effect=AssertionError("Per-user role lookup")),
+		):
+			self.assertEqual(notify_space_moved(private, self.admin.name), [self.member.name])
 
 	def test_moving_a_space_tells_its_subscribers(self):
 		other_community = create_community("Globex", members=[self.second_member], admins=[self.admin])

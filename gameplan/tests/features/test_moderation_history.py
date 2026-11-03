@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import frappe
 
 from gameplan.community_bans import set_ban
@@ -85,7 +87,7 @@ class TestModerationHistory(GameplanTestCase):
 	def test_user_filter_returns_only_this_community_ban_history(self):
 		other = create_community("Other bans")
 		set_ban(self.community.name, self.member.name, 1, "Spam")
-		set_ban(self.community.name, self.member.name, 0)
+		set_ban(self.community.name, self.member.name, 0, "Appeal accepted")
 		set_ban(other.name, self.member.name, 1, "Other Community reason")
 		self.reply.hide("Post action")
 		rows = self.entries(kind="user", target=self.member.name)
@@ -100,6 +102,16 @@ class TestModerationHistory(GameplanTestCase):
 		self.assertEqual([row.action for row in rows], ["Hide"])
 		self.assertEqual(rows[0].reason, "Discussion reason")
 		self.assertEqual(self.entries(kind="reply", target="missing"), [])
+
+	def test_history_role_reads_do_not_grow_with_space_count(self):
+		for index in range(20):
+			create_space(f"History scale {index}", self.community)
+		with (
+			self.as_user(self.second_member),
+			patch.object(frappe, "get_roles", wraps=frappe.get_roles) as roles,
+		):
+			self.assertEqual(history(self.community.name)["items"], [])
+		self.assertLessEqual(roles.call_count, 10)
 
 	def test_pages_are_bounded_and_deterministic_when_timestamps_match(self):
 		for index in range(45):

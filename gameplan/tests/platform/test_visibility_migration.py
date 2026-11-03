@@ -223,6 +223,8 @@ class TestMissingTierFailsClosed(GameplanTestCase):
 # the GP Team / GP Project column any more, so a new occurrence is either a legacy reader
 # (which would read a frozen column) or one of these, knowingly updated.
 LEGACY_PRIVACY_REFERENCES = {
+	"gameplan/watched_words.py": 1,
+	"gameplan/tests/features/test_watched_words.py": 4,
 	# The migration itself: the backfill, its verification, and the legacy-key guard.
 	"gameplan/patches/backfill_visibility_from_is_private.py": 5,
 	"gameplan/mixins/visibility.py": 3,
@@ -244,10 +246,10 @@ LEGACY_PRIVACY_REFERENCES = {
 	"gameplan/tests/features/test_approvals.py": 1,
 	"gameplan/tests/features/test_submission_access.py": 3,
 	"gameplan/tests/features/test_reply_moderation.py": 2,
-	"gameplan/tests/features/test_moderation_core.py": 3,
+	"gameplan/tests/features/test_moderation_core.py": 4,
 	"gameplan/tests/features/test_moderation_visibility.py": 2,
 	"gameplan/gameplan/doctype/gp_user_profile/gp_user_profile.py": 1,
-	"gameplan/migrate_from_discourse/__init__.py": 1,
+	"gameplan/migrate_from_discourse/__init__.py": 5,
 	# Reject the legacy onboarding key; File.is_private is unrelated.
 	"gameplan/api.py": 3,
 	"gameplan/tests/platform/test_api_endpoints.py": 1,

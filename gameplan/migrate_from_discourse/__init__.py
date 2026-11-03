@@ -33,7 +33,7 @@ from gameplan.gameplan.doctype.gp_project.gp_project import DEFAULT_SPACE_ICON
 from gameplan.search_sqlite import GameplanSearch, rebuild_index
 from gameplan.utils import remove_empty_trailing_paragraphs, url_safe_slug
 from gameplan.utils.sanitizer import sanitize_content
-from gameplan.visibility import VISIBILITY_GENERAL, VISIBILITY_MEMBER_ACCESS
+from gameplan.visibility import VISIBILITY_GENERAL, VISIBILITY_MEMBER_ACCESS, is_member_access
 
 from .emojis import get_emoji
 
@@ -739,7 +739,7 @@ def migrate_topic(topic):
 		modified_by=owner,
 	)
 	set_new_name(doc)
-	doc.content = convert_html(content, doc, space.is_private)
+	doc.content = convert_html(content, doc, space.private)
 	add_tags(doc, [tag.name for tag in batch.tags.get(topic.id, [])])
 	comments = [
 		comment_doc
@@ -812,7 +812,7 @@ def migrate_comment(discussion, space, comment):
 		doc.highlighted_by = get_author(comment.accepter_user_id)
 		doc.highlighted_at = comment.solved_at
 	set_new_name(doc)
-	doc.content = convert_html(comment.content, doc, space.is_private)
+	doc.content = convert_html(comment.content, doc, space.private)
 	db_insert(doc)
 	insert_reactions(doc, comment.id)
 	log_discourse_map(doc, "posts", comment.id)
@@ -895,7 +895,7 @@ def insert_visits(doc, topic_id):
 	)
 
 
-def convert_html(html, doc, is_private):
+def convert_html(html, doc, private):
 	soup = BeautifulSoup(html, "html.parser")
 	convert_oneboxes(soup)
 	for img in soup.find_all("img", attrs={"class": "emoji"}):
@@ -920,11 +920,11 @@ def convert_html(html, doc, is_private):
 	for img in soup.find_all("img"):
 		for attr in [attr for attr in img.attrs if attr == "srcset" or attr.startswith("data-")]:
 			del img[attr]
-		file_url = save_upload(saved, img.get("src"), img.get("alt"), doc, is_private)
+		file_url = save_upload(saved, img.get("src"), img.get("alt"), doc, private)
 		if file_url:
 			img["src"] = file_url
 
-	convert_upload_links(soup, doc, is_private, saved)
+	convert_upload_links(soup, doc, private, saved)
 	return sanitize_content(remove_empty_trailing_paragraphs(str(soup)))
 
 
@@ -942,20 +942,20 @@ def convert_oneboxes(soup):
 		outcomes["oneboxes", "converted"] += 1
 
 
-def convert_upload_links(soup, doc, is_private, saved=None):
+def convert_upload_links(soup, doc, private, saved=None):
 	saved = {} if saved is None else saved
 	for link in soup.find_all("a", href=True):
 		if not get_upload_path(link["href"]):
 			continue
-		file_url = save_upload(saved, link["href"], link.get_text(strip=True) or None, doc, is_private)
+		file_url = save_upload(saved, link["href"], link.get_text(strip=True) or None, doc, private)
 		if file_url:
 			link["href"] = file_url
 			outcomes["upload links", "rewritten"] += 1
 
 
-def save_upload(saved, src, filename, doc, is_private):
+def save_upload(saved, src, filename, doc, private):
 	if src not in saved:
-		file = save_image(src, filename, doc, is_private)
+		file = save_image(src, filename, doc, private)
 		saved[src] = file and file.file_url
 	return saved[src]
 
@@ -987,7 +987,7 @@ def get_short_upload_path(code):
 	outcomes["uploads", "unknown short url"] += 1
 
 
-def save_image(src, filename=None, doc=None, is_private=0):
+def save_image(src, filename=None, doc=None, private=0):
 	path = get_upload_path(src)
 	if not path:
 		return
@@ -1004,18 +1004,18 @@ def save_image(src, filename=None, doc=None, is_private=0):
 	if extn and stem.lower().endswith(extn.lower()):
 		stem = stem[: -len(extn)]
 	stem = re.sub(r"[^\w.-]+", "-", stem).strip("-.")
-	return save_file(content, f"{stem or 'image'}{extn}", doc, is_private)
+	return save_file(content, f"{stem or 'image'}{extn}", doc, private)
 
 
-def save_file(content, file_name, doc, is_private):
+def save_file(content, file_name, doc, private):
 	content_hash = get_content_hash(content)
-	key = (content_hash, is_private)
-	file_url = file_hashes.get(key) or remember(file_hashes, key, write_file(content, file_name, is_private))
+	key = (content_hash, private)
+	file_url = file_hashes.get(key) or remember(file_hashes, key, write_file(content, file_name, private))
 	file = frappe.get_doc(
 		doctype="File",
 		file_name=os.path.basename(file_url),
 		file_url=file_url,
-		is_private=is_private,
+		is_private=private,
 		file_size=len(content),
 		content_hash=content_hash,
 		folder=config.attachments_folder,
@@ -1026,14 +1026,14 @@ def save_file(content, file_name, doc, is_private):
 	return file
 
 
-def write_file(content, file_name, is_private):
+def write_file(content, file_name, private):
 	for _ in range(FILE_NAME_ATTEMPTS):
 		name = make_file_name(file_name, frappe.generate_hash(length=6))
-		file_url = f"{'/private' if is_private else ''}/files/{name}"
+		file_url = f"{'/private' if private else ''}/files/{name}"
 		if config.dry_run:
 			return file_url
 		try:
-			with open(get_files_path(name, is_private=is_private), "xb") as f:
+			with open(get_files_path(name, is_private=private), "xb") as f:
 				f.write(content)
 		except FileExistsError:
 			continue
@@ -1093,7 +1093,8 @@ def get_project(category_id):
 
 def get_space(project):
 	if project not in spaces:
-		spaces[project] = frappe.db.get_value("GP Project", project, ["team", "is_private"], as_dict=True)
+		space = frappe.db.get_value("GP Project", project, ["team", "visibility"], as_dict=True)
+		spaces[project] = frappe._dict(team=space.team, private=int(is_member_access(space.visibility)))
 	return spaces[project]
 
 
@@ -1360,7 +1361,7 @@ def get_categories(last_id, limit):
 	category_filter, category_values = slice_filter("categories.id", config.category_ids)
 	return run_query(
 		f"""
-		select categories.id, categories.name, categories.read_restricted as is_private,
+		select categories.id, categories.name, categories.read_restricted,
 			posts.cooked as about, posts.raw ilike '%%Replace this first paragraph%%' as about_is_boilerplate
 		from categories
 		left join posts on posts.topic_id = categories.topic_id and posts.post_number = 1
@@ -1387,18 +1388,18 @@ def migrate_category(category):
 		title="General" if category.id in GENERAL_SPACES else category.name.strip(),
 		team=get_community(category.id),
 		icon=DEFAULT_SPACE_ICON,
-		is_private=int(category.is_private),
-		visibility=VISIBILITY_MEMBER_ACCESS if category.is_private else VISIBILITY_GENERAL,
+		visibility=VISIBILITY_MEMBER_ACCESS if category.read_restricted else VISIBILITY_GENERAL,
 	)
-	if doc.is_private:
+	private = int(is_member_access(doc.visibility))
+	if private:
 		for user in get_private_members(category.id):
 			doc.append("members", {"user": user})
 	doc.flags.ignore_links = config.dry_run
 	insert_without_hooks(doc)
 	project = log_discourse_map(doc, "categories", category.id)
-	spaces[project] = frappe._dict(team=doc.team, is_private=doc.is_private)
+	spaces[project] = frappe._dict(team=doc.team, private=private)
 	if category.about and not category.about_is_boilerplate:
-		db_set(doc, "description", convert_html(category.about, doc, doc.is_private), update_modified=False)
+		db_set(doc, "description", convert_html(category.about, doc, private), update_modified=False)
 	insert_space_subscriptions(project, category.id)
 
 
@@ -1427,7 +1428,7 @@ def get_community(category_id):
 	team = get_mapped("communities", title)
 	if team:
 		return team
-	doc = frappe.get_doc(doctype="GP Team", title=title, is_private=0, visibility=VISIBILITY_GENERAL)
+	doc = frappe.get_doc(doctype="GP Team", title=title, visibility=VISIBILITY_GENERAL)
 	doc.name = append_number_if_name_exists("GP Team", url_safe_slug(title))
 	insert_without_hooks(doc)
 	return log_discourse_map(doc, "communities", title)

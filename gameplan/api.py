@@ -168,6 +168,9 @@ def user_info_rows(names):
 			from gameplan.community_bans import banned_communities
 
 			user.banned_communities = banned_communities(user.name)
+			from gameplan.restriction_queries import my_bans
+
+			user.community_restrictions = my_bans()
 
 		# Add discussion and comment counts
 		user.discussions_count_3m = discussion_count_map.get(user.name, 0)

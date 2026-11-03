@@ -183,16 +183,27 @@ override_doctype_class = {"File": "gameplan.moderated_file.ModeratedFile"}
 # Hook on document methods and events
 
 doc_events = {
-	"GP Team": {"on_trash": "gameplan.approval_policy.delete_counters"},
+	"GP Team": {
+		"on_trash": [
+			"gameplan.approval_policy.delete_counters",
+			"gameplan.watched_words.delete_rules",
+			"gameplan.restrictions.clear_state",
+		]
+	},
 	"*": {
 		"on_trash": "gameplan.mixins.on_delete.on_trash",
 		"validate": "gameplan.community_bans.validate_participation",
 	},
 	# Discourse-style limits on Gameplan Guests posting in a space only because it is public.
 	"GP Discussion": {
+		"on_update": "gameplan.watched_word_actions.flag",
 		"on_trash": ["gameplan.reporting.protect_pending_reviews", "gameplan.slow_mode.clear_state"],
 		"before_insert": "gameplan.approval_policy.guard_publication",
-		"validate": ["gameplan.new_user_limits.check_new_user_limits", "gameplan.slow_mode.protect_settings"],
+		"validate": [
+			"gameplan.new_user_limits.check_new_user_limits",
+			"gameplan.slow_mode.protect_settings",
+			"gameplan.watched_word_actions.validate",
+		],
 		"after_insert": [
 			"gameplan.new_user_limits.record_first_day_post",
 			"gameplan.approval_policy.record_accepted",
@@ -201,6 +212,10 @@ doc_events = {
 		"after_delete": "gameplan.activity_counts.refresh_owner_counts",
 	},
 	"GP Comment": {
+		"on_update": [
+			"gameplan.watched_word_actions.flag",
+			"gameplan.activity_counts.refresh_reply_counts",
+		],
 		"on_trash": [
 			"gameplan.reporting.protect_pending_reviews",
 			"gameplan.slow_mode.preserve_deleted_reply",
@@ -209,12 +224,12 @@ doc_events = {
 		"validate": [
 			"gameplan.new_user_limits.check_new_user_limits",
 			"gameplan.reporting.protect_pending_reviews",
+			"gameplan.watched_word_actions.validate",
 		],
 		"after_insert": [
 			"gameplan.new_user_limits.record_first_day_post",
 			"gameplan.approval_policy.record_accepted",
 		],
-		"on_update": "gameplan.activity_counts.refresh_reply_counts",
 		"after_delete": "gameplan.activity_counts.refresh_owner_counts",
 	},
 	"GP Poll": {
@@ -228,12 +243,14 @@ doc_events = {
 			"gameplan.gameplan.doctype.gp_guest_access.gp_guest_access.on_user_delete",
 			"gameplan.approval_policy.delete_counters",
 			"gameplan.slow_mode.clear_state",
+			"gameplan.restrictions.clear_state",
 		],
 		"on_update": "gameplan.gameplan.doctype.gp_user_profile.gp_user_profile.on_user_update",
 	},
 }
 
-on_login = "gameplan.www.g.on_login"
+on_login = ["gameplan.restrictions.require_not_suspended", "gameplan.www.g.on_login"]
+auth_hooks = ["gameplan.restrictions.require_not_suspended"]
 
 # Public access: frappe's generic REST routes and doctype-wide realtime rooms would hand
 # anonymous visitors data that gameplan.public_payload never cleans, and the public read
@@ -241,8 +258,12 @@ on_login = "gameplan.www.g.on_login"
 before_request = [
 	"gameplan.public_access.refuse_generic_routes_for_anonymous",
 	"gameplan.public_access.limit_anonymous_request_rate",
+	"gameplan.watched_word_payload.guard_source_routes",
 ]
-after_request = ["gameplan.guest_payload.hide_guest_identity_data"]
+after_request = [
+	"gameplan.watched_word_payload.after_request",
+	"gameplan.guest_payload.hide_guest_identity_data",
+]
 override_whitelisted_methods = {
 	"frappe.realtime.has_permission": "gameplan.public_access.realtime_has_permission",
 }
@@ -251,7 +272,10 @@ override_whitelisted_methods = {
 # ---------------
 
 scheduler_events = {
-	"all": ["gameplan.gameplan.doctype.gp_draft.gp_draft.publish_due_drafts"],
+	"all": [
+		"gameplan.gameplan.doctype.gp_draft.gp_draft.publish_due_drafts",
+		"gameplan.restrictions.expire_due",
+	],
 	"hourly": ["gameplan.gameplan.doctype.gp_invitation.gp_invitation.expire_invitations"],
 	"daily": ["gameplan.demo.demo.generate_data_daily", "gameplan.email_digest.send_due_email_digests"],
 	# Every five minutes, not hourly: the mail is still hourly inside a user's active hours,

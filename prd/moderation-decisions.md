@@ -1,8 +1,6 @@
 # Moderation decisions
 
-Owner: Ebrahim. Decisions updated: 2026-10-23.
-
-Owner: Ebrahim. Decisions updated: 2026-10-21.
+Owner: Ebrahim. Decisions updated: 2026-11-02.
 
 This log records choices Ebrahim confirmed in this chat.
 The roadmap describes sequencing and contains proposals for later features.
@@ -61,6 +59,19 @@ A recommendation becomes a decision only after Ebrahim accepts it.
 | D47 | Every slow-mode setting change requires a reason and appears in existing moderation history. | Record actor, time, and old/new interval. |
 | D48 | Calculate the wait from the latest accepted reply submission, including submissions before enablement. | Disabling removes the wait; changing or re-enabling uses the retained timestamp. |
 | D49 | Show a countdown and refresh status on focus, accepted replies, and setting changes. | Other viewers pick up staff changes on focus or their next submission. Server checks always enforce current settings. |
+| D50 | Include Block, Require approval, Flag, and Censor in watched words. | Apply rules to discussion titles, bodies, replies, and edits. |
+| D51 | Community/global admins manage Community word lists. | Moderators enforce rules but cannot change them. |
+| D52 | CSV imports add rules after a preview. | Skip duplicates. Reject the whole import for invalid rows. Preserve existing rules. |
+| D53 | Match whole words or phrases, ignoring case by default. Censor also matches inside words and masks the containing word. | Support * wildcards and optional case sensitivity. Do not accept arbitrary regex. |
+| D54 | Community staff and global admins bypass Block, Require approval, and Flag. | Censor still applies to displayed staff posts. |
+| D55 | Preserve code and working URLs. | Check prose, link labels, and destinations for write actions. Censor visible prose only. |
+| D56 | Hold approval-triggering edits privately while the published version stays visible. | Approval updates the same post. Reject stale proposals after published changes. |
+| D57 | Block takes priority over Require approval, then Flag. | Censor remains independent. Approval does not flag the reviewed version again. |
+| D58 | Include manual entry and CSV controls. | Choose an action. Use headerless CSV: word/phrase, unused column, optional true/false case sensitivity. Include list, deletion, sample, download, and Test. |
+| D59 | Censor ordinary reads without changing stored originals, including existing posts. | Cover pages, API responses, search, and notifications. Authors can edit originals. Authorized moderators can inspect them. |
+| D60 | Block identifies matched entries to the author. Keep full lists admin-only. | Limit each action to 2,000 rules per Community, entries to 100 characters, and CSV files to 1 MB. Show invalid row numbers. |
+| D61 | Apply Block, Require approval, and Flag to future writes. | Do not scan old posts. Recheck Block at approval. Approval satisfies the other review actions for that version. |
+
 
 
 
@@ -118,9 +129,8 @@ Tests: `gameplan/tests/features/test_moderators.py` and `frontend/cypress/e2e/co
 Plan these when their implementation slice is next. Roadmap recommendations do not settle them.
 
 - Ordinary members' editing rights and whether a Community can opt into forum-specific rules.
-
-- Temporary bans, automatic expiry, and separate silence behavior.
-- Flood limits, watched-word matching, censor behavior, and automatic slow-mode expiry.
+- Separate silence behavior; timed Community bans and site suspensions are settled below.
+- Flood limits and automatic slow-mode expiry.
 - Bulk actions outside report review, background processing, and batch undo behavior.
 
 ## Keeping this log current
@@ -144,7 +154,6 @@ Keep unresolved questions and implementation choices distinct from confirmed pro
 - A Community ban also blocks Space management, including moves, merges, and permanent deletion. Reading and management elsewhere remain available.
 - Pending reports block permanent deletion of their target, including parent cascades, and moving replies outside discussions. Resolve the reports before either operation.
 - Review versions include embedded poll questions, options, and voting settings. Poll votes do not invalidate a content review.
-
 ## T29 implementation notes
 
 - The accepted first-N policy is implemented with separate restricted GP Submission records and durable per-user/Community GP Approval Counter records.
@@ -162,7 +171,6 @@ Keep unresolved questions and implementation choices distinct from confirmed pro
 - User filtering covers Community Ban/Unban history. Discussion/reply history uses the target's current Space permissions, including after moves.
 - Missing targets remain in restricted log storage and do not consume Community history pages. Existing raw-log permissions remain unchanged.
 - Verified on the disposable site: 68 backend tests, seven browser tests, formatting, lint, and frontend build.
-
 ## T25 implementation notes
 
 - Bulk review reuses T16's Pending queue and four decisions. Moderators select up to 50 reviews across pages, inspect current excerpts and reason counts, and apply one shared note. Full review opens the existing evidence dialog.
@@ -180,3 +188,45 @@ Keep unresolved questions and implementation choices distinct from confirmed pro
 - The existing moderation history records setting transitions and required reasons. Generic discussion saves cannot change the protected setting.
 - The new branch includes all six moderation PRs. Combining history, reports, and approvals preserves all moderation-page tabs.
 - Verification passed: nine slow-mode tests on SQLite and MariaDB, a MariaDB concurrency test, 22 browser tests, focused existing moderation suites, lint, and a production build.
+
+## Watched-word implementation notes
+
+- Reuse Frappe File uploads and CSV parsing/export, with frappe-ui upload and dialog controls.
+- Store rules in restricted GP Watched Word records. Keep proposed edits in existing GP Submission records.
+- Review access follows the target's current Community and Space. Removed and archived posts cannot queue edits.
+- Censor post text at response boundaries and search, revision, SEO, and digest output. Keep code and URL destinations unchanged.
+- Named document/list APIs return censored content. Raw framework export, print, scalar, and grouped post queries are restricted while censor rules exist.
+- This extends T29's first release to proposed edits. Migration remains a later workstream.
+
+- Verification: 17 watched-word tests, 136 existing backend checks, and 26 browser tests passed. Migration, build, and lint passed.
+- The existing linked-user projection test still fails locally because Frappe returns an `api_key: null` field. This failure was reproduced before this feature.
+
+- Backported forum integration fixes: edit saves use the draft API return value across both draft implementations. Censor also covers notification messages and email descriptions. Verified with 18 watched-word tests, 27 digest tests, and six browser tests on a fresh standalone site.
+## Forum-scale moderation and review usability — November 2
+
+Confirmed by Ebrahim:
+- Design all moderation features for a forum with millions of discussions. Bound list responses and batch permission/scope reads.
+- Put moderation in the app sidebar, with access across the user's moderated Communities. Remove the Community feed button.
+- Keep the reporter's reason and note visible beside scrolling post content. Load historical reported bodies only when opened.
+- Improve moderation layout and dark-mode contrast using Frappe UI patterns.
+- Removed content must not accept reactions, including reactions by staff viewing originals.
+- Apply shared fixes to source feature branches and the combined forum branch.
+
+## Timed restrictions — November 3, 2026
+
+Confirmed by Ebrahim after grilling:
+- Extend Community bans with optional expiry. Preserve reading, membership, and leave/rejoin protection.
+- Global admins may suspend an entire account across all Frappe apps on the site, including sessions and API access.
+- Presets: 1 hour, 1 day (24 hours), 1 week (168 hours), 30 days (720 hours), indefinite, or a custom timezone-labeled datetime. Each expiry represents one absolute instant and displays locally.
+- Retain Community staff protections. Global admin roles must be removed before site suspension. Never permit self-suspension or restriction of Administrator.
+- Require reasons for impose/change/lift. Record actor, time, old/new expiry. Show reason/expiry to the subject, not other ordinary users.
+- Global-only Account suspensions view has no Community filter. Community bans remain in their existing tab.
+- Email on impose/change/manual lift. Delivery failure cannot undo the restriction. No automatic expiry email.
+- Preserve existing published content and pending submissions; staff can still review them.
+- Expiry takes effect on the next access check, without cron. Independently disabled accounts stay disabled.
+- Record automatic expiry once, attributed to the system, with the actual deadline even when recording happens later.
+- Existing bans remain indefinite. Forum-scale operation and timezone correctness are required.
+
+Implementation choice: store indexed current restriction state separately from immutable action history and from User.enabled. Auth hooks check deadlines; bounded cleanup records expiries afterward.
+
+- PR timing: push this feature and integrate it into `forum-features`. Do not open a draft PR yet; Ebrahim will open the watched-words PR first.

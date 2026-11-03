@@ -3,6 +3,7 @@ from datetime import timedelta
 
 import frappe
 from frappe.query_builder import Criterion
+from frappe.query_builder.functions import Count
 from frappe.utils import cint, now_datetime
 
 import gameplan
@@ -23,8 +24,9 @@ DECISIONS = ("Dismiss", "Uphold", "Hide", "Delete Spam")
 @frappe.whitelist(methods=["POST"])
 def submit(doctype: str, name: str, reason: str, note: str = ""):
 	user = frappe.session.user
-	if gameplan.is_anonymous(user) or not set(frappe.get_roles(user)).intersection(
-		{"Gameplan Member", "Gameplan Guest", "Gameplan Admin", "System Manager"}
+	roles = set(frappe.get_roles(user))
+	if gameplan.is_anonymous(user) or not (
+		roles.intersection({"Gameplan Member", "Gameplan Guest"}) or gameplan.is_admin(user)
 	):
 		frappe.throw("Sign in to report content", frappe.PermissionError)
 	doc = target(doctype, name)
@@ -69,6 +71,7 @@ def submit(doctype: str, name: str, reason: str, note: str = ""):
 		frappe.qb.from_(Report)
 		.select(Report.name)
 		.where((Report.owner == user) & (Report.creation > now_datetime() - timedelta(hours=1)))
+		.where(Report.automatic_rule == 0)
 		.limit(10)
 		.for_update()
 		.run()
@@ -93,15 +96,25 @@ def submit(doctype: str, name: str, reason: str, note: str = ""):
 		reported_title=doc.get("title"),
 		reported_content=doc.content,
 	).insert(ignore_permissions=True, ignore_links=bool(pending))
+	frappe.db.sql(
+		"""
+		UPDATE `tabGP Review`
+		SET `report_count` = `report_count` + 1, `last_reported_at` = %s
+		WHERE `name` = %s
+		""",
+		(report.creation, review),
+	)
 	return {"name": report.name}
 
 
 @frappe.whitelist(methods=["GET", "POST"])
-def queue(community: str, status: str = "Pending", start: int = 0):
+def queue(community: str, status: str = "Pending", start: int = 0, sort_by: str = "recent"):
 	if not can_moderate_community(community):
 		frappe.throw("Only Community moderators can review reports", frappe.PermissionError)
 	if status not in ("Pending", "Resolved"):
 		frappe.throw("Unsupported review status")
+	if sort_by not in ("recent", "most_reported"):
+		frappe.throw("Unsupported report sort")
 	Project, Discussion, Comment, Review = [
 		frappe.qb.DocType(dt) for dt in ("GP Project", "GP Discussion", "GP Comment", "GP Review")
 	]
@@ -120,40 +133,89 @@ def queue(community: str, status: str = "Pending", start: int = 0):
 			(Review.reference_doctype == "GP Comment") & Review.reference_name.isin(replies),
 		]
 	)
-	rows = (
+	rows_query = (
 		frappe.qb.from_(Review)
 		.select(
 			Review.name,
 			Review.reference_doctype,
 			Review.reference_name,
 			Review.status,
-			Review.creation,
+			Review.report_count,
+			Review.last_reported_at,
 			Review.decision,
 			Review.decided_by,
 			Review.decided_at,
 			Review.decision_note,
 		)
 		.where(visible & (Review.status == status))
-		.orderby(Review.creation, order=frappe.qb.desc)
+	)
+	if sort_by == "most_reported":
+		rows_query = rows_query.orderby(Review.report_count, order=frappe.qb.desc)
+	rows = (
+		rows_query.orderby(Review.last_reported_at, order=frappe.qb.desc)
 		.orderby(Review.name, order=frappe.qb.desc)
 		.offset(max(0, cint(start)))
 		.limit(41)
-	).run(as_dict=True)
-	return {"items": rows[:40], "has_more": len(rows) > 40}
+		.run(as_dict=True)
+	)
+	rows = rows[:40]
+	Report = frappe.qb.DocType("GP Report")
+	report_reasons = {}
+	if rows:
+		for result in (
+			frappe.qb.from_(Report)
+			.select(Report.review, Report.reason, Count(Report.name).as_("count"))
+			.where(Report.review.isin([row.name for row in rows]))
+			.groupby(Report.review, Report.reason)
+			.orderby(Report.reason)
+			.run(as_dict=True)
+		):
+			report_reasons.setdefault(result.review, []).append(
+				{"reason": result.reason, "count": result.count}
+			)
+	comment_names = {row.reference_name for row in rows if row.reference_doctype == "GP Comment"}
+	comment_discussions = {}
+	if comment_names:
+		comments = (
+			frappe.qb.from_(Comment)
+			.select(Comment.name, Comment.reference_name)
+			.where(Comment.name.isin(comment_names))
+		).run(as_dict=True)
+		comment_discussions = {comment.name: comment.reference_name for comment in comments}
+	discussion_names = {
+		row.reference_name for row in rows if row.reference_doctype == "GP Discussion"
+	} | set(comment_discussions.values())
+	discussion_titles = {}
+	if discussion_names:
+		titles = (
+			frappe.qb.from_(Discussion)
+			.select(Discussion.name, Discussion.title)
+			.where(Discussion.name.isin(discussion_names))
+		).run(as_dict=True)
+		discussion_titles = {str(discussion.name): discussion.title for discussion in titles}
+	for row in rows:
+		discussion = (
+			row.reference_name
+			if row.reference_doctype == "GP Discussion"
+			else comment_discussions.get(row.reference_name)
+		)
+		row["discussion_title"] = discussion_titles.get(discussion, "")
+		row["report_reasons"] = report_reasons.get(row.name, [])
+	return {"items": rows, "has_more": len(rows) > 40}
 
 
 @frappe.whitelist(methods=["GET", "POST"])
 def detail(community: str, review: str, start: int = 0, report: str = ""):
+	"""Read report metadata and current content; load evidence only when explicitly selected."""
 	review, doc = review_target(community, review)
 	reports = frappe.get_all(
 		"GP Report",
 		filters={"review": review.name},
-		fields=["name", "owner", "creation", "reason", "note"],
+		fields=["name", "owner", "creation", "reason", "note", "automatic_rule"],
 		order_by="creation asc, name asc",
 		limit_start=max(0, cint(start)),
 		limit_page_length=41,
 	)
-	report = report or (reports[0].name if reports else "")
 	evidence = (
 		frappe.db.get_value(
 			"GP Report",
@@ -270,19 +332,45 @@ def protect_pending_reviews(doc, method=None):
 def review_polls(doc):
 	if doc.doctype != "GP Comment":
 		return []
+	doc.check_permission("read")
 	Poll = frappe.qb.DocType("GP Poll")
-	names = (
+	rows = (
 		frappe.qb.from_(Poll)
-		.select(Poll.name)
+		.select(Poll.star)
 		.where(Poll.comment == str(doc.name))
 		.orderby(Poll.name)
 		.for_update()
-		.run(pluck=True)
+		.run(as_dict=True)
 	)
-	polls = [frappe.get_doc("GP Poll", name, for_update=True) for name in names]
-	for poll in polls:
-		poll.check_permission("read")
-	return polls
+	if not rows:
+		return []
+	children = {}
+	for field, doctype in (("options", "GP Poll Option"), ("votes", "GP Poll Vote")):
+		Child = frappe.qb.DocType(doctype)
+		children[field] = {}
+		for row in (
+			frappe.qb.from_(Child)
+			.select(Child.star)
+			.where(
+				(Child.parenttype == "GP Poll")
+				& (Child.parentfield == field)
+				& Child.parent.isin([str(row.name) for row in rows])
+			)
+			.orderby(Child.idx)
+			.for_update()
+			.run(as_dict=True)
+		):
+			children[field].setdefault(str(row.parent), []).append(row)
+	return [
+		frappe.get_doc(
+			dict(
+				row,
+				doctype="GP Poll",
+				**{field: parents.get(str(row.name), []) for field, parents in children.items()},
+			)
+		)
+		for row in rows
+	]
 
 
 def version(doc, polls=None):

@@ -59,6 +59,14 @@ class GPDiscussion(
 	tags_field = "content"
 	attachments_field = "content"
 
+	@staticmethod
+	def get_list(query):
+		from gameplan.watched_word_payload import list_query
+
+		return list_query(query, "GP Discussion")
+
+	get_list_query = get_list
+
 	# Lifecycle Methods
 	def as_dict(self, *args, **kwargs):
 		d = super().as_dict(*args, **kwargs)

@@ -7,7 +7,7 @@ from frappe.utils import get_fullname
 
 from gameplan.notifications import records
 from gameplan.notifications.preferences import participation_level, wants_content_feedback
-from gameplan.permissions import can_view_space, users_who_can_view_content
+from gameplan.permissions import users_who_can_view_content, users_who_can_view_space
 
 STATES = ("Mute", "Mentions only", "Watch")
 DEFAULT_STATE = "Mentions only"
@@ -187,7 +187,7 @@ def notify_discussion_moved(discussion_doc, old_project, actor: str) -> list[str
 
 def notify_space_moved(project_doc, actor: str) -> list[str]:
 	candidates = [user for user in space_subscribers([project_doc.name]) if user != actor]
-	recipients = [user for user in candidates if can_view_space(user, project_doc)]
+	recipients = users_who_can_view_space(candidates, project_doc)
 	if not recipients:
 		return []
 
