@@ -261,4 +261,6 @@ Implementation notes:
 - Retain one day of events and prune old rows in batches of 10,000. Tracking starts after deployment; do not scan historic forum content during migration.
 - Serialize writes with the existing account lock. Each quota read returns at most the largest configured allowance, capped at 10,000.
 - Apply document hooks to direct writes, and the same accounting to held submissions. Approval publication skips a second charge.
-- Use Settings > Posting limits for global admins. Keep the longest applicable posting/slow-mode wait visible in the reply composer.
+- Use Moderation > Site administration > Posting limits for global admins. Keep the longest applicable posting/slow-mode wait visible in the reply composer.
+
+- UI placement correction: Ebrahim requested Posting limits in Moderation, alongside Account suspensions. Remove its general Settings tab.
