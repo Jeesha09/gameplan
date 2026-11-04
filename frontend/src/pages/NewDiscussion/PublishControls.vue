@@ -64,12 +64,15 @@ const {
   author,
   deleteDraft,
   canPublish,
+  postingWait,
+  postingMessage,
 } = useNewDiscussionContext()
 
 const blockedReason = computed(() => {
   if (isDraftLoading.value) return 'Draft is loading'
   if (!isComposerEditable.value) return 'You cannot publish this draft'
   if (!canPublish.value) return 'Add a title and pick a Space to publish'
+  if (postingWait.value) return postingMessage.value
   return ''
 })
 

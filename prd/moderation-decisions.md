@@ -238,3 +238,27 @@ Confirmed by Ebrahim:
 - Keep the standard page header over the content area.
 - Put Account suspensions under Site administration in the sidebar, visible only to global admins. Remove the separate scope switcher.
 - Open Approvals by default. Preserve explicit section links.
+
+## Site-wide posting limits — November 4, 2026
+
+Confirmed by Ebrahim, rounds 1–2:
+- Use separate per-account discussion and reply limits across all Communities.
+- Count accepted pending submissions once. Failed submissions consume nothing. Deletion or withdrawal does not refund an allowance.
+- Global admins manage the site-wide policy. Only global admins bypass posting limits. Community staff follow the ordinary posting policy.
+- Support rolling one-hour and 24-hour windows. Suggested settings: 5 discussions/hour, 20 discussions/24 hours, 30 replies/hour, and 200 replies/24 hours.
+- Start disabled on existing sites. Prefill suggested values and allow each limit to be disabled. Retain the preceding 24 hours of activity while disabled, so policy changes do not reset allowances.
+- Preserve drafts when a limit is reached. Show the applicable limit and a countdown. Combine posting and slow-mode waits, and enforce every applicable limit on the server.
+- Implement posting rates first. Link, media, and mention caps belong in the next PR.
+
+Confirmed by Ebrahim, round 3:
+- Count only new forum discussions and discussion replies. Embedded polls consume no extra allowance. Exclude task comments, edits, reactions, votes, and draft autosaves. Keep report limits separate.
+- Check scheduled discussions at publication time. Scheduling reserves no allowance. If a limit blocks publication, retain the draft and clear its schedule. Show that the author must reschedule it.
+
+Ebrahim confirmed implementation, testing, pushing the feature branch, and integration into `forum-features`. Existing newcomer restrictions remain in force.
+
+Implementation notes:
+- Store accepted submissions in a private ledger with account/kind/time and expiry indexes. UTC timestamps keep elapsed windows independent of time zones and DST.
+- Retain one day of events and prune old rows in batches of 10,000. Tracking starts after deployment; do not scan historic forum content during migration.
+- Serialize writes with the existing account lock. Each quota read returns at most the largest configured allowance, capped at 10,000.
+- Apply document hooks to direct writes, and the same accounting to held submissions. Approval publication skips a second charge.
+- Use Settings > Posting limits for global admins. Keep the longest applicable posting/slow-mode wait visible in the reply composer.

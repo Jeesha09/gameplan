@@ -21,6 +21,7 @@ export interface DraftRow {
   /** For comment drafts, the parent discussion to open; null for discussion drafts. */
   discussion: string | null
   scheduled_at?: string | null
+  publication_error?: string | null
 }
 
 /**

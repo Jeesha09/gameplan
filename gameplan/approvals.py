@@ -77,6 +77,9 @@ def hold(doc, request_key, draft="", edit=None):
 	from gameplan.slow_mode import record_reply
 
 	if not edit:
+		from gameplan.posting_limits import record
+
+		record(doc)
 		record_reply(doc)
 
 	submission = frappe.get_doc(

@@ -113,6 +113,9 @@
                     <span class="lucide-calendar-clock size-4 shrink-0 text-ink-gray-5" />
                   </Tooltip>
                 </div>
+                <p v-if="draft.publication_error" class="mt-1 text-base text-ink-gray-6">
+                  Scheduled publication failed. Open this draft to review and reschedule.
+                </p>
                 <div class="flex mt-1.5 items-center min-w-0">
                   <div
                     class="overflow-hidden text-ellipsis whitespace-nowrap text-base inline-flex items-center text-ink-gray-5"

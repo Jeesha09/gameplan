@@ -66,6 +66,7 @@ class GPDraft(Document):
 		if scheduled_at <= now_datetime():
 			frappe.throw(_("Pick a time in the future"))
 		self.scheduled_at = scheduled_at
+		self.publication_error = None
 		self.save()
 		return self.scheduled_at
 
@@ -206,6 +207,7 @@ def get_my_drafts():
 			"creation",
 			"modified",
 			"scheduled_at",
+			"publication_error",
 		],
 		order_by="modified desc",
 		ignore_permissions=False,
@@ -282,6 +284,7 @@ def get_my_drafts():
 					"visibility": project.visibility if project else VISIBILITY_GENERAL,
 					"discussion": None,
 					"scheduled_at": r.scheduled_at,
+					"publication_error": r.publication_error,
 				}
 			)
 		elif r.type == "Comment" and r.reference_doctype == "GP Discussion":
@@ -359,10 +362,22 @@ def publish_due_drafts():
 			if not scheduled_at or get_datetime(scheduled_at) > now_datetime():
 				continue
 			frappe.get_doc("GP Draft", row.name).publish()
-		except Exception:
+		except Exception as error:
 			frappe.db.rollback(save_point="scheduled_draft")
 			frappe.log_error(title=f"Scheduled draft {row.name} could not be published")
-			frappe.db.set_value("GP Draft", row.name, "scheduled_at", None, update_modified=False)
+			frappe.db.set_value(
+				"GP Draft",
+				row.name,
+				{
+					"scheduled_at": None,
+					"publication_error": (
+						str(error)
+						if isinstance(error, frappe.RateLimitExceededError)
+						else "Scheduled publication failed. Check access and reschedule this draft."
+					),
+				},
+				update_modified=False,
+			)
 		finally:
 			frappe.set_user("Administrator")
 
