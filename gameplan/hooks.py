@@ -192,7 +192,7 @@ doc_events = {
 	"GP Discussion": {
 		"on_update": "gameplan.watched_word_actions.flag",
 		"on_trash": ["gameplan.reporting.protect_pending_reviews", "gameplan.slow_mode.clear_state"],
-		"before_insert": "gameplan.approval_policy.guard_publication",
+		"before_insert": ["gameplan.approval_policy.guard_publication", "gameplan.posting_limits.record"],
 		"validate": [
 			"gameplan.new_user_limits.check_new_user_limits",
 			"gameplan.slow_mode.protect_settings",
@@ -209,7 +209,11 @@ doc_events = {
 			"gameplan.reporting.protect_pending_reviews",
 			"gameplan.slow_mode.preserve_deleted_reply",
 		],
-		"before_insert": ["gameplan.approval_policy.guard_publication", "gameplan.slow_mode.record_reply"],
+		"before_insert": [
+			"gameplan.approval_policy.guard_publication",
+			"gameplan.posting_limits.record",
+			"gameplan.slow_mode.record_reply",
+		],
 		"validate": [
 			"gameplan.new_user_limits.check_new_user_limits",
 			"gameplan.reporting.protect_pending_reviews",
@@ -231,6 +235,7 @@ doc_events = {
 			"gameplan.gameplan.doctype.gp_guest_access.gp_guest_access.on_user_delete",
 			"gameplan.approval_policy.delete_counters",
 			"gameplan.slow_mode.clear_state",
+			"gameplan.posting_limits.clear_user",
 			"gameplan.restrictions.clear_state",
 		],
 		"on_update": "gameplan.gameplan.doctype.gp_user_profile.gp_user_profile.on_user_update",
@@ -263,6 +268,7 @@ scheduler_events = {
 	"all": [
 		"gameplan.gameplan.doctype.gp_draft.gp_draft.publish_due_drafts",
 		"gameplan.restrictions.expire_due",
+		"gameplan.posting_limits.prune",
 	],
 	"hourly": ["gameplan.gameplan.doctype.gp_invitation.gp_invitation.expire_invitations"],
 	"daily": ["gameplan.demo.demo.generate_data_daily", "gameplan.email_digest.send_due_email_digests"],

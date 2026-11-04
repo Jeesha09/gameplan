@@ -7,6 +7,7 @@ import NotificationsSettings from './NotificationsSettings.vue'
 import ProfileSettings from './ProfileSettings.vue'
 import CustomEmojiSettings from './CustomEmojiSettings.vue'
 import PreferencesSettings from './PreferencesSettings.vue'
+import PostingLimitsSettings from './PostingLimitsSettings.vue'
 
 export interface SettingsTab extends Tab {
   // Tabs that drive global role management / invites; these only make sense for
@@ -58,6 +59,14 @@ const allTabs: SettingsTab[] = [
     group: 'App settings',
     icon: 'lucide-smile-plus',
     component: markRaw(CustomEmojiSettings),
+    adminOnly: true,
+  },
+  {
+    label: 'Posting limits',
+    slug: 'posting-limits',
+    group: 'Administration',
+    icon: 'lucide-gauge',
+    component: markRaw(PostingLimitsSettings),
     adminOnly: true,
   },
   {

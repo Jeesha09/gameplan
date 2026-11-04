@@ -11,6 +11,7 @@ import { tags } from '@/data/tags'
 import { extractServerMessage, isEditorContentEmpty } from '@/utils'
 import { captureError } from '@/utils/errorReporting'
 import { createRequestKey } from '@/utils/requestKey'
+import { usePostingLimit } from '@/data/postingLimits'
 
 const PUBLISH_DRAFT = 'gameplan.gameplan.doctype.gp_draft.gp_draft.publish_draft'
 const SCHEDULE_DRAFT = 'gameplan.gameplan.doctype.gp_draft.gp_draft.schedule_draft'
@@ -39,6 +40,12 @@ export function useNewDiscussion() {
   // The canonical composer route carries the community; the legacy route does not.
   const communityId = computed(() => optionalParam(route.params.communityId))
 
+  const {
+    remaining: postingWait,
+    message: postingMessage,
+    refresh: refreshPostingLimit,
+  } = usePostingLimit('discussion')
+  const publicationError = ref('')
   const errorMessage = ref<string | null>(null)
   const publishError = ref<string | null>(null)
   const publishing = ref(false)
@@ -75,17 +82,24 @@ export function useNewDiscussion() {
     async (name) => {
       const version = ++scheduleVersion
       if (!name) {
+        publicationError.value = ''
         scheduledAt.value = null
         return
       }
       scheduledAt.value = drafts.data?.find((row) => row.name === name)?.scheduled_at || null
       try {
-        const row = await call<{ scheduled_at: string | null } | null>('frappe.client.get_value', {
-          doctype: 'GP Draft',
-          filters: { name },
-          fieldname: 'scheduled_at',
-        })
-        if (version === scheduleVersion) scheduledAt.value = row?.scheduled_at || null
+        const row = await call<{ scheduled_at: string | null; publication_error: string } | null>(
+          'frappe.client.get_value',
+          {
+            doctype: 'GP Draft',
+            filters: { name },
+            fieldname: ['scheduled_at', 'publication_error'],
+          },
+        )
+        if (version === scheduleVersion) {
+          scheduledAt.value = row?.scheduled_at || null
+          publicationError.value = row?.publication_error || ''
+        }
       } catch (error) {
         captureError(error, { action: 'read-draft-schedule', draft: name })
       }
@@ -271,7 +285,7 @@ export function useNewDiscussion() {
   async function publish() {
     hasInteracted.value = true
     publishError.value = null
-    if (!validateDraft(true)) return
+    if (postingWait.value || !validateDraft(true)) return
 
     publishing.value = true
     try {
@@ -344,6 +358,7 @@ export function useNewDiscussion() {
       publishError.value = extractServerMessage(error) || 'Could not publish this post.'
       publishing.value = false
     } finally {
+      refreshPostingLimit()
       isPublishingSuccessfully.value = false
     }
   }
@@ -363,6 +378,7 @@ export function useNewDiscussion() {
       const serverTime = toSiteTime(localDateTime)
       await call(SCHEDULE_DRAFT, { name, scheduled_at: serverTime })
       scheduleVersion++
+      publicationError.value = ''
       scheduledAt.value = serverTime
       toast.success(`Scheduled for ${scheduledAtLabel.value}`)
       drafts.reload()
@@ -449,6 +465,9 @@ export function useNewDiscussion() {
 
   return {
     // Data
+    postingWait,
+    postingMessage,
+    publicationError,
     draftData,
     selectedSpace,
     canPublish,

@@ -73,6 +73,8 @@ READ_ONLY_ENDPOINTS = frozenset(
 		"gameplan.reporting.detail",
 		"gameplan.moderation_history.history",
 		"gameplan.slow_mode.status",
+		"gameplan.posting_limits.status",
+		"gameplan.posting_limits.settings",
 		"gameplan.moderation_history.ban_users",
 		"gameplan.moderation.removed_content",
 		"gameplan.watched_words.rules",

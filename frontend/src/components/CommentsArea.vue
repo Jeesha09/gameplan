@@ -110,7 +110,7 @@
           ]"
         >
           <p
-            v-if="slowStatus?.seconds"
+            v-if="slowStatus?.seconds && (!postingWait || slowWait > postingWait)"
             class="mb-2 text-base text-ink-gray-6"
             data-testid="slow-mode-status"
           >
@@ -121,6 +121,13 @@
             <template v-else
               >Slow mode: {{ slowModeLabel(slowStatus.seconds) }} between your replies.</template
             >
+          </p>
+          <p
+            v-if="postingMessage && postingWait >= slowWait"
+            class="mb-2 text-base text-ink-gray-6"
+            data-testid="posting-limit-status"
+          >
+            {{ postingMessage }}
           </p>
           <div v-if="!showCommentBox" class="sm:-mx-3">
             <button
@@ -254,6 +261,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useEventListener } from '@vueuse/core'
 import { useList, ErrorMessage, Button, Tooltip, call, toast, type UseListOptions } from 'frappe-ui'
 import { slowModeLabel, useSlowMode } from '@/data/slowMode'
+import { usePostingLimit } from '@/data/postingLimits'
 import CommentEditor from '@/components/editor/CommentEditor.vue'
 import Comment from './Comment.vue'
 import Activity from './Activity.vue'
@@ -334,6 +342,12 @@ const {
 } = useSlowMode(() =>
   props.doctype === 'GP Discussion' && !isAnonymousVisitor() ? String(props.name) : undefined,
 )
+
+const {
+  remaining: postingWait,
+  message: postingMessage,
+  refresh: refreshPostingLimit,
+} = usePostingLimit('reply', () => props.doctype === 'GP Discussion' && !isAnonymousVisitor())
 
 const emit = defineEmits<{
   'composer-resize': []
@@ -559,6 +573,7 @@ const pollDraft = computed(() => pollDraftInContent(draftData.value?.content))
 const canSubmit = computed(
   () =>
     !slowWait.value &&
+    !postingWait.value &&
     !commentEmpty.value &&
     (!pollDraft.value || isPollDraftReady(pollDraft.value)),
 )
@@ -752,6 +767,7 @@ async function submitComment() {
   } finally {
     submittingReply.value = false
     refreshSlowMode()
+    refreshPostingLimit()
   }
 }
 
