@@ -21,12 +21,22 @@
         <SidebarItem
           label="Account suspensions"
           icon="lucide-shield-ban"
-          :active="siteWide"
+          :active="siteWide && siteSection === 'suspensions'"
           class="mt-0.5"
           @click="openAccountSuspensions"
         />
+        <SidebarItem
+          label="Posting limits"
+          icon="lucide-gauge"
+          :active="siteWide && siteSection === 'posting-limits'"
+          class="mt-0.5"
+          @click="openPostingLimits"
+        />
       </template>
-      <template #site-wide><AccountSuspensions /></template>
+      <template #site-wide>
+        <PostingLimits v-if="siteSection === 'posting-limits'" />
+        <AccountSuspensions v-else />
+      </template>
     </CommunityModeration>
     <p v-else class="py-12 text-center text-base text-ink-gray-6">
       Only Community moderators can open this page.
@@ -50,14 +60,24 @@ import { useSessionUser } from '@/data/users'
 import { canModerateCommunity, isGlobalAdmin } from '@/utils/permissions'
 import CommunityModeration from './CommunityModeration.vue'
 import AccountSuspensions from '@/components/AccountSuspensions.vue'
+import PostingLimits from '@/components/PostingLimits.vue'
 const route = useRoute()
 const router = useRouter()
 const siteWide = computed(() => route.query.scope === 'site' && isGlobalAdmin(useSessionUser()))
+const siteSection = computed(() =>
+  route.query.tab === 'posting-limits' ? 'posting-limits' : 'suspensions',
+)
 function openCommunitySection(tab: string) {
   router.replace({ name: 'Moderation', query: { community: selected.value, tab } })
 }
 function openAccountSuspensions() {
   router.replace({ name: 'Moderation', query: { community: selected.value, scope: 'site' } })
+}
+function openPostingLimits() {
+  router.replace({
+    name: 'Moderation',
+    query: { community: selected.value, scope: 'site', tab: 'posting-limits' },
+  })
 }
 const options = computed(() =>
   (communities.data || [])

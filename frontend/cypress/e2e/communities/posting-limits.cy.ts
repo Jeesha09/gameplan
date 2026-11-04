@@ -10,19 +10,27 @@ const configure = (enabled = 1) =>
   })
 
 describe('Site posting limits', () => {
-  it('lets global admins configure limits in standard settings', () => {
+  it('lets global admins configure limits in site-wide moderation', () => {
     resetData('onboarded')
-    cy.visit('/g/settings/posting-limits')
-    cy.contains('[role="dialog"]', 'Posting limits').should('be.visible')
+    cy.visit('/g/moderation?scope=site&tab=posting-limits')
+    cy.contains('h2', 'Posting limits').should('be.visible')
+    cy.get('#moderation-sidebar [data-slot="sidebar-item"][data-state="active"]').should(
+      'have.length',
+      1,
+    )
+    cy.contains('button', 'Account suspensions').click()
+    cy.contains('No active account suspensions.').should('be.visible')
+    cy.contains('button', 'Posting limits').click()
+    cy.contains('h2', 'Posting limits').should('be.visible')
     cy.get('[aria-label="Discussions per hour"]').should('have.value', '5').clear().type('3')
-    cy.contains('[role="dialog"] button', /^Save$/).click()
+    cy.contains('button', /^Save$/).click()
     cy.contains('Posting limits saved').should('be.visible')
     cy.request('/api/method/gameplan.posting_limits.settings')
       .its('body.message.discussions_hour')
       .should('eq', 3)
     cy.switchUser('member')
-    cy.visit('/g/settings/profile')
-    cy.contains('[role="dialog"] button', /^Posting limits$/).should('not.exist')
+    cy.visit('/g/moderation')
+    cy.contains('button', /^Posting limits$/).should('not.exist')
   })
 
   it('keeps a limited reply draft and refreshes its wait on focus', () => {

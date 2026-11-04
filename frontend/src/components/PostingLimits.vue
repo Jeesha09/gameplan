@@ -1,7 +1,9 @@
 <template>
-  <PanelHeader title="Posting limits" />
-  <PanelBody>
-    <div v-if="policy" class="space-y-6 pt-6">
+  <div class="max-w-3xl space-y-6">
+    <h2 class="border-b border-outline-gray-2 pb-4 text-lg-semibold text-ink-gray-9">
+      Posting limits
+    </h2>
+    <div v-if="policy" class="space-y-6">
       <p class="text-base text-ink-gray-6">
         Per-account limits across all Communities. Global admins are exempt. Pending submissions
         count once. Windows use elapsed time in every time zone.
@@ -36,17 +38,14 @@
       </div>
     </div>
     <ErrorMessage v-else :message="error" class="pt-6" />
-  </PanelBody>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { Button, ErrorMessage, FormControl, SettingsRow, Switch, call } from 'frappe-ui'
 import { extractServerMessage } from '@/utils'
-import PanelHeader from './PanelHeader.vue'
-import PanelBody from './PanelBody.vue'
 
-defineEmits<{ (e: 'close-dialog'): void }>()
 const fields = [
   { key: 'discussions_hour', label: 'Discussions per hour' },
   { key: 'discussions_day', label: 'Discussions per 24 hours' },
