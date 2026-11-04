@@ -16,7 +16,7 @@
           <Switch v-model="policy.enabled" />
         </SettingsRow>
         <SettingsRow
-          v-for="field in fields"
+          v-for="field in policy.enabled ? fields : []"
           :key="field.key"
           :title="field.label"
           description="0 disables this limit"
