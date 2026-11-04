@@ -122,7 +122,10 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/community/:communityId/moderation',
     name: 'CommunityModeration',
-    redirect: to => ({name: 'Moderation', query: {...to.query, community: routeParam(to.params.communityId)}}),
+    redirect: (to) => ({
+      name: 'Moderation',
+      query: { ...to.query, community: routeParam(to.params.communityId) },
+    }),
   },
   {
     path: '/moderation',
@@ -901,8 +904,6 @@ async function resolveRoute(
     }
     return
   }
-  settingsBackgroundPath.value = null
-
   let isCommunityScopedRoute = to.matched.some((route) => route.meta?.communityScope)
   if (!isCommunityScopedRoute) {
     communityState.scope(null)
@@ -949,6 +950,13 @@ async function resolveRoute(
 
   communityState.scope(communityId)
 }
+
+// Keep the settings background until navigation commits, including cancelled transitions.
+router.afterEach((to, _from, failure) => {
+  if (!failure && !to.matched.some((record) => record.meta?.settingsOverlay)) {
+    settingsBackgroundPath.value = null
+  }
+})
 
 // Discard metadata from the previous server-rendered page during app navigation.
 router.afterEach((to, from) => {
