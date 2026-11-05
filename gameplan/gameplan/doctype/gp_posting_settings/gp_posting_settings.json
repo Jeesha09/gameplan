@@ -11,7 +11,13 @@
   "discussions_hour",
   "discussions_day",
   "replies_hour",
-  "replies_day"
+  "replies_day",
+  "content_caps_section",
+  "caps_enabled",
+  "max_links",
+  "max_images",
+  "max_attachments",
+  "max_mentions"
  ],
  "fields": [
   {
@@ -43,13 +49,48 @@
    "fieldname": "replies_day",
    "fieldtype": "Int",
    "label": "Replies per 24 hours"
+  },
+  {
+   "fieldname": "content_caps_section",
+   "fieldtype": "Section Break",
+   "label": "Content caps"
+  },
+  {
+   "default": "0",
+   "fieldname": "caps_enabled",
+   "fieldtype": "Check",
+   "label": "Enable content caps"
+  },
+  {
+   "default": "20",
+   "fieldname": "max_links",
+   "fieldtype": "Int",
+   "label": "Links per post"
+  },
+  {
+   "default": "20",
+   "fieldname": "max_images",
+   "fieldtype": "Int",
+   "label": "Images per post"
+  },
+  {
+   "default": "10",
+   "fieldname": "max_attachments",
+   "fieldtype": "Int",
+   "label": "Files and videos per post"
+  },
+  {
+   "default": "10",
+   "fieldname": "max_mentions",
+   "fieldtype": "Int",
+   "label": "Mentions per post"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-11-04 20:24:33.144947",
+ "modified": "2026-11-05 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gameplan",
  "name": "GP Posting Settings",

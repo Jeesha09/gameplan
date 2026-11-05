@@ -38,13 +38,13 @@ class TestPostingLimits(GameplanTestCase):
 		with self.as_user("Administrator"):
 			return save_settings(**config)
 
-	def reply(self, user=None):
+	def reply(self, user=None, content="A reply", post=None):
 		with self.as_user(user or self.member):
 			return frappe.get_doc(
 				doctype="GP Comment",
 				reference_doctype="GP Discussion",
-				reference_name=str(self.post.name),
-				content="A reply",
+				reference_name=str((post or self.post).name),
+				content=content,
 			).insert()
 
 	def wait(self, kind="reply", user=None):
@@ -237,3 +237,64 @@ class TestPostingLimits(GameplanTestCase):
 		self.reply()
 		with self.assertRaisesRegex(frappe.RateLimitExceededError, "Slow mode"):
 			self.reply()
+
+	def configure_caps(self, **values):
+		caps = dict(enabled=0, caps_enabled=1, max_links=2, max_images=1, max_attachments=1, max_mentions=1)
+		return self.configure(**{**caps, **values})
+
+	def links(self, count):
+		return "".join(f'<a href="https://example.com/{n}">{n}</a>' for n in range(count))
+
+	def test_each_cap_refuses_only_posts_over_it(self):
+		self.configure_caps()
+		mention = '<span data-type="mention" data-id="{}" data-label="M">@M</span>'
+		self.reply(content=self.links(2) + '<img src="/a.png">' + "<video src='/a.mp4'></video>")
+		for content, message in (
+			(self.links(3), "up to 2 links"),
+			('<img src="/a.png"><img src="/b.png">', "up to 1 image"),
+			("<video src='/a.mp4'></video><audio src='/a.mp3'></audio>", "up to 1 file or video"),
+			(mention.format(self.second_member.name) + mention.format(self.admin.name), "up to 1 mention"),
+		):
+			with self.subTest(message), self.assertRaisesRegex(frappe.ValidationError, message):
+				self.reply(content=content)
+		self.configure_caps(max_links=0)
+		self.reply(content=self.links(30))
+		self.configure_caps(caps_enabled=0)
+		self.reply(content='<img src="/a.png">' * 5)
+
+	def test_content_edits_are_capped_but_other_saves_are_not(self):
+		reply = self.reply(content=self.links(3))
+		self.configure_caps()
+		with self.as_user(self.member):
+			reply.reload()
+			reply.save()
+			reply.content = self.links(4)
+			with self.assertRaisesRegex(frappe.ValidationError, "up to 2 links"):
+				reply.save()
+
+	def test_staff_are_exempt_only_in_their_own_community(self):
+		self.configure_caps()
+		self.reply(self.outsider, self.links(5))
+		self.reply(self.admin, self.links(5))
+		other = create_community("Elsewhere", members=[self.outsider])
+		post = create_discussion("Another forum", create_space("Elsewhere", other))
+		with self.assertRaisesRegex(frappe.ValidationError, "up to 2 links"):
+			self.reply(self.outsider, self.links(5), post=post)
+
+	def test_held_submissions_are_refused_before_they_are_queued(self):
+		self.configure_caps()
+		set_policy(self.community.name, 100)
+		with self.as_user(self.member), self.assertRaisesRegex(frappe.ValidationError, "up to 2 links"):
+			submit("GP Comment", "capped", self.links(3), discussion=str(self.post.name))
+		self.assertFalse(frappe.db.exists("GP Submission", {"owner": self.member.name}))
+
+	def test_existing_settings_receive_the_suggested_caps(self):
+		from gameplan.gameplan.doctype.gp_posting_settings.patches import set_content_cap_defaults
+
+		frappe.db.delete("Singles", {"doctype": "GP Posting Settings", "field": ["like", "max_%"]})
+		set_content_cap_defaults.execute()
+		frappe.clear_cache(doctype="GP Posting Settings")
+		self.assertEqual(
+			{key: policy()[key] for key in ("max_links", "max_images", "max_attachments", "max_mentions")},
+			{"max_links": 20, "max_images": 20, "max_attachments": 10, "max_mentions": 10},
+		)

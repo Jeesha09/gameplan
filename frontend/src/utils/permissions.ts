@@ -10,8 +10,10 @@ type PermissionUser = {
 }
 
 export function isCommunityBanned(communityId: string | undefined, user: PermissionUser) {
+  // An empty Community is a site silence, which bans participation everywhere.
+  const banned = user.banned_communities
   return Boolean(
-    communityId && user.banned_communities?.includes(communityId) && !isGlobalAdmin(user),
+    communityId && (banned?.includes(communityId) || banned?.includes('')) && !isGlobalAdmin(user),
   )
 }
 

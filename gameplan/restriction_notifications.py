@@ -14,12 +14,13 @@ def notify(user, community, action, reason, expires_at=None):
 		deadline = f"{expiry.strftime('%d %b %Y, %H:%M %z')} ({timezone})"
 	else:
 		deadline = "Until manually lifted"
-	scope = (
-		frappe.db.get_value("GP Team", community, "title")
-		if community
-		else "Entire Frappe site (all installed apps)"
-	)
-	lifted = action in ("Unban", "Lift Suspension")
+	if community:
+		scope = frappe.db.get_value("GP Team", community, "title")
+	elif "Silence" in action:
+		scope = "Participation in every Community. You can still sign in and read."
+	else:
+		scope = "Entire Frappe site (all installed apps)"
+	lifted = action in ("Unban", "Lift Suspension", "Lift Silence")
 	message = f"<p>{escape_html(action)}: {escape_html(scope or community)}</p><p>{escape_html(reason)}</p>"
 	if not lifted:
 		message += f"<p>Expires: {escape_html(deadline)}</p>"

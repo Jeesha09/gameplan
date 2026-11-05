@@ -90,7 +90,7 @@ describe('Community moderation history', () => {
       cy.contains('button', /^History$/).click()
       rows().should('have.length', 2)
       cy.contains('[role="combobox"]', 'All actions').click()
-      cy.contains('[role="option"]', 'User bans').click()
+      cy.contains('[role="option"]', /^Users$/).click()
       cy.get('input[placeholder="Name or email"]').type('member@example.com')
       cy.get('[role="option"]').should('have.length', 1).click()
       cy.contains('button', 'Apply filters').click()

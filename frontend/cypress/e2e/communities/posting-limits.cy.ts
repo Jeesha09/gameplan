@@ -18,8 +18,8 @@ describe('Site posting limits', () => {
       'have.length',
       1,
     )
-    cy.contains('button', 'Account suspensions').click()
-    cy.contains('No active account suspensions.').should('be.visible')
+    cy.contains('button', 'Account restrictions').click()
+    cy.contains('No active account restrictions.').should('be.visible')
     cy.contains('button', 'Posting limits').click()
     cy.contains('h2', 'Posting limits').should('be.visible')
     cy.get('[aria-label="Discussions per hour"]').should('not.exist')

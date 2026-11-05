@@ -17,7 +17,8 @@
   "previous_slow_mode_seconds",
   "slow_mode_seconds",
   "previous_expires_at",
-  "expires_at"
+  "expires_at",
+  "cleanup"
  ],
  "fields": [
   {
@@ -32,7 +33,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Action",
-   "options": "Hide\nRestore\nDelete Spam\nBan\nUnban\nSlow Mode Changed\nBan Changed\nSuspend\nSuspension Changed\nLift Suspension\nRestriction Expired",
+   "options": "Hide\nRestore\nDelete Spam\nBan\nUnban\nSlow Mode Changed\nBan Changed\nSuspend\nSuspension Changed\nLift Suspension\nRestriction Expired\nSilence\nSilence Changed\nLift Silence\nAuthor Cleanup\nUndo Cleanup\nSlow Mode Expired",
    "reqd": 1
   },
   {
@@ -94,11 +95,18 @@
    "label": "Expiry (UTC)",
    "fieldtype": "Datetime",
    "read_only": 1
+  },
+  {
+   "fieldname": "cleanup",
+   "fieldtype": "Data",
+   "label": "Cleanup",
+   "search_index": 1,
+   "description": "The Author Cleanup entry that performed this action."
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-16 15:28:37.306323",
+ "modified": "2026-11-05 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gameplan",
  "name": "GP Moderation Log",

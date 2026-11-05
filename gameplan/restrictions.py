@@ -23,7 +23,7 @@ def state(user, community=""):
 	return frappe.db.get_value(
 		"GP User Restriction",
 		restriction_name(user, community),
-		["name", "user", "community", "active", "expires_at", "reason", "modified"],
+		["name", "user", "community", "kind", "active", "expires_at", "reason", "modified"],
 		as_dict=True,
 	)
 
@@ -37,6 +37,14 @@ def active(row):
 	return bool(row and row.active and (not row.expires_at or get_datetime(row.expires_at) > utc_now()))
 
 
+def suspended(row):
+	return active(row) and row.kind != "Silence"
+
+
+def silenced(row):
+	return active(row) and row.kind == "Silence"
+
+
 def active_condition(table):
 	return (table.active == 1) & (table.expires_at.isnull() | (table.expires_at > utc_now()))
 
@@ -44,7 +52,7 @@ def active_condition(table):
 def require_not_suspended(login_manager=None):
 	"""Reject active site suspensions for password, session, API-key and OAuth authentication."""
 	user = login_manager.user if login_manager else frappe.session.user
-	if user and user != "Guest" and active(current_state(user)):
+	if user and user != "Guest" and suspended(current_state(user)):
 		frappe.throw(
 			"Your account is suspended. Check your suspension email for details.", frappe.AuthenticationError
 		)
@@ -78,13 +86,16 @@ def set_restriction(
 	expires_at: str = "",
 	expected_modified: str | None = None,
 	duration_seconds: int | None = None,
+	kind: str = "Suspend",
 ):
-	"""Set, change or lift an audited Community ban or whole-site account suspension."""
+	"""Set, change or lift an audited Community ban, or a whole-site account silence or suspension."""
 	from gameplan.community_bans import can_moderate_community
 
 	community = community or ""
 	if cint(enabled) not in (0, 1):
 		frappe.throw("Choose whether to set or lift the restriction")
+	if kind not in ("Suspend", "Silence") or (community and kind != "Suspend"):
+		frappe.throw("Choose Silence or Suspend for a site restriction")
 	if not (can_moderate_community(community) if community else is_global_admin(frappe.session.user)):
 		frappe.throw("You cannot manage this restriction", frappe.PermissionError)
 	if not isinstance(reason, str) or not reason.strip() or len(reason) > 500:
@@ -101,6 +112,8 @@ def set_restriction(
 		is_global_admin(user) or (community and can_moderate_community(community, user, for_update=True))
 	):
 		frappe.throw("Remove the applicable staff role before restricting this user")
+	if cint(enabled) and kind == "Silence" and is_community_staff(user):
+		frappe.throw("Remove this user's Community admin and moderator roles before silencing them")
 	previous = state(user, community)
 	if expected_modified is not None:
 		changed = (
@@ -127,10 +140,12 @@ def set_restriction(
 		and active(previous)
 		and (get_datetime(previous.expires_at) if previous.expires_at else None) == expiry
 		and previous.reason == reason.strip()
+		and previous.kind == kind
 	):
 		return
 	before = previous.expires_at if previous else None
 	was_active = active(previous)
+	same_kind = was_active and previous.kind == kind
 	doc = (
 		frappe.get_doc("GP User Restriction", previous.name)
 		if previous
@@ -141,6 +156,7 @@ def set_restriction(
 			name=restriction_name(user, community),
 			user=user,
 			community=community,
+			kind=kind if cint(enabled) else doc_kind(previous),
 			active=cint(bool(cint(enabled))),
 			expires_at=expiry,
 			reason=reason.strip(),
@@ -152,13 +168,14 @@ def set_restriction(
 		doc.save(ignore_permissions=True)
 	finally:
 		frappe.flags.restriction_action = old_flag
-	action = (
-		("Ban Changed" if was_active else "Ban")
-		if community
-		else ("Suspension Changed" if was_active else "Suspend")
-	)
-	if not cint(enabled):
-		action = "Unban" if community else "Lift Suspension"
+	if community:
+		action = ("Ban Changed" if was_active else "Ban") if cint(enabled) else "Unban"
+	elif not cint(enabled):
+		action = "Lift Silence" if doc.kind == "Silence" else "Lift Suspension"
+	elif kind == "Silence":
+		action = "Silence Changed" if same_kind else "Silence"
+	else:
+		action = "Suspension Changed" if same_kind else "Suspend"
 	frappe.local.request_cache.clear()
 	log_action(doc, action, before)
 	from gameplan.restriction_notifications import notify
@@ -173,7 +190,7 @@ def set_restriction(
 		reason=reason.strip(),
 		expires_at=iso_expiry(expiry),
 	)
-	if not community and cint(enabled):
+	if not community and cint(enabled) and kind == "Suspend":
 		frappe.realtime.publish_realtime(
 			"gameplan:account_suspended", {"user": user}, user=user, after_commit=True
 		)
@@ -182,6 +199,25 @@ def set_restriction(
 
 	frappe.realtime.publish_realtime(RESTRICTIONS_CHANGED, user=user, after_commit=True)
 	return {"modified": str(doc.modified), "expires_at": iso_expiry(expiry)}
+
+
+def doc_kind(previous):
+	return previous.kind if previous and previous.kind else "Suspend"
+
+
+def is_community_staff(user):
+	Member = frappe.qb.DocType("GP Member")
+	return bool(
+		frappe.qb.from_(Member)
+		.select(Member.name)
+		.where(
+			(Member.parenttype == "GP Team")
+			& (Member.user == user)
+			& ((Member.is_admin == 1) | (Member.is_moderator == 1))
+		)
+		.limit(1)
+		.run()
+	)
 
 
 def log_action(doc, action, previous_expiry=None):
@@ -225,7 +261,7 @@ def expire_due():
 def revoke_sessions(user):
 	from frappe.sessions import clear_sessions, get_sessions_to_clear
 
-	if not active(state(user)):
+	if not suspended(state(user)):
 		return
 	# Frappe commits per session and caps cleanup at 100; only run after durable suspension.
 	clear_sessions(user=user, force=True)

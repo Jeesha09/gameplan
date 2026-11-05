@@ -7,6 +7,7 @@
  "field_order": [
   "user",
   "community",
+  "kind",
   "active",
   "expires_at",
   "reason"
@@ -23,6 +24,14 @@
    "label": "Community",
    "fieldtype": "Data",
    "default": ""
+  },
+  {
+   "default": "Suspend",
+   "description": "Site restrictions only. Silence keeps sign-in and reading.",
+   "fieldname": "kind",
+   "fieldtype": "Select",
+   "label": "Kind",
+   "options": "Suspend\nSilence"
   },
   {
    "fieldname": "active",
@@ -52,5 +61,6 @@
   }
  ],
  "sort_field": "modified",
- "sort_order": "DESC"
+ "sort_order": "DESC",
+ "modified": "2026-11-05 12:00:00.000000"
 }

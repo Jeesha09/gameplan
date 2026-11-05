@@ -5,9 +5,26 @@
       {{
         community
           ? 'Participation in this Community'
-          : 'Entire Frappe site, including all installed apps and API access'
+          : kind === 'Silence'
+            ? 'Participation in every Community'
+            : 'Entire Frappe site, including all installed apps and API access'
       }}
     </p>
+    <template v-if="!community && !lifting">
+      <Select
+        v-model="kind"
+        label="Restriction"
+        :options="[
+          { label: 'Silence', value: 'Silence' },
+          { label: 'Suspend', value: 'Suspend' },
+        ]"
+        :disabled="saving"
+      />
+      <p class="mb-3 mt-2 text-p-sm text-ink-gray-6">
+        Silence: can sign in and read, but can't post anywhere. Suspend: can't sign in or use the
+        site at all.
+      </p>
+    </template>
     <Select
       v-if="!lifting"
       v-model="duration"
@@ -37,6 +54,13 @@
       :disabled="saving"
       required
     />
+    <Checkbox
+      v-if="!lifting"
+      v-model="cleanup"
+      class="mt-3"
+      label="Also remove all their posts"
+      :disabled="saving"
+    />
     <ErrorMessage
       v-if="error"
       class="mt-3"
@@ -57,6 +81,7 @@
 import { computed, ref } from 'vue'
 import {
   Button,
+  Checkbox,
   DateTimePicker,
   Dialog,
   ErrorMessage,
@@ -68,13 +93,20 @@ import {
   toast,
 } from 'frappe-ui'
 import { extractServerMessage } from '@/utils'
-import { expiryLabel, type RestrictionUser } from '@/data/restrictions'
+import {
+  durationPresets,
+  expiryLabel,
+  startCleanup,
+  type RestrictionUser,
+} from '@/data/restrictions'
 const props = defineProps<{ user: RestrictionUser; community?: string; lifting?: boolean }>()
 const open = defineModel<boolean>('open')
 const emit = defineEmits<{ saved: [] }>()
 const duration = ref(props.user.modified ? 'keep' : '0')
 const custom = ref('')
 const reason = ref('')
+const kind = ref(props.user.kind || 'Silence')
+const cleanup = ref(false)
 const saving = ref(false)
 const error = ref<unknown>(null)
 const timezone = getConfig('localTimezone') || Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -83,16 +115,12 @@ const title = computed(() =>
     ? 'Lift restriction'
     : props.community
       ? 'Community ban'
-      : 'Suspend account across this site',
+      : 'Restrict account across this site',
 )
 const durations = [
   ...(props.user.modified ? [{ label: 'Keep current expiry', value: 'keep' }] : []),
   { label: 'Until manually lifted', value: '0' },
-  { label: '1 hour', value: '3600' },
-  { label: '1 day', value: '86400' },
-  { label: '1 week', value: '604800' },
-  { label: '30 days', value: '2592000' },
-  { label: 'Custom date and time', value: 'custom' },
+  ...durationPresets,
 ]
 async function save() {
   saving.value = true
@@ -104,6 +132,7 @@ async function save() {
       enabled: props.lifting ? 0 : 1,
       reason: reason.value,
       expected_modified: props.user.modified || '',
+      ...(props.community || props.lifting ? {} : { kind: kind.value }),
       ...(duration.value === 'custom'
         ? { expires_at: dayjsLocal(custom.value).toISOString() }
         : duration.value === 'keep'
@@ -111,6 +140,7 @@ async function save() {
           : { duration_seconds: Number(duration.value) }),
     })
     toast.success('Restriction updated')
+    if (cleanup.value) await startCleanup(props.user.user, reason.value, props.community)
     emit('saved')
     open.value = false
   } catch (e) {

@@ -264,3 +264,38 @@ Implementation notes:
 - Use Moderation > Site administration > Posting limits for global admins. Keep the longest applicable posting/slow-mode wait visible in the reply composer.
 
 - UI placement correction: Ebrahim requested Posting limits in Moderation, alongside Account suspensions. Remove its general Settings tab.
+
+## Per-post content caps — November 5, 2026
+
+Confirmed by Ebrahim, rounds 1–3:
+- Build content caps after site-wide posting limits, as the second part of plan item 12a.
+- Apply caps to every forum poster across all Communities, Members and Guests alike. Keep the stricter public-only Guest caps from public access.
+- Cap links, images, files and videos, and mentions separately. Count them as the public-access Guest caps already do.
+- Check caps on new posts and on edits that change content.
+- Exempt global admins. Exempt Community moderators and admins only in the Communities they staff.
+- Suggest 20 links, 20 images, 10 files or videos, and 10 mentions per post. Zero removes a cap.
+- Use a separate Enable content caps switch, off on existing sites.
+- Put the caps in the Posting limits page and in `GP Posting Settings`.
+- Refuse an over-cap post on the server with a message that names the cap. Keep the draft. Add no live counter in the composer.
+
+Implementation notes:
+- The watched-word block check already runs on direct saves, held submissions, and approval-queue edits, with the Community staff exemption. Content caps run from the same check.
+- An approval publishes as the approving staff member, so publication does not check caps again.
+- A patch stores the suggested cap values on sites that installed `GP Posting Settings` before the cap fields existed.
+
+## Silence, editing, author cleanup, and slow-mode expiry — November 5, 2026
+
+Confirmed by Ebrahim, rounds 1–2:
+- Silence blocks participation in every Community. The person can still sign in, read, and receive notifications. It blocks the same actions as a Community ban, including reports.
+- Only global admins can silence. Account suspensions becomes Account restrictions, and its dialog offers Silence or Suspend with one short line explaining the difference. A person has at most one site restriction. Changing its kind replaces it.
+- Silence follows the suspension rules: a reason is required, global admins, Administrator, and the actor cannot be silenced, Community staff must lose their staff role first, and the person receives an email with the reason and expiry.
+- Community moderators do not edit other people's posts. Authors keep their current editing rights. This closes plan item 01b without code.
+- Author cleanup removes a person's published discussions and replies with Delete spam and rejects their pending submissions, with one required reason. Community moderators clean up in their Community. Global admins can also clean up across all Communities.
+- Ban and Silence dialogs offer "Also remove all their posts". A standalone Remove all posts action is also available in Community moderation.
+- History shows each cleanup with Undo cleanup. Undo restores only the posts that cleanup removed and that are still removed. Rejected submissions stay rejected.
+- Slow mode can end automatically with the ban duration presets, or stay until turned off. The slow-mode notice shows when it ends, and history records the automatic end once.
+
+Implementation notes:
+- Silence is stored in the site row of `GP User Restriction` with `kind = Silence`. The Community ban check treats an active site silence as a ban in every Community, so every existing participation check applies it.
+- The frontend receives a site silence as a ban row with an empty Community.
+- Only a suspension blocks sign-in, ends sessions, and disconnects realtime.

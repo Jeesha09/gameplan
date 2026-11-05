@@ -25,8 +25,11 @@
         role="status"
         class="m-3 rounded border border-outline-gray-3 bg-surface-gray-1 p-3 text-base text-ink-gray-8"
       >
-        You cannot participate in this Community: {{ ownRestriction.reason }}.
-        {{ expiryLabel(ownRestriction.expires_at) }}.
+        {{
+          ownRestriction.community
+            ? 'You cannot participate in this Community'
+            : 'Your account is silenced in every Community'
+        }}: {{ ownRestriction.reason }}. {{ expiryLabel(ownRestriction.expires_at) }}.
       </p>
       <slot />
     </DesktopShell>
@@ -64,7 +67,7 @@ const effectiveRoute = computed(() => {
 const ownRestriction = computed(() =>
   useSessionUser().community_restrictions?.find(
     (r) =>
-      r.community === effectiveRoute.value.params.communityId &&
+      [effectiveRoute.value.params.communityId, ''].includes(r.community) &&
       (!r.expires_at || Date.parse(r.expires_at) > Date.now()),
   ),
 )

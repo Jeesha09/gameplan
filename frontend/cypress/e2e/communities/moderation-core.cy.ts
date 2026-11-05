@@ -229,7 +229,7 @@ describe('Community moderation core', () => {
         `/g/community/${ids.community}/space/${ids.space}/discussion/${ids.discussion}/${ids.discussion_slug}`,
       )
       cy.contains('Seed content').should('be.visible')
-      cy.contains('You are banned from participating').should('be.visible')
+      cy.contains('You cannot participate in this Community').should('be.visible')
       cy.contains('button', 'Add a comment').should('not.exist')
       cy.visit(`/g/community/${ids.community}/space/${ids.space}/discussions`)
       cy.contains('Welcome thread').should('be.visible')

@@ -16,6 +16,7 @@ export const slowModeLabel = (seconds = 0) =>
   `${seconds} seconds`
 export type SlowModeStatus = {
   seconds: number
+  ends_at?: string | null
   can_manage: boolean
   exempt: boolean
   retry_after: number

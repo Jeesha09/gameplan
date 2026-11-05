@@ -44,7 +44,7 @@
       v-if="isCommunityBanned(communityId, useSessionUser())"
       class="mb-4 text-base text-ink-gray-5"
     >
-      You are banned from participating in this Community. You can still read accessible content.
+      You cannot participate in this Community. You can still read accessible content.
     </p>
     <LastPostReminder v-if="!publicVisitor" class="mb-3" />
 

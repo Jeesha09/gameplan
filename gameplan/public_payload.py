@@ -132,6 +132,7 @@ PRIVATE_FIELDS = {
 		"backlinks": "internal relationships; read through the scoped References endpoint",
 		"modified_by": "who last touched it, not who wrote it",
 		"slow_mode_seconds": "posting policy; signed-in readers fetch their own cooldown separately",
+		"slow_mode_until": "posting policy; signed-in readers fetch their own cooldown separately",
 	},
 	"GP Comment": {
 		"modified_by": "who last touched it, not who wrote it",

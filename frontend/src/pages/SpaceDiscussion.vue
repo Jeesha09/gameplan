@@ -4,7 +4,7 @@
       v-if="isCommunityBanned(space?.team, useSessionUser())"
       class="p-4 text-base text-ink-gray-5"
     >
-      You are banned from participating in this Community. You can still read accessible content.
+      You cannot participate in this Community. You can still read accessible content.
     </p>
     <!-- Keyed so opening another discussion mounts a fresh view instead of reusing this one -->
     <DiscussionView

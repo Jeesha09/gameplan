@@ -28,9 +28,10 @@ def is_banned(community, user=None, *, for_update=False):
 	user = user or frappe.session.user
 	if not community or user == "Guest" or is_global_admin(user):
 		return False
-	from gameplan.restrictions import active, current_state
+	from gameplan.restrictions import active, current_state, silenced
 
-	return active(current_state(user, community))
+	# A site silence bans participation in every Community.
+	return active(current_state(user, community)) or silenced(current_state(user))
 
 
 def banned_communities(user):
@@ -42,7 +43,12 @@ def banned_communities(user):
 	return (
 		frappe.qb.from_(Restriction)
 		.select(Restriction.community)
-		.where((Restriction.user == user) & (Restriction.community != "") & active_condition(Restriction))
+		# An empty Community is a site silence, which bans participation everywhere.
+		.where(
+			(Restriction.user == user)
+			& ((Restriction.community != "") | (Restriction.kind == "Silence"))
+			& active_condition(Restriction)
+		)
 		.run(pluck=True)
 	)
 

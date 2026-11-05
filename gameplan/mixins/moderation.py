@@ -53,7 +53,7 @@ class Moderatable:
 		"""Remove spam reversibly while preserving its restricted original."""
 		self._remove_content("Delete Spam", reason)
 
-	def _remove_content(self, action, reason):
+	def _remove_content(self, action, reason, cleanup=None):
 		from gameplan.search_sqlite import GameplanSearch
 
 		doc = self._moderation_target()
@@ -73,6 +73,7 @@ class Moderatable:
 			reason=reason.strip(),
 			content=original.content,
 			title=original.get("title"),
+			cleanup=cleanup,
 		).insert(ignore_permissions=True)
 		values = {"hidden_at": None, "spam_removed_at": None, field: frappe.utils.now()}
 		label = "reply" if doc.doctype == "GP Comment" else "discussion"

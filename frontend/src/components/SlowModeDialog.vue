@@ -10,6 +10,25 @@
       :options="slowModeIntervals"
       :disabled="loading || saving"
     />
+    <template v-if="seconds !== '0'">
+      <Select
+        v-model="duration"
+        class="mt-3"
+        label="Ends"
+        :options="durations"
+        :disabled="loading || saving"
+      />
+      <DateTimePicker
+        v-if="duration === 'custom'"
+        v-model="custom"
+        class="mt-3"
+        label="Ends at"
+        :disabled="saving"
+      />
+      <p v-if="endsAt" class="mt-2 text-p-sm text-ink-gray-6">
+        Current end: {{ expiryLabel(endsAt) }}.
+      </p>
+    </template>
     <Textarea
       v-model="reason"
       class="mt-3"
@@ -27,7 +46,7 @@
       <Button
         variant="solid"
         :loading="saving"
-        :disabled="loading || !loaded || !reason.trim()"
+        :disabled="loading || !loaded || !reason.trim() || (duration === 'custom' && !custom)"
         @click="save"
       >
         Save slow mode
@@ -36,8 +55,19 @@
   </Dialog>
 </template>
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { Button, Dialog, ErrorMessage, Select, Textarea, call, toast } from 'frappe-ui'
+import { computed, onMounted, ref } from 'vue'
+import {
+  Button,
+  DateTimePicker,
+  Dialog,
+  ErrorMessage,
+  Select,
+  Textarea,
+  call,
+  dayjsLocal,
+  toast,
+} from 'frappe-ui'
+import { durationPresets, expiryLabel } from '@/data/restrictions'
 import { extractServerMessage } from '@/utils'
 import { notifySlowModeChanged, slowModeIntervals, type SlowModeStatus } from '@/data/slowMode'
 
@@ -47,6 +77,14 @@ const emit = defineEmits<{ saved: [] }>()
 const seconds = ref('0')
 const previous = ref(0)
 const reason = ref('')
+const duration = ref('0')
+const custom = ref('')
+const endsAt = ref<string | null>(null)
+const durations = computed(() => [
+  ...(endsAt.value ? [{ label: 'Keep current end', value: 'keep' }] : []),
+  { label: 'Until turned off', value: '0' },
+  ...durationPresets,
+])
 const loading = ref(true)
 const loaded = ref(false)
 const saving = ref(false)
@@ -58,6 +96,8 @@ onMounted(async () => {
     })
     seconds.value = String(data.seconds)
     previous.value = data.seconds
+    endsAt.value = data.ends_at || null
+    if (endsAt.value) duration.value = 'keep'
     loaded.value = true
   } catch (e) {
     error.value = e
@@ -74,6 +114,11 @@ async function save() {
       seconds: Number(seconds.value),
       expected_seconds: previous.value,
       reason: reason.value,
+      ...(duration.value === 'custom'
+        ? { ends_at: dayjsLocal(custom.value).toISOString() }
+        : duration.value === 'keep'
+          ? { ends_at: endsAt.value || '' }
+          : { duration_seconds: Number(duration.value) }),
     })
     notifySlowModeChanged()
     emit('saved')

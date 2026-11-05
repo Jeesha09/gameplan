@@ -11,6 +11,13 @@ from gameplan.api import require_admin
 from gameplan.approval_files import publishing_submission
 
 FIELDS = ("discussions_hour", "discussions_day", "replies_hour", "replies_day")
+# Cap field: (count_post_contents key, singular, plural).
+CAPS = {
+	"max_links": ("links", "link", "links"),
+	"max_images": ("images", "image", "images"),
+	"max_attachments": ("attachments", "file or video", "files or videos"),
+	"max_mentions": ("mentions", "mention", "mentions"),
+}
 MAX_LIMIT = 10000
 
 
@@ -23,9 +30,18 @@ def settings():
 
 @frappe.whitelist(methods=["POST"])
 def save_settings(
-	enabled: int, discussions_hour: int, discussions_day: int, replies_hour: int, replies_day: int
+	enabled: int,
+	discussions_hour: int,
+	discussions_day: int,
+	replies_hour: int,
+	replies_day: int,
+	caps_enabled: int = 0,
+	max_links: int = 20,
+	max_images: int = 20,
+	max_attachments: int = 10,
+	max_mentions: int = 10,
 ):
-	"""Save the global-admin posting policy, with zero disabling an individual limit."""
+	"""Save the global-admin posting policy and content caps, with zero disabling an individual limit."""
 	require_admin()
 	doc = frappe.get_doc("GP Posting Settings")
 	doc.update(
@@ -35,6 +51,11 @@ def save_settings(
 			discussions_day=discussions_day,
 			replies_hour=replies_hour,
 			replies_day=replies_day,
+			caps_enabled=caps_enabled,
+			max_links=max_links,
+			max_images=max_images,
+			max_attachments=max_attachments,
+			max_mentions=max_mentions,
 		)
 	)
 	doc.save()
@@ -81,7 +102,26 @@ def record(doc, method=None):
 
 def policy():
 	doc = frappe.get_cached_doc("GP Posting Settings")
-	return {"enabled": cint(doc.enabled), **{key: cint(doc.get(key)) for key in FIELDS}}
+	return {
+		"enabled": cint(doc.enabled),
+		"caps_enabled": cint(doc.caps_enabled),
+		**{key: cint(doc.get(key)) for key in (*FIELDS, *CAPS)},
+	}
+
+
+def check_caps(doc):
+	"""Refuse a forum post body over a site content cap. Callers apply the staff exemption."""
+	from gameplan.new_user_limits import count_post_contents
+
+	config = policy()
+	if not config["caps_enabled"]:
+		return
+	counts = count_post_contents(doc.content)
+	for field, (key, singular, plural) in CAPS.items():
+		cap = config[field]
+		if cap and counts[key] > cap:
+			noun = singular if cap == 1 else plural
+			frappe.throw(f"Posts can have up to {cap} {noun}.", title="Content cap")
 
 
 def allowance(kind, *, for_update=False):

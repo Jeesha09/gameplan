@@ -185,3 +185,40 @@ class TestSlowMode(GameplanTestCase):
 			older.delete()
 			newer.delete()
 		self.assertEqual(self.wait(), 25)
+
+	def test_slow_mode_ends_on_time_and_history_records_the_end_once(self):
+		from gameplan.restrictions import utc_now
+		from gameplan.slow_mode import expire_due
+
+		name = str(self.discussion.name)
+		with self.as_user(self.outsider):
+			self.assertTrue(set_mode(name, 60, "Calm down for an hour", 0, duration_seconds=3600)["ends_at"])
+		self.reply()
+		self.assertGreater(self.wait(), 0)
+		later = utc_now() + timedelta(hours=2)
+		with patch("gameplan.restrictions.utc_now", return_value=later):
+			self.assertEqual(self.wait(), 0)
+			with self.as_user(self.member):
+				self.assertIsNone(status(name)["ends_at"])
+			self.reply()
+			expire_due()
+			expire_due()
+		ended = frappe.get_all(
+			"GP Moderation Log", filters={"discussion": name, "action": "Slow Mode Expired"}
+		)
+		self.assertEqual(len(ended), 1)
+		self.assertEqual(frappe.db.get_value("GP Discussion", name, "slow_mode_seconds"), 0)
+
+	def test_end_time_choices_are_validated(self):
+		from gameplan.restrictions import utc_now
+
+		name = str(self.discussion.name)
+		ends_at = (utc_now() + timedelta(days=2)).isoformat() + "+00:00"
+		with self.as_user(self.outsider):
+			for kwargs in ({"duration_seconds": 5}, {"duration_seconds": 3600, "ends_at": ends_at}):
+				with self.subTest(**kwargs), self.assertRaises(frappe.ValidationError):
+					set_mode(name, 60, "Bad end", 0, **kwargs)
+			set_mode(name, 60, "Until the weekend", 0, ends_at=ends_at)
+		self.assertTrue(frappe.db.get_value("GP Discussion", name, "slow_mode_until"))
+		self.setting(0)
+		self.assertIsNone(frappe.db.get_value("GP Discussion", name, "slow_mode_until"))

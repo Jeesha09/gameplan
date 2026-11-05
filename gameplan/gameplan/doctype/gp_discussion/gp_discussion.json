@@ -27,7 +27,8 @@
   "participants_count",
   "hidden_at",
   "spam_removed_at",
-  "slow_mode_seconds"
+  "slow_mode_seconds",
+  "slow_mode_until"
  ],
  "fields": [
   {
@@ -166,12 +167,19 @@
    "fieldtype": "Int",
    "default": "0",
    "read_only": 1
+  },
+  {
+   "fieldname": "slow_mode_until",
+   "fieldtype": "Datetime",
+   "label": "Slow mode until",
+   "read_only": 1,
+   "description": "UTC. Empty keeps slow mode on until staff turn it off."
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-17 12:00:00.000000",
+ "modified": "2026-11-05 14:00:00.000000",
  "modified_by": "faris@erpnext.com",
  "module": "Gameplan",
  "name": "GP Discussion",

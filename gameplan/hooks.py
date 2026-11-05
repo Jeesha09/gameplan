@@ -280,6 +280,7 @@ scheduler_events = {
 	"all": [
 		"gameplan.gameplan.doctype.gp_draft.gp_draft.publish_due_drafts",
 		"gameplan.restrictions.expire_due",
+		"gameplan.slow_mode.expire_due",
 		"gameplan.posting_limits.prune",
 	],
 	"hourly": ["gameplan.gameplan.doctype.gp_invitation.gp_invitation.expire_invitations"],
