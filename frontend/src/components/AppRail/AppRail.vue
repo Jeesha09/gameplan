@@ -11,6 +11,7 @@
          shifts with how many communities you belong to. -->
     <div
       v-if="visibleShortcuts.length"
+      data-coach="rail-shortcuts"
       class="flex w-full shrink-0 flex-col items-center gap-0.5 border-t pt-3"
     >
       <SidebarRailItem
@@ -49,7 +50,7 @@
           ref="communityScrollEl"
           class="h-full w-[50px] overflow-y-auto overflow-x-hidden pb-3 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          <div class="flex w-[50px] flex-col items-center gap-3">
+          <div data-coach="communities" class="flex w-[50px] flex-col items-center gap-3">
             <SidebarRailItem
               v-for="community in activeCommunities"
               :key="community.name"
@@ -74,6 +75,7 @@
       <template #trigger="{ open }">
         <button
           type="button"
+          data-coach="account"
           class="flex size-7 items-center justify-center rounded-full transition focus-visible:ring-0 focus-visible:focus-ring"
           :class="open ? '' : 'hover:opacity-90'"
           aria-label="Account menu"

@@ -28,6 +28,7 @@
   </ConfigureEmptyState>
 
   <List
+    data-coach="community-list"
     v-else-if="filteredCommunities.length"
     :columns="{
       base: ['minmax(0,1fr)', 'auto'],

@@ -17,6 +17,7 @@ import { Dialog, Dropdown } from 'frappe-ui'
 import { settingsShortcutLabel, showSettingsDialog } from '@/components/Settings'
 import { useUser } from '@/data/users'
 import { session } from '@/data/session'
+import { showTour } from '@/data/welcome'
 import { useTheme } from '@/utils/useTheme'
 import { isAnonymousVisitor, loginUrl, signupEnabled, signupUrl } from '@/utils/publicAccess'
 
@@ -70,6 +71,12 @@ const dropdownItems = computed(() => [
     slots: {
       suffix: () => h('span', { class: 'text-xs text-ink-gray-4' }, settingsShortcutLabel),
     },
+  },
+  {
+    icon: 'lucide-compass',
+    label: 'Show me around',
+    condition: () => !isAnonymousVisitor(),
+    onClick: () => (showTour.value = true),
   },
   {
     icon: 'lucide-moon',

@@ -40,7 +40,7 @@
             </div>
           </div>
 
-          <nav class="mt-0.5 space-y-0.5">
+          <nav data-coach="spaces" class="mt-0.5 space-y-0.5">
             <SidebarItem
               v-for="space in spacesList"
               :key="space.name"

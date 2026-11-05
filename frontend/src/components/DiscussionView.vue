@@ -115,7 +115,7 @@
                 </time>
               </Tooltip>
             </div>
-            <div class="ml-auto flex space-x-2 print:hidden">
+            <div data-coach="bell" class="ml-auto flex space-x-2 print:hidden">
               <DiscussionNotificationBell
                 v-if="!readOnlyMode && discussion.doc.notification_state"
                 :state="discussion.doc.notification_state"
@@ -232,7 +232,7 @@
               </div>
             </div>
           </div>
-          <div class="mt-3" v-show="!editingPost">
+          <div class="mt-3" data-coach="reactions" v-show="!editingPost">
             <Reactions
               doctype="GP Discussion"
               :name="discussion.doc.name"

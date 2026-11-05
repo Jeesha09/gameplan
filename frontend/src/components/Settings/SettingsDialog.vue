@@ -8,7 +8,12 @@
   >
     <SettingsSidebar>
       <SettingsNavGroup v-for="group in tabGroups" :key="group.label" :label="group.label">
-        <SettingsNavItem v-for="tab in group.tabs" :key="tab.label" :value="tab.slug">
+        <SettingsNavItem
+          v-for="tab in group.tabs"
+          :key="tab.label"
+          :value="tab.slug"
+          :data-coach="`settings-${tab.slug}`"
+        >
           <template #prefix>
             <UserAvatar
               v-if="tab.prefix === 'session-avatar'"

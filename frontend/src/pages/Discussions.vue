@@ -28,7 +28,7 @@
     <div class="flex min-w-0 items-center gap-1">
       <span class="min-w-0 truncate px-0.5 py-1 text-md-medium text-ink-gray-9">Discussions</span>
     </div>
-    <div class="flex items-center gap-2">
+    <div data-coach="add-new" class="flex items-center gap-2">
       <Button
         v-if="!publicVisitor && !isCommunityBanned(communityId, useSessionUser())"
         variant="solid"

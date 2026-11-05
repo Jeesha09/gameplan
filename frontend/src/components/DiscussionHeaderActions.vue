@@ -1,5 +1,11 @@
 <template>
-  <DiscussionNotificationBell :state="state" :loading="loading" @select="emit('select', $event)" />
+  <span data-coach="bell" class="inline-flex">
+    <DiscussionNotificationBell
+      :state="state"
+      :loading="loading"
+      @select="emit('select', $event)"
+    />
+  </span>
   <Dropdown
     align="end"
     :button="{

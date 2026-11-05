@@ -118,6 +118,12 @@ const actionOptions = computed<DropdownOptions>(() => [
         onClick: () => emit('new-space'),
         condition: () => canCreateSpace.value,
       },
+      {
+        label: 'Join or leave',
+        icon: 'lucide-log-in',
+        onClick: () => showCommunitiesSettings(),
+        condition: () => !sessionUser.isGuest,
+      },
     ],
   },
   {
