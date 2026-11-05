@@ -445,7 +445,7 @@ class TestUnreadRecordLifecycle(GameplanTestCase):
 		self.assertEqual(len(self.records_for(self.second_member, discussion)), 1)
 		self.assertEqual(len(self.records_for(self.reader, discussion)), 1)
 
-	def test_an_open_space_marks_everyone_who_can_view_it_unread(self):
+	def test_an_open_space_marks_only_its_members_and_guests_unread(self):
 		self.space.visibility = VISIBILITY_GENERAL
 		self.space.save(ignore_permissions=True)
 		passerby = create_member("unread_passerby@example.com", "Unread Passerby")
@@ -454,7 +454,7 @@ class TestUnreadRecordLifecycle(GameplanTestCase):
 		self.post_comment(self.second_member, discussion)
 
 		self.assertEqual(len(self.records_for(self.reader, discussion)), 2)
-		self.assertEqual(len(self.records_for(passerby, discussion)), 2)
+		self.assertEqual(self.records_for(passerby, discussion), [])
 
 	def test_the_commenter_gets_no_unread_record_for_their_own_comment(self):
 		discussion = self.post_discussion(self.member)

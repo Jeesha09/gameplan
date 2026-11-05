@@ -15,11 +15,11 @@ DEFAULT_STATE = "Mentions only"
 
 def discussion_of(doc) -> str | None:
 	if doc.doctype == "GP Discussion":
-		return doc.name
+		return str(doc.name)
 	if doc.doctype == "GP Comment" and doc.reference_doctype == "GP Discussion":
-		return doc.reference_name
-	if doc.doctype == "GP Poll":
-		return doc.discussion
+		return str(doc.reference_name)
+	if doc.doctype == "GP Poll" and doc.discussion:
+		return str(doc.discussion)
 	return None
 
 

@@ -54,7 +54,7 @@ class GPUnreadRecord(Document):
 		discussion_doc = frappe.db.get_value(
 			"GP Discussion", comment_doc.reference_name, ["name", "project", "owner"], as_dict=True
 		)
-		project_members = GPUnreadRecord._get_project_members(discussion_doc.project)
+		project_members = GPUnreadRecord._get_project_members(discussion_doc.project, discussion_doc)
 
 		records = []
 		for user in project_members:
@@ -418,27 +418,21 @@ class GPUnreadRecord(Document):
 		return cint(query.run()[0][0])
 
 	@staticmethod
-	def _get_project_members(project_name):
-		"""Get all users who have access to the project"""
+	def _get_project_members(project_name, discussion_doc=None):
+		"""Get the space's members and guests, plus a discussion's participants in an open
+		space, who can still view it"""
 		project = frappe.db.get_value("GP Project", project_name, ["name", "visibility"], as_dict=True)
 
-		all_users = set()
-
-		if is_member_access(project.visibility):
-			members = frappe.qb.get_query(
+		all_users = set(
+			frappe.qb.get_query(
 				"GP Member",
 				fields=["user"],
 				filters={"parent": project.name, "parenttype": "GP Project"},
 			).run(pluck=True)
-			all_users.update(members)
-		else:
-			enabled_users = frappe.qb.get_query(
-				"GP User Profile", filters={"enabled": 1}, fields=["user"]
-			).run(pluck=True)
+		)
+		if discussion_doc and not is_member_access(project.visibility):
+			all_users.update(GPUnreadRecord._get_discussion_participants(discussion_doc))
 
-			all_users.update(enabled_users)
-
-		# Include guest users with explicit project access
 		guest_users = frappe.qb.get_query(
 			"GP Guest Access",
 			fields=["user"],
@@ -449,6 +443,17 @@ class GPUnreadRecord(Document):
 		if not is_member_access(project.visibility):
 			all_users.difference_update(role_sets[1] - set(guest_users))
 		return users_who_can_view_space(all_users, project_name, role_sets=role_sets)
+
+	@staticmethod
+	def _get_discussion_participants(discussion_doc):
+		"""Get the discussion's author and everyone who replied to it"""
+		repliers = frappe.qb.get_query(
+			"GP Comment",
+			fields=["owner"],
+			filters={"reference_doctype": "GP Discussion", "reference_name": str(discussion_doc.name)},
+			distinct=True,
+		).run(pluck=True)
+		return {discussion_doc.owner, *repliers}
 
 	@staticmethod
 	def _notify_unread_counts_changed(users):

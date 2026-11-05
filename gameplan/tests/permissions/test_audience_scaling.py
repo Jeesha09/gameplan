@@ -84,7 +84,7 @@ class TestAudienceScaling(GameplanTestCase):
 		from gameplan.gameplan.doctype.gp_unread_record.gp_unread_record import GPUnreadRecord
 
 		community = create_community("Unread audience", members=[self.member])
-		space = create_space("General", community)
+		space = create_space("General", community, members=[self.member])
 		with patch.object(frappe, "get_roles", side_effect=AssertionError("Per-user role lookup")):
 			self.assertIn(self.member.name, GPUnreadRecord._get_project_members(space.name))
 
