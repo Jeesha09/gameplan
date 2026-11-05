@@ -59,3 +59,13 @@ The sampled first-page paths for reports, history, removed content, active restr
 ## Limits of this assessment
 
 This is not sign-off for millions of concurrent forum users or a million-row deployment. The fixture has one public Community/Space, only 10,000 accounts, one local MariaDB instance, and a single sequential request process. This pass did not measure concurrent workers, memory use, realistic private-space visibility distributions, search indexing throughput, full feeds/unread counts, browser rendering, or end-to-end traffic. Those need separate production-like load tests before making capacity claims.
+
+## Concurrent follow-up — 5 November 2026
+
+A disposable site used 1,000,000 discussions, 250,000 replies, 50,000 synthetic members, 20 Communities, 100 Spaces, 100,000 pending reviews, and 300,000 reports. Four synchronous web workers served 48-request bursts at each concurrency level. Requests used one Administrator session on a local machine with 16 logical CPUs and 7.6 GiB RAM.
+
+At 16 concurrent requests, the Community ban picker took 2,803 ms at the 95th percentile. The original query joined all role rows and sorted the results before limiting the page. After changing the role checks to use the indexed user and role lookups, the same workload took 32 ms at the 95th percentile; all 48 responses succeeded and contained 20 candidates. The picker still searches by name or email and excludes Community staff, site admins, and active bans. A search for a rare or absent prefix may still scan many users.
+
+Most-reported sorting took 2,122 ms at the 95th percentile in the same burst. A temporary sort index improved a single database query from about 460 ms to 260 ms, but still scanned reviews across the site. This is not a satisfactory Community-scoped solution and was not retained. A durable improvement needs a current, indexed target scope with correct behavior when content moves between Spaces and Communities.
+
+These bursts are not a sustained capacity test. The fixture does not model realistic private-Space memberships, unread data, writes, search indexing, or background work, and the request mix used only an Administrator account.
