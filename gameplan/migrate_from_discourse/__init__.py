@@ -45,6 +45,90 @@ COMMUNITIES = {
 	"Community": [37, 15, 25, 35, 38, 50, 52, 61, 78, 81, 87, 88, 63, 62, 91, 3, 47, 42, 4, 2, 41, 44, 45, 1],
 	"Events and Announcements": [20, 79, 85],
 }
+COMMUNITY_LOGOS = {
+	"ERPNext": "erpnext.svg",
+	"Framework & Development": "framework.svg",
+	"Productivity Suite": "suite.svg",
+	"Business Apps": "business-apps.svg",
+	"Community": "community.svg",
+	"Events and Announcements": "events-and-announcements.svg",
+}
+SPACE_ICONS = {
+	"General": "lucide-messages-square",
+	"User Forum": "lucide-messages-square",
+	"Accounting": "lucide-wallet",
+	"Agriculture": "lucide-leaf",
+	"Asset Management": "lucide-vault",
+	"Buying": "lucide-package",
+	"Customize ERPNext": "lucide-wand-sparkles",
+	"Education": "lucide-graduation-cap",
+	"Feature Requests": "lucide-lightbulb",
+	"Hospitality": "lucide-tent",
+	"India Compliance": "lucide-scale",
+	"Manufacturing": "lucide-factory",
+	"Non Profit": "lucide-gift",
+	"Project Management": "lucide-pencil-ruler",
+	"Quality Management": "lucide-medal",
+	"Reports": "lucide-chart-line",
+	"Selling/CRM": "lucide-coins",
+	"Stock/Inventory": "lucide-boxes",
+	"Support": "lucide-life-buoy",
+	"App Development": "lucide-terminal",
+	"Bug": "lucide-microscope",
+	"Custom Script": "lucide-zap",
+	"Customization": "lucide-wand-sparkles",
+	"Deployment": "lucide-rocket",
+	"Frappe Cloud": "lucide-cloud",
+	"Frappe Framework": "lucide-component",
+	"Install / Update": "lucide-cog",
+	"Integration": "lucide-webhook",
+	"Permissions": "lucide-key-round",
+	"Print Formats": "lucide-newspaper",
+	"Security": "lucide-shield",
+	"Setup": "lucide-drafting-compass",
+	"Website": "lucide-earth",
+	"E-Commerce": "lucide-package",
+	"Frappe Books": "lucide-wallet",
+	"Frappe CRM": "lucide-handshake",
+	"Frappe Helpdesk": "lucide-life-buoy",
+	"Frappe HR": "lucide-sprout",
+	"Healthcare": "lucide-heart-pulse",
+	"Insights": "lucide-chart-line",
+	"Learning": "lucide-graduation-cap",
+	"Frappe Builder": "lucide-paintbrush",
+	"Frappe Drive": "lucide-folder",
+	"Frappe Meet": "lucide-clapperboard",
+	"Frappe Studio": "lucide-wand-sparkles",
+	"Gameplan": "lucide-gamepad-2",
+	"Print Designer": "lucide-pencil-ruler",
+	"Wiki": "lucide-book-open-text",
+	"Announcements": "lucide-megaphone",
+	"Events": "lucide-calendar",
+	"Frappeverse": "lucide-orbit",
+	"Australia Community": "lucide-earth",
+	"Bangalore Chapter": "lucide-earth",
+	"ERPNext China": "lucide-earth",
+	"ERPNext North America Chapter": "lucide-earth",
+	"French Community": "lucide-earth",
+	"German Community": "lucide-earth",
+	"Hungarian Community": "lucide-earth",
+	"North America": "lucide-earth",
+	"Singapore Chapter": "lucide-earth",
+	"Thailand Community": "lucide-earth",
+	"Design": "lucide-palette",
+	"Documentation": "lucide-book-open-text",
+	"ERPNext Foundation": "lucide-landmark",
+	"Foundation": "lucide-landmark",
+	"GSoC": "lucide-sparkles",
+	"Job": "lucide-briefcase",
+	"Lounge": "lucide-party-popper",
+	"Offtopic": "lucide-ferris-wheel",
+	"Site Feedback": "lucide-lightbulb",
+	"Staff": "lucide-shield",
+	"Translations": "lucide-notebook-pen",
+	"Uncategorized": "lucide-folder",
+	"Working Groups": "lucide-puzzle",
+}
 GENERAL_SPACES = {6, 37, 89, 90}
 FOLDED_CATEGORIES = {48: 47, 49: 47}
 ADMINS_GROUP = 1
@@ -1383,11 +1467,12 @@ def migrate_category(category):
 		insert_space_subscriptions(project, category.id)
 		return
 
+	title = "General" if category.id in GENERAL_SPACES else category.name.strip()
 	doc = frappe.get_doc(
 		doctype="GP Project",
-		title="General" if category.id in GENERAL_SPACES else category.name.strip(),
+		title=title,
 		team=get_community(category.id),
-		icon=DEFAULT_SPACE_ICON,
+		icon=SPACE_ICONS.get(title, DEFAULT_SPACE_ICON),
 		visibility=VISIBILITY_MEMBER_ACCESS if category.read_restricted else VISIBILITY_GENERAL,
 	)
 	private = int(is_member_access(doc.visibility))
@@ -1431,7 +1516,18 @@ def get_community(category_id):
 	doc = frappe.get_doc(doctype="GP Team", title=title, visibility=VISIBILITY_GENERAL)
 	doc.name = append_number_if_name_exists("GP Team", url_safe_slug(title))
 	insert_without_hooks(doc)
+	set_community_logo(doc)
 	return log_discourse_map(doc, "communities", title)
+
+
+def set_community_logo(doc):
+	logo = COMMUNITY_LOGOS.get(doc.title)
+	if not logo:
+		return
+	with open(os.path.join(os.path.dirname(__file__), "logos", logo), "rb") as f:
+		content = f.read()
+	file = save_file(content, f"{url_safe_slug(doc.title)}-logo.svg", doc, 0)
+	db_set(doc, "image", file.file_url, update_modified=False)
 
 
 def get_private_members(category_id):
