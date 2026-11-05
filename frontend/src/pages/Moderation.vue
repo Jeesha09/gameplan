@@ -1,9 +1,9 @@
 <template>
-  <PageHeaderMobile class="sm:hidden" title="Moderation">
+  <PageHeaderMobile class="sm:hidden" :title="sectionTitle">
     <template #prefix><PageHeaderBackButton :fallback-route="{ name: 'More' }" /></template>
   </PageHeaderMobile>
   <PageHeader class="hidden sm:flex">
-    <Breadcrumbs :items="[{ label: 'Moderation', route: { name: 'Moderation' } }]" />
+    <Breadcrumbs :items="[{ label: sectionTitle }]" />
   </PageHeader>
   <div class="flex min-h-0 flex-1 flex-col text-ink-gray-9">
     <CommunityModeration
@@ -67,6 +67,20 @@ const siteWide = computed(() => route.query.scope === 'site' && isGlobalAdmin(us
 const siteSection = computed(() =>
   route.query.tab === 'posting-limits' ? 'posting-limits' : 'suspensions',
 )
+const sectionTitles: Record<string, string> = {
+  approvals: 'Approvals',
+  reports: 'Reports',
+  removed: 'Removed content',
+  bans: 'Community bans',
+  words: 'Watched words',
+  history: 'History',
+}
+const sectionTitle = computed(() => {
+  if (siteWide.value)
+    return siteSection.value === 'posting-limits' ? 'Posting limits' : 'Account suspensions'
+  if (!selected.value) return 'Moderation'
+  return sectionTitles[String(route.query.tab)] || 'Approvals'
+})
 function openCommunitySection(tab: string) {
   router.replace({ name: 'Moderation', query: { community: selected.value, tab } })
 }
