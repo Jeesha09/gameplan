@@ -13,7 +13,8 @@
   "reference_name",
   "project",
   "team",
-  "scheduled_at"
+  "scheduled_at",
+  "publication_error"
  ],
  "fields": [
   {
@@ -71,12 +72,18 @@
    "fieldtype": "Datetime",
    "label": "Scheduled At",
    "search_index": 1
+  },
+  {
+   "fieldname": "publication_error",
+   "fieldtype": "Small Text",
+   "label": "Publication error",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-31 19:25:15.771791",
- "modified_by": "faris@erpnext.com",
+ "modified": "2026-11-04 20:24:33.637866",
+ "modified_by": "Administrator",
  "module": "Gameplan",
  "name": "GP Draft",
  "owner": "Administrator",

@@ -2,12 +2,21 @@
   <!-- usersReady, not users.isFinished: a mid-session reload of the user list would flip
        isFinished back to false and unmount the entire shell — the app blanks out. -->
   <div class="relative flex h-full flex-col" v-if="usersReady">
-    <DesktopShell class="gameplan-desktop-shell h-full flex-1 standalone:border-t">
+    <DesktopShell
+      :scroll="effectiveRoute.name !== 'Moderation'"
+      class="gameplan-desktop-shell h-full flex-1 standalone:border-t"
+    >
       <template #rail>
         <AppRail :show-border="onCommunityRoute" :show-community-active-state="onCommunityRoute" />
       </template>
       <template #sidebar>
         <AppSidebar v-if="onCommunityRoute" :public-view="publicVisitor" />
+        <!-- Keep the Teleport target mounted while settings changes the background route. -->
+        <div
+          v-show="effectiveRoute.name === 'Moderation'"
+          id="moderation-sidebar"
+          class="h-full shrink-0"
+        />
       </template>
 
       <ReadOnlyBanner v-if="readOnlyMode" class="mb-3" />
@@ -52,13 +61,12 @@ const effectiveRoute = computed(() => {
   return router.resolve(settingsBackgroundPath.value || getHomeRoute())
 })
 
-const ownRestriction = computed(
-  () =>
-    useSessionUser().community_restrictions?.find(
-      (r) =>
-        r.community === effectiveRoute.value.params.communityId &&
-        (!r.expires_at || Date.parse(r.expires_at) > Date.now()),
-    ),
+const ownRestriction = computed(() =>
+  useSessionUser().community_restrictions?.find(
+    (r) =>
+      r.community === effectiveRoute.value.params.communityId &&
+      (!r.expires_at || Date.parse(r.expires_at) > Date.now()),
+  ),
 )
 
 const onCommunityRoute = computed(() => {

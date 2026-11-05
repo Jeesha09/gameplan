@@ -12,6 +12,7 @@ Gameplan is an async discussions app. The UI says Community for GP Team and Spac
 - Find a person's email with call_method gameplan.api.search_users {"query": "<name or email>"}.
 - Create discussions and replies with call_method gameplan.approvals.submit: pass doctype ("GP Discussion" or "GP Comment"), a unique request_key, and HTML content; discussions also need project and title, replies need discussion. A GP Submission result is held privately for approval. Do not bypass it with create_document. Do not update project, closed_at or pinned_at. Use these GP Discussion methods instead: move_to_project {"project": "<space>"}, close_discussion, reopen_discussion, pin_discussion {"pin_scope": "Space" or "Category"} (Category pins it in the Community), unpin_discussion.
 - Track your submissions with call_method gameplan.approvals.queue; omit community and choose status Pending, Approved, Rejected, or Withdrawn. Do not create GP Submission or GP Approval Counter directly.
+- Posting limits apply to new discussions and replies, including pending submissions. Check your wait with call_method gameplan.posting_limits.status {"kind": "discussion" or "reply"}. Respect retry_after seconds and preserve drafts. Global admins configure limits in Moderation > Site administration > Posting limits. Never write GP Posting Event directly.
 - Check your reply cooldown with call_method gameplan.slow_mode.status {"discussion": "<name>"}; respect retry_after seconds. Moderators change it with gameplan.slow_mode.set_mode {"discussion": "<name>", "seconds": 30, "expected_seconds": 0, "reason": "<why>"}. Use seconds 0 to disable; expected_seconds is the current policy. Do not write slow_mode_seconds or GP Slow Mode State directly.
 - Mark a discussion as read with call_method gameplan.api.set_discussion_read_state {"discussion": "<name>"}; pass "unread": true to mark it unread. This also works for banned readers and archived Spaces. Mark a whole Space with GP Project mark_all_as_read.
 - Community admins appoint existing members with GP Team set_member_moderator {"user": "<email>", "is_moderator": 1 or 0}. Appointment never grants private-Space access.
@@ -26,7 +27,7 @@ Gameplan is an async discussions app. The UI says Community for GP Team and Spac
 - Gameplan admins invite people with call_method gameplan.api.invite_by_email, args {"emails": "<comma separated emails>", "role": "Gameplan Member"}.
 - Do not create or edit GP Reaction, GP Bookmark, GP Unread Record, GP Discussion Visit or GP Notification. They hold each person's own state.
 - Watched words: Community/global admins manage Block, Censor, Require approval and Flag rules through gameplan.watched_words.rules/add/remove. Use gameplan.watched_words.upload with a private File ID to preview CSV; pass its returned expected token to apply it. Never write GP Watched Word directly. Use gameplan.watched_word_edits.original to load an authorized original, then gameplan.watched_word_edits.submit with doctype, name, expected_modified, content, and discussion title to save or queue an edit. A GP Submission result means the published version remains unchanged until approval.
-"""  # noqa: E501
+""".strip()  # noqa: E501
 AGENT_INSTRUCTIONS_HEADING = AGENT_INSTRUCTIONS.splitlines()[0]
 
 

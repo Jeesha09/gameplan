@@ -13,7 +13,14 @@
     <p v-else-if="author && author.name !== sessionUser.name" class="mb-3 text-sm text-ink-gray-5">
       {{ author.full_name }}'s draft. Only they can edit or publish it.
     </p>
-    <ErrorMessage :message="errorMessage || publishError || scheduleWarning" />
+    <ErrorMessage :message="errorMessage || publishError || publicationError || scheduleWarning" />
+    <p
+      v-if="postingMessage"
+      class="mb-3 text-base text-ink-gray-6"
+      data-testid="posting-limit-status"
+    >
+      {{ postingMessage }}
+    </p>
     <textarea
       ref="titleTextarea"
       class="mt-1 w-full bg-transparent resize-none border-0 px-0 py-0.5 text-3xl-semibold text-ink-gray-8 placeholder-ink-gray-3 focus:ring-0"
@@ -57,6 +64,8 @@ const { textarea: titleTextarea, triggerResize } = useTextareaAutosize()
 
 const {
   errorMessage,
+  publicationError,
+  postingMessage,
   publishError,
   draftData,
   isDraftLoading,

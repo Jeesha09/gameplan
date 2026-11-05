@@ -28,7 +28,7 @@ A recommendation becomes a decision only after Ebrahim accepts it.
 | D16 | Community moderators can ban participation within their Community. | Banned users can still read otherwise-accessible content and participate elsewhere. Only global admins can disable accounts site-wide. |
 | D17 | Delete spam is reversible. | Remove spam from ordinary lists, search, and access while preserving restricted originals that authorized moderators can restore. Permanent destruction remains a separate admin operation. |
 | D18 | Community bans last until manually lifted and survive leaving and rejoining. | Block creating, editing, deleting, reactions, voting, and invitations in that Community. Preserve reading and membership. Staff must lose their Community role before being banned; global admins are exempt. |
-| D19 | Add a moderator-only Removed content view per Community with preview and Restore. | Ordinary feeds/search omit removed discussions; direct access shows a neutral unavailable message. Replies show neutral placeholders. Private-Space restrictions still apply. |
+| D19 | Add a moderator-only Removed content view per Community with preview and Restore. | Ordinary feeds/search omit removed discussions; direct access shows a neutral unavailable message. Hidden replies show placeholders; spam-removed replies disappear from the thread and remain restorable. Private-Space restrictions still apply. |
 | D20 | Delete spam requires a reason and affects only the selected reply or discussion. | Preserve descendants/files and closed/pinned state for restoration without new notifications. Do not automatically ban the author or remove other posts. Ordinary Delete remains separate. |
 | D21 | Build T26 moderation history in a separate PR after the T27 review fixes. | Reuse the immutable log for discussion/reply action history and Community-scoped user ban/unban history. Include actor, time, reason, pagination, existing moderator/private-Space access rules, frontend, and tests. |
 | D22 | History uses a tab in Community moderation, filters for posts or users, and links in post menus. | Show action, actor, time, reason, and target. Original hidden text stays behind existing restricted Preview. Retain permanent, read-only records. |
@@ -230,3 +230,37 @@ Confirmed by Ebrahim after grilling:
 Implementation choice: store indexed current restriction state separately from immutable action history and from User.enabled. Auth hooks check deadlines; bounded cleanup records expiries afterward.
 
 - PR timing: push this feature and integrate it into `forum-features`. Do not open a draft PR yet; Ebrahim will open the watched-words PR first.
+
+## Moderation navigation — November 4, 2026
+
+Confirmed by Ebrahim:
+- Reuse the existing Frappe UI sidebar components in the shell sidebar position, at full viewport height.
+- Keep the standard page header over the content area.
+- Put Account suspensions under Site administration in the sidebar, visible only to global admins. Remove the separate scope switcher.
+- Open Approvals by default. Preserve explicit section links.
+
+## Site-wide posting limits — November 4, 2026
+
+Confirmed by Ebrahim, rounds 1–2:
+- Use separate per-account discussion and reply limits across all Communities.
+- Count accepted pending submissions once. Failed submissions consume nothing. Deletion or withdrawal does not refund an allowance.
+- Global admins manage the site-wide policy. Only global admins bypass posting limits. Community staff follow the ordinary posting policy.
+- Support rolling one-hour and 24-hour windows. Suggested settings: 5 discussions/hour, 20 discussions/24 hours, 30 replies/hour, and 200 replies/24 hours.
+- Start disabled on existing sites. Prefill suggested values and allow each limit to be disabled. Retain the preceding 24 hours of activity while disabled, so policy changes do not reset allowances.
+- Preserve drafts when a limit is reached. Show the applicable limit and a countdown. Combine posting and slow-mode waits, and enforce every applicable limit on the server.
+- Implement posting rates first. Link, media, and mention caps belong in the next PR.
+
+Confirmed by Ebrahim, round 3:
+- Count only new forum discussions and discussion replies. Embedded polls consume no extra allowance. Exclude task comments, edits, reactions, votes, and draft autosaves. Keep report limits separate.
+- Check scheduled discussions at publication time. Scheduling reserves no allowance. If a limit blocks publication, retain the draft and clear its schedule. Show that the author must reschedule it.
+
+Ebrahim confirmed implementation, testing, pushing the feature branch, and integration into `forum-features`. Existing newcomer restrictions remain in force.
+
+Implementation notes:
+- Store accepted submissions in a private ledger with account/kind/time and expiry indexes. UTC timestamps keep elapsed windows independent of time zones and DST.
+- Retain one day of events and prune old rows in batches of 10,000. Tracking starts after deployment; do not scan historic forum content during migration.
+- Serialize writes with the existing account lock. Each quota read returns at most the largest configured allowance, capped at 10,000.
+- Apply document hooks to direct writes, and the same accounting to held submissions. Approval publication skips a second charge.
+- Use Moderation > Site administration > Posting limits for global admins. Keep the longest applicable posting/slow-mode wait visible in the reply composer.
+
+- UI placement correction: Ebrahim requested Posting limits in Moderation, alongside Account suspensions. Remove its general Settings tab.

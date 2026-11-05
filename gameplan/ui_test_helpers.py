@@ -94,8 +94,12 @@ def reset(scenario=None):
 
 
 def _delete_gameplan_data():
-	for doctype in frappe.get_all("DocType", filters={"module": "Gameplan"}, pluck="name"):
-		frappe.db.delete(doctype)
+	for doctype in frappe.get_all("DocType", filters={"module": "Gameplan"}, fields=["name", "issingle"]):
+		if doctype.issingle:
+			frappe.db.delete("Singles", {"doctype": doctype.name})
+			frappe.clear_cache(doctype=doctype.name)
+		else:
+			frappe.db.delete(doctype.name)
 
 	administrator = frappe.get_doc("User", "Administrator")
 	for role in list(administrator.roles):

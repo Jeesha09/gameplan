@@ -116,7 +116,7 @@
           ]"
         >
           <p
-            v-if="slowStatus?.seconds"
+            v-if="slowStatus?.seconds && (!postingWait || slowWait > postingWait)"
             class="mb-2 text-base text-ink-gray-6"
             data-testid="slow-mode-status"
           >
@@ -127,6 +127,13 @@
             <template v-else
               >Slow mode: {{ slowModeLabel(slowStatus.seconds) }} between your replies.</template
             >
+          </p>
+          <p
+            v-if="postingMessage && postingWait >= slowWait"
+            class="mb-2 text-base text-ink-gray-6"
+            data-testid="posting-limit-status"
+          >
+            {{ postingMessage }}
           </p>
           <div v-if="!showCommentBox" class="sm:-mx-3">
             <button
@@ -260,6 +267,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useDebounceFn, useEventListener } from '@vueuse/core'
 import { useCall, useList, ErrorMessage, Button, Tooltip, call, toast, dialog } from 'frappe-ui'
 import { slowModeLabel, useSlowMode } from '@/data/slowMode'
+import { usePostingLimit } from '@/data/postingLimits'
 import CommentEditor from '@/components/editor/CommentEditor.vue'
 import Comment from './Comment.vue'
 import Activity from './Activity.vue'
@@ -353,6 +361,12 @@ const {
   props.doctype === 'GP Discussion' && !isAnonymousVisitor() ? String(props.name) : undefined,
 )
 
+const {
+  remaining: postingWait,
+  message: postingMessage,
+  refresh: refreshPostingLimit,
+} = usePostingLimit('reply', () => props.doctype === 'GP Discussion' && !isAnonymousVisitor())
+
 const emit = defineEmits<{
   'composer-resize': []
   'highlight-comment': [comment: string]
@@ -419,6 +433,7 @@ const comments = useList<GPComment>({
   filters: {
     reference_doctype: props.doctype,
     reference_name: props.name,
+    spam_removed_at: ['is', 'not set'],
   },
   orderBy: 'creation asc, name asc',
   start: publicPageStart(),
@@ -551,7 +566,7 @@ watchEffect(() => {
 const timelineItems = computed(() => {
   let items: Array<GPComment | GPActivity | GPPoll> = []
   if (comments.data?.length) {
-    items = items.concat(comments.data)
+    items = items.concat(comments.data.filter((comment) => !comment.spam_removed_at))
   }
   if (activities.data?.length) {
     items = items.concat(activities.data)
@@ -576,6 +591,7 @@ const pollDraft = computed(() => pollDraftInContent(draftData.value?.content))
 const canSubmit = computed(
   () =>
     !slowWait.value &&
+    !postingWait.value &&
     !commentEmpty.value &&
     (!pollDraft.value || isPollDraftReady(pollDraft.value)),
 )
@@ -772,6 +788,7 @@ async function submitComment() {
   } finally {
     submittingReply.value = false
     refreshSlowMode()
+    refreshPostingLimit()
   }
 }
 
