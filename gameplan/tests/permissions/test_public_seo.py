@@ -11,6 +11,7 @@ from PIL import Image
 from gameplan import public_sitemap
 from gameplan.public_seo import discussion_path, get_public_page, space_path
 from gameplan.share_cards import image as share_image
+from gameplan.share_cards import supports, text_font
 from gameplan.tests.base import GameplanTestCase
 from gameplan.tests.fixtures import (
 	create_comment,
@@ -107,6 +108,14 @@ class TestPublicSEO(GameplanTestCase):
 		):
 			share_image(str(self.post.name))
 			self.assertNotIn("secret", render.call_args.kwargs["title"].lower())
+
+	def test_share_card_font_fallback_never_draws_missing_glyph_boxes(self):
+		for text in ("हिन्दी में चर्चा", "中文讨论", "مرحبا", "Hello 😊"):
+			rendered, face = text_font(text, "Regular", 36)
+			self.assertTrue(all(supports(face, char) for char in rendered))
+		with patch("gameplan.share_cards.fallback_font", return_value=None):
+			rendered, face = text_font("中文", "Regular", 36)
+			self.assertTrue(all(supports(face, char) for char in rendered))
 
 	def test_moderated_content_stays_out_of_public_html_and_sitemaps(self):
 		self.comment.hide("Hidden reply")
