@@ -1,8 +1,5 @@
 <template>
   <div class="max-w-3xl space-y-6">
-    <h2 class="border-b border-outline-gray-2 pb-4 text-lg-semibold text-ink-gray-9">
-      Posting limits
-    </h2>
     <div v-if="policy" class="space-y-6">
       <p class="text-base text-ink-gray-6">
         Per-account limits across all Communities. Global admins are exempt. Pending submissions
