@@ -29,6 +29,7 @@ from frappe.utils import (
 from psycopg2.extras import DictCursor
 
 from gameplan.activity_counts import backfill_activity_counts
+from gameplan.direct_messages import direct_key, preview, summary
 from gameplan.gameplan.doctype.gp_project.gp_project import DEFAULT_SPACE_ICON
 from gameplan.search_sqlite import GameplanSearch, rebuild_index
 from gameplan.utils import remove_empty_trailing_paragraphs, url_safe_slug
@@ -154,7 +155,7 @@ OPTIONS = {
 	"postgres": None,
 	"uploads_folder": None,
 	"log_folder": None,
-	"steps": ["users", "categories", "topics", "links", "backlinks"],
+	"steps": ["users", "categories", "topics", "messages", "links", "backlinks"],
 	"category_ids": None,
 	"topic_ids": None,
 	"user_ids": None,
@@ -204,6 +205,10 @@ DISCUSSION_META_FIELDS = (
 )
 POST_FILTER = """posts.deleted_at is null and not posts.hidden and posts.post_type = 1
 	and coalesce(posts.user_id, 0) <> -2"""
+PM_FILTER = """topics.archetype = 'private_message' and topics.subtype = 'user_to_user'
+	and topics.deleted_at is null"""
+DISCOBOT = -2
+PAIR = 2
 
 
 def execute(**options):
@@ -223,7 +228,7 @@ def execute(**options):
 		)
 	try:
 		load_file_hashes()
-		if {"users", "topics"} & set(config.steps):
+		if {"users", "topics", "messages"} & set(config.steps):
 			create_placeholder_users()
 		for step, migrate in get_steps().items():
 			if step in config.steps:
@@ -242,6 +247,7 @@ def get_steps():
 		"users": migrate_users,
 		"categories": migrate_categories,
 		"topics": migrate_posts,
+		"messages": migrate_messages,
 		"links": migrate_links,
 		"backlinks": migrate_backlinks,
 	}
@@ -652,6 +658,243 @@ def update_backlinks(doctype, name):
 	frappe.db.delete("GP Backlink", {"parenttype": doctype, "parent": name})
 	for row in doc.backlinks:
 		row.db_insert()
+
+
+def migrate_messages():
+	for table in ("users", "topics", "posts"):
+		load_id_map(table)
+	load_forum_users()
+	conversations = get_pm_conversations()
+	log(f"[messages] {len(conversations)} conversations to import")
+	run_batches("messages", "pm_topics", partial(get_pm_batch, conversations), migrate_conversation)
+	enable_direct_messages(conversations)
+
+
+def get_pm_conversations():
+	topic_filter, topic_values = slice_filter("topics.id", config.topic_ids)
+	topics = run_query(
+		f"""
+		select topics.id, topics.title,
+			array(select user_id from topic_allowed_users where topic_id = topics.id) as allowed,
+			array(select distinct posts.user_id from posts where posts.topic_id = topics.id and {POST_FILTER})
+				as posters,
+			exists (select 1 from topic_allowed_groups where topic_id = topics.id) as to_group,
+			exists (select 1 from posts where posts.topic_id = topics.id and posts.user_id = %s) as has_bot
+		from topics
+		where {PM_FILTER} {topic_filter}
+		order by topics.id asc
+	""",
+		(DISCOBOT, *topic_values),
+	)
+	conversations = {}
+	for topic in topics:
+		if DISCOBOT in topic.allowed or topic.has_bot:
+			outcomes["messages", "discobot topics skipped"] += 1
+			continue
+		members = get_pm_members(topic.allowed)
+		if len(members) < PAIR:
+			members = get_pm_members([*topic.allowed, *topic.posters])
+		if len(members) < PAIR:
+			outcomes["messages", "one-person topics skipped"] += 1
+			continue
+		is_group = topic.to_group or len(members) > PAIR
+		key = ("group", topic.id) if is_group else ("pair", *members)
+		conversation = conversations.setdefault(
+			key, frappe._dict(id=topic.id, topics=[], members=members, is_group=is_group)
+		)
+		conversation.topics.append(topic)
+	return sorted(conversations.values(), key=lambda conversation: conversation.id)
+
+
+def get_pm_members(user_ids):
+	return sorted({user for user_id in user_ids if user_id > 0 and (user := get_user(user_id))})
+
+
+def get_pm_batch(conversations, last_id, limit):
+	batch.clear()
+	rows = [conversation for conversation in conversations if conversation.id > last_id][:limit]
+	if rows:
+		topic_ids = tuple(topic.id for conversation in rows for topic in conversation.topics)
+		posts = get_pm_posts(topic_ids)
+		batch.posts = group_by(posts, "topic_id")
+		batch.likes = group_by(get_likes(tuple(post.id for post in posts)), "post_id") if posts else {}
+		batch.muted = group_by(get_pm_muted(topic_ids), "topic_id")
+	return rows
+
+
+def get_pm_posts(topic_ids):
+	return run_query(
+		f"""
+		select posts.id, posts.topic_id, posts.post_number, posts.user_id, posts.reply_to_post_number,
+			{local_time("posts.created_at")} as creation, {local_time("posts.updated_at")} as modified,
+			posts.cooked as content
+		from posts
+		where posts.topic_id in %s and {POST_FILTER}
+		order by posts.topic_id asc, posts.post_number asc
+	""",
+		(topic_ids,),
+	)
+
+
+def get_pm_muted(topic_ids):
+	return run_query(
+		"""
+		select topic_users.topic_id, topic_users.user_id
+		from topic_users
+		where topic_users.topic_id in %s and topic_users.user_id > 0 and topic_users.notification_level = 0
+	""",
+		(topic_ids,),
+	)
+
+
+def migrate_conversation(conversation):
+	posts = sorted(
+		(post for topic in conversation.topics for post in batch.posts.get(topic.id, [])),
+		key=lambda post: (post.creation, post.topic_id, post.post_number),
+	)
+	key = None if conversation.is_group else direct_key(*conversation.members)
+	if key and frappe.db.exists("GP Conversation", {"direct_key": key}):
+		frappe.throw(f"A conversation already exists for {', '.join(conversation.members)}")
+
+	doc = frappe.get_doc(doctype="GP Conversation", is_group=int(conversation.is_group), direct_key=key)
+	set_new_name(doc)
+	titles = {topic.id: topic.title.strip() for topic in conversation.topics}
+	messages = {}
+	previous = None
+	for post in posts:
+		reply = (post.topic_id, post.reply_to_post_number)
+		reply_to = messages.get(reply) if reply != previous else None
+		message = make_pm_message(doc, post, titles[post.topic_id] if post.post_number == 1 else None)
+		if not message:
+			continue
+		message.reply_to = reply_to and reply_to.name
+		messages[post.topic_id, post.post_number] = message
+		previous = (post.topic_id, post.post_number)
+		log_discourse_map(message, "pm_posts", post.id)
+
+	if not messages:
+		frappe.throw("No posts left to import")
+	ordered = list(messages.values())
+	first, last = ordered[0], ordered[-1]
+	doc.update(
+		{
+			"creation": first.creation,
+			"modified": last.creation,
+			"owner": first.owner,
+			"modified_by": last.owner,
+			"last_message": last.name,
+			"last_message_at": last.creation,
+			"last_message_by": last.owner,
+			"last_message_preview": preview(last.content),
+		}
+	)
+	db_insert(doc)
+	for message in ordered:
+		db_insert(message)
+	insert_pm_members(doc, conversation, last)
+	for topic in conversation.topics:
+		log_discourse_map(doc, "pm_topics", topic.id)
+
+
+def make_pm_message(conversation, post, title):
+	owner = get_author(post.user_id)
+	doc = frappe.get_doc(
+		doctype="GP Message",
+		conversation=conversation.name and str(conversation.name),
+		creation=post.creation,
+		modified=post.modified,
+		owner=owner,
+		modified_by=owner,
+	)
+	set_new_name(doc)
+	content = post.content or ""
+	if title:
+		content = f"<p><strong>{escape(title)}</strong></p>{content}"
+	doc.content = convert_pm_html(content, doc)
+	if not summary(doc.content):
+		outcomes["messages", "empty posts skipped"] += 1
+		return
+	reactions = get_pm_reactions(post.id)
+	doc.reactions = json.dumps(reactions, ensure_ascii=False) if reactions else None
+	return doc
+
+
+def convert_pm_html(html, doc):
+	content = convert_html(html, doc, 1)
+	soup = BeautifulSoup(content, "html.parser")
+	if convert_forum_links(soup):
+		content = sanitize_content(str(soup))
+	return content
+
+
+def get_pm_reactions(post_id):
+	reactions = {}
+	for like in batch.likes.get(post_id, []):
+		if user := get_user(like.user_id):
+			users = reactions.setdefault(get_reaction_emoji(like), [])
+			if user not in users:
+				users.append(user)
+	return reactions
+
+
+def insert_pm_members(doc, conversation, last):
+	muted = {get_user(row.user_id) for topic in conversation.topics for row in batch.muted.get(topic.id, [])}
+	stamp = now()
+	rows = [
+		[
+			doc.name and str(doc.name),
+			user,
+			last.name,
+			last.name,
+			last.creation,
+			0,
+			int(user in muted),
+			0,
+			stamp,
+			stamp,
+			user,
+			user,
+		]
+		for user in conversation.members
+	]
+	bulk_insert(
+		"GP Conversation Member",
+		[
+			"conversation",
+			"user",
+			"last_message",
+			"last_read_message",
+			"last_read_at",
+			"unread_count",
+			"muted",
+			"cleared_message",
+			"creation",
+			"modified",
+			"owner",
+			"modified_by",
+		],
+		rows,
+	)
+
+
+def enable_direct_messages(conversations):
+	if config.dry_run:
+		writes["GP User Profile"] += len({user for row in conversations for user in row.members})
+		return
+	frappe.db.sql(
+		"""
+		update `tabGP User Profile` set direct_messages_enabled = 1
+		where direct_messages_enabled = 0 and user in (
+			select member.user from `tabGP Conversation Member` member
+			join `tabDiscourse ID Map` map on map.reference_doctype = 'GP Conversation'
+				and map.reference_name = member.conversation
+			where map.discourse_table = 'pm_topics'
+		)
+	"""
+	)
+	enabled = frappe.db.sql("select row_count()")[0][0]
+	frappe.db.commit()
+	log(f"[messages] direct messages turned on for {enabled} people")
 
 
 def local_time(column):
