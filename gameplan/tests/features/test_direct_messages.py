@@ -955,3 +955,98 @@ class TestNotifications(DirectMessagesTestCase):
 		with self.as_user(self.outsider):
 			rows = frappe.get_list("GP Notification", filters={"type": dm.NOTIFICATION_TYPE})
 		self.assertEqual(rows, [])
+
+
+class TestBlock(DirectMessagesTestCase):
+	def block(self, user, other):
+		with self.as_user(user):
+			dm.block_user(other.name)
+
+	def info(self, viewer, user):
+		from gameplan.api import user_info_rows
+
+		with self.as_user(viewer):
+			[row] = user_info_rows([user.name])
+		return row
+
+	def test_neither_side_can_message_the_other(self):
+		conversation = self.start()
+		self.block(self.member, self.second_member)
+		with self.as_user(self.member), self.assertRaisesRegex(frappe.ValidationError, "You blocked"):
+			dm.send_message("Hi", conversation=conversation)
+		with (
+			self.as_user(self.second_member),
+			self.assertRaisesRegex(frappe.ValidationError, "not accepting"),
+		):
+			dm.send_message("Hi", conversation=conversation)
+		with (
+			self.as_user(self.second_member),
+			self.assertRaisesRegex(frappe.ValidationError, "not accepting"),
+		):
+			dm.send_message("Hi", to=self.member.name)
+
+	def test_unblocking_lets_you_message_again(self):
+		conversation = self.start()
+		self.block(self.member, self.second_member)
+		with self.as_user(self.member):
+			dm.unblock_user(self.second_member.name)
+		self.send(self.second_member, conversation=conversation)
+		self.send(self.member, conversation=conversation)
+
+	def test_both_people_can_still_read_the_old_chat(self):
+		conversation = self.start()
+		self.block(self.member, self.second_member)
+		for user in (self.member, self.second_member):
+			with self.as_user(user):
+				self.assertEqual(len(dm.get_messages(conversation)["messages"]), 1)
+
+	def test_blocking_twice_keeps_one_row_and_lists_newest_first(self):
+		third = self.person("third@example.com", "Third")
+		self.block(self.member, self.second_member)
+		self.block(self.member, self.second_member)
+		self.block(self.member, third)
+		self.assertEqual(frappe.db.count("GP User Block", {"user": self.member.name}), 2)
+		with self.as_user(self.member):
+			self.assertEqual(dm.get_blocked_users(), [third.name, self.second_member.name])
+		with self.as_user(self.second_member):
+			self.assertEqual(dm.get_blocked_users(), [])
+
+	def test_cannot_block_yourself_or_unknown_people_and_guests_cannot_block(self):
+		with self.as_user(self.member):
+			for user in (self.member.name, "nobody@example.com"):
+				with self.assertRaises(frappe.ValidationError):
+					dm.block_user(user)
+		with self.as_user(self.guest), self.assertRaises(frappe.PermissionError):
+			dm.block_user(self.member.name)
+		self.assertEqual(frappe.db.count("GP User Block"), 0)
+
+	def test_the_blocked_person_sees_messages_off_not_a_block(self):
+		self.block(self.member, self.second_member)
+		mine = self.info(self.member, self.second_member)
+		self.assertEqual(mine.blocked, 1)
+		self.assertEqual(mine.direct_messages_enabled, 1)
+		theirs = self.info(self.second_member, self.member)
+		self.assertEqual(theirs.blocked, 0)
+		self.assertEqual(theirs.direct_messages_enabled, 0)
+		self.assertEqual(self.info(self.outsider, self.member).direct_messages_enabled, 1)
+
+	def test_people_search_for_messages_skips_blocks_both_ways(self):
+		self.block(self.member, self.second_member)
+		for viewer, other in ((self.member, self.second_member), (self.second_member, self.member)):
+			with self.as_user(viewer):
+				everyone = [row["name"] for row in search_users(other.full_name)]
+				open_only = [row["name"] for row in search_users(other.full_name, direct_messages=True)]
+			self.assertIn(other.name, everyone)
+			self.assertNotIn(other.name, open_only)
+
+	def test_group_chats_are_not_affected(self):
+		conversation = self.start()
+		frappe.db.set_value("GP Conversation", conversation, "is_group", 1)
+		self.block(self.member, self.second_member)
+		self.send(self.second_member, conversation=conversation)
+		self.send(self.member, conversation=conversation)
+
+	def test_blocking_tells_both_people(self):
+		with patch("frappe.realtime.publish_realtime") as publish:
+			self.block(self.member, self.second_member)
+		self.assertEqual({call.args[0] for call in self.published(publish)}, {USERS_CHANGED})

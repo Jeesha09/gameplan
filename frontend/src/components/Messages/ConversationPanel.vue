@@ -6,9 +6,9 @@
     </header>
     <ScrollArea class="min-h-0 flex-1" viewport-class="p-5">
       <div class="flex flex-col items-center text-center">
-        <UserAvatar :user="person" size="3xl" />
-        <p class="mt-3 text-lg-medium text-ink-gray-9">{{ user.full_name }}</p>
-        <p v-if="user.bio" class="mt-1 line-clamp-3 text-base text-ink-gray-6">{{ user.bio }}</p>
+        <ConversationAvatar :people="people" size="3xl" />
+        <p class="mt-3 text-lg-medium text-ink-gray-9">{{ name }}</p>
+        <p v-if="bio" class="mt-1 line-clamp-3 text-base text-ink-gray-6">{{ bio }}</p>
       </div>
       <TabButtons
         class="mt-6"
@@ -100,22 +100,23 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Button, ScrollArea, TabButtons, TextInput, toast } from 'frappe-ui'
-import UserAvatar from '@/components/UserAvatar.vue'
 import { getSharedMessages, type SharedMessage } from '@/data/messages'
 import { useUser } from '@/data/users'
 import { relativeTimestamp } from '@/utils'
 import AttachmentViewer from './AttachmentViewer.vue'
+import ConversationAvatar from './ConversationAvatar.vue'
 import { fileIcon, messageFiles, messageLinks, type ViewerFile } from './messageFiles'
 
 const props = defineProps<{
   conversation: string
-  person: string
+  people: string[]
 }>()
 
 const emit = defineEmits<{ close: [] }>()
 const tab = defineModel<'files' | 'links'>('tab', { required: true })
 
-const user = computed(() => useUser(props.person))
+const name = computed(() => props.people.map((user) => useUser(user).full_name).join(', '))
+const bio = computed(() => (props.people.length === 1 ? useUser(props.people[0]).bio : ''))
 
 const query = ref('')
 const trimmed = computed(() => query.value.trim())

@@ -32,6 +32,11 @@
               :mine="row.mine"
               :last="row.last"
               :seen-at="row.message.name === messages.at(-1)?.name ? seenAt : null"
+              :sender="
+                people.length > 1 && !row.mine && !row.grouped
+                  ? useUser(row.message.owner).full_name
+                  : ''
+              "
               :highlighted="row.message.name === highlighted"
               @edit="startEditing(row.message)"
               @delete="confirmDelete(row.message)"
@@ -60,8 +65,15 @@
       </Button>
     </div>
     <div ref="footer" class="w-full px-3 pb-3 sm:px-8">
+      <div
+        v-if="recipientBlocked"
+        class="flex items-center justify-center gap-2 rounded-5 border border-outline-gray-2 px-3 py-1.5 text-base text-ink-gray-5"
+      >
+        You blocked {{ title }}
+        <Button variant="ghost" label="Unblock" @click="toggleBlocked(recipient!, false)" />
+      </div>
       <p
-        v-if="recipientOff"
+        v-else-if="recipientOff"
         class="rounded-5 border border-outline-gray-2 px-3 py-2.5 text-center text-base text-ink-gray-5"
       >
         {{ title }} is not accepting direct messages
@@ -107,6 +119,7 @@ import { isGuest } from '@/utils/permissions'
 import AttachmentViewer from './AttachmentViewer.vue'
 import MessageBubble from './MessageBubble.vue'
 import MessageComposer from './MessageComposer.vue'
+import { toggleBlocked } from './conversationActions'
 import { messageFiles, type ViewerFile } from './messageFiles'
 
 const GROUP_WINDOW_MINUTES = 5
@@ -176,6 +189,9 @@ const viewport = computed(() => scrollArea.value?.viewportElement ?? null)
 const isNew = computed(() => props.conversationId === 'new')
 const canSend = computed(() => !isGuest(sessionUser) && (!isNew.value || Boolean(props.to)))
 const recipient = computed(() => (props.people.length === 1 ? props.people[0] : props.to))
+const recipientBlocked = computed(
+  () => Boolean(recipient.value) && Boolean(useUser(recipient.value).blocked),
+)
 const recipientOff = computed(
   () => Boolean(recipient.value) && useUser(recipient.value).direct_messages_enabled === 0,
 )

@@ -51,6 +51,7 @@ export interface UserInfo {
   quick_reaction_emojis?: unknown
   sidebar_badge_style?: SidebarBadgeStyle
   direct_messages_enabled?: 0 | 1
+  blocked?: 0 | 1
   email_digest_frequency?: EmailDigestFrequency
   email_digest_day_of_week?: EmailDigestDayOfWeek
   email_digest_last_sent_on?: string

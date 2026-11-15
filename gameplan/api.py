@@ -136,6 +136,9 @@ def user_info_rows(names):
 		filters={"user": ["in", [u.name for u in users]]},
 	)
 	user_profile_map = {u.user: u for u in user_profiles}
+	from gameplan.direct_messages import blocks_with
+
+	blocked, blocked_me = blocks_with(frappe.session.user, [u.name for u in users])
 	for user in users:
 		if frappe.session.user == user.name:
 			user.session_user = True
@@ -167,6 +170,9 @@ def user_info_rows(names):
 				user.active_hours_end = user_profile.active_hours_end
 				user.active_hours_days = user_profile.active_hours_days
 		user.role = role_map.get(user.name)
+		if user.name in blocked_me:
+			user.direct_messages_enabled = 0
+		user.blocked = int(user.name in blocked)
 
 		if user.name == frappe.session.user:
 			from gameplan.community_bans import banned_communities
@@ -232,7 +238,7 @@ def search_users(
 		query, include_guests, include_disabled, community, exclude_community, exclude_space
 	)
 	if direct_messages:
-		q = q.where(accepts_direct_messages(User.name))
+		q = q.where(accepts_direct_messages(User.name)).where(not_blocked_with(User.name))
 	if order_by == "role":
 		q = order_by_role(q, order).orderby(User.full_name)
 	elif order_by == "relevance":
@@ -261,6 +267,14 @@ def accepts_direct_messages(user):
 		frappe.qb.from_(Profile)
 		.select(Profile.user)
 		.where((Profile.direct_messages_enabled == 0) & Profile.user.isnotnull())
+	)
+
+
+def not_blocked_with(user):
+	Block = frappe.qb.DocType("GP User Block")
+	me = frappe.session.user
+	return user.notin(frappe.qb.from_(Block).select(Block.blocked_user).where(Block.user == me)) & user.notin(
+		frappe.qb.from_(Block).select(Block.user).where(Block.blocked_user == me)
 	)
 
 

@@ -299,6 +299,38 @@ def set_direct_messages_enabled(enabled: bool):
 	return get_unread_conversation_count()
 
 
+@frappe.whitelist(methods=["POST"])
+def block_user(user: str):
+	"""Block a person: neither of you can message the other until you unblock them."""
+	require_member()
+	if user == frappe.session.user:
+		frappe.throw("You cannot block yourself")
+	if not frappe.db.exists("User", user):
+		frappe.throw("Could not find this person")
+	if not frappe.db.exists("GP User Block", {"user": frappe.session.user, "blocked_user": user}):
+		frappe.get_doc(doctype="GP User Block", user=frappe.session.user, blocked_user=user).insert(
+			ignore_permissions=True
+		)
+	notify_block_changed(user)
+
+
+@frappe.whitelist(methods=["POST"])
+def unblock_user(user: str):
+	"""Unblock a person you blocked, so you can message each other again."""
+	require_member()
+	frappe.db.delete("GP User Block", {"user": frappe.session.user, "blocked_user": user})
+	notify_block_changed(user)
+
+
+@frappe.whitelist()
+def get_blocked_users():
+	"""List the people you have blocked, most recent first."""
+	require_member()
+	return frappe.get_all(
+		"GP User Block", filters={"user": frappe.session.user}, pluck="blocked_user", order_by="name desc"
+	)
+
+
 def deliver(sender, content, conversation, to, reply_to=None):
 	conversation = conversation or direct_conversation(sender, to)
 	frappe.db.get_value("GP Conversation", conversation, "name", for_update=True)
@@ -733,6 +765,7 @@ def require_recipient(user):
 		or not messages_enabled(user)
 	):
 		frappe.throw("You cannot message this person")
+	require_not_blocked(user)
 
 
 def require_others_enabled(conversation):
@@ -744,6 +777,42 @@ def require_others_enabled(conversation):
 	)
 	if len(enabled) < len(others):
 		frappe.throw("This person is not accepting direct messages")
+	if len(others) == 1 and not frappe.db.get_value("GP Conversation", conversation, "is_group"):
+		require_not_blocked(others[0])
+
+
+def require_not_blocked(user):
+	blocked, blocked_me = blocks_with(frappe.session.user, [user])
+	if blocked:
+		frappe.throw("You blocked this person. Unblock them to send a message")
+	if blocked_me:
+		frappe.throw("This person is not accepting direct messages")
+
+
+def blocks_with(user, others):
+	"""Split others into the people user blocked and the people who blocked user."""
+	if not others:
+		return set(), set()
+	Block = frappe.qb.DocType("GP User Block")
+	rows = (
+		frappe.qb.from_(Block)
+		.select(Block.user, Block.blocked_user)
+		.where(
+			((Block.user == user) & Block.blocked_user.isin(others))
+			| ((Block.blocked_user == user) & Block.user.isin(others))
+		)
+	).run(as_dict=True)
+	blocked = {row.blocked_user for row in rows if row.user == user}
+	blocked_me = {row.user for row in rows if row.blocked_user == user}
+	return blocked, blocked_me
+
+
+def notify_block_changed(user):
+	profiles = frappe.get_all(
+		"GP User Profile", filters={"user": ["in", [frappe.session.user, user]]}, pluck="name"
+	)
+	for profile in profiles:
+		notify_users_changed(profile)
 
 
 def clean_content(content):

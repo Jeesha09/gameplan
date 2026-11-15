@@ -5,7 +5,7 @@
       class="flex items-center gap-3 rounded-5 px-2.5 py-2 transition"
       :class="active ? 'bg-surface-gray-3' : 'hover:bg-surface-gray-2'"
     >
-      <UserAvatar v-if="row.people[0]" :user="row.people[0]" size="xl" class="shrink-0" />
+      <ConversationAvatar v-if="row.people[0]" :people="row.people" size="xl" class="shrink-0" />
       <div class="min-w-0 flex-1">
         <div class="flex items-baseline justify-between gap-2">
           <span class="flex min-w-0 items-center gap-1">
@@ -71,7 +71,7 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import DropdownMoreOptions from '@/components/DropdownMoreOptions.vue'
-import UserAvatar from '@/components/UserAvatar.vue'
+import ConversationAvatar from './ConversationAvatar.vue'
 import type { Conversation } from '@/data/messages'
 import { useSessionUser, useUser } from '@/data/users'
 import { relativeTimestamp } from '@/utils'

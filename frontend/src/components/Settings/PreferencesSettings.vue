@@ -115,6 +115,25 @@
               aria-label="Direct messages"
             />
           </div>
+          <div class="py-3.5">
+            <div class="text-base-medium text-ink-gray-8">Blocked people</div>
+            <div class="mt-1 text-base leading-5 text-ink-gray-6">
+              {{
+                blockedUsers.length
+                  ? 'You and these people cannot message each other'
+                  : 'You have not blocked anyone'
+              }}
+            </div>
+            <div v-if="blockedUsers.length" class="mt-2 space-y-1">
+              <div v-for="user in blockedUsers" :key="user" class="flex items-center gap-2 py-1">
+                <UserAvatar :user="user" size="sm" />
+                <span class="min-w-0 flex-1 truncate text-base text-ink-gray-8">
+                  {{ useUser(user).full_name }}
+                </span>
+                <Button variant="subtle" label="Unblock" @click="unblock(user)" />
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -167,7 +186,9 @@ import {
 import PanelHeader from './PanelHeader.vue'
 import PanelBody from './PanelBody.vue'
 import CustomizeSidebarDialog from '@/components/AppRail/CustomizeSidebarDialog.vue'
-import { setMessagesEnabled } from '@/data/messages'
+import UserAvatar from '@/components/UserAvatar.vue'
+import { toggleBlocked } from '@/components/Messages/conversationActions'
+import { getBlockedUsers, setMessagesEnabled } from '@/data/messages'
 import { resetQuickReactionEmojis } from '@/data/reactionPreferences'
 import {
   currentHideInactiveSpaces,
@@ -179,7 +200,7 @@ import {
   type SidebarBadgeStyle,
   type SpaceSidebarSort,
 } from '@/data/sidebarPreferences'
-import { useSessionUser } from '@/data/users'
+import { useSessionUser, useUser } from '@/data/users'
 import { useTheme, type Theme } from '@/utils/useTheme'
 import { useCursorStyle, type CursorStyle } from '@/utils/useCursorStyle'
 import type { GPUserProfile } from '@/types/doctypes'
@@ -257,6 +278,14 @@ const hideInactiveSpaces = computed({
   get: () => currentHideInactiveSpaces.value,
   set: (value: boolean) => setHideInactiveSpaces(value),
 })
+
+const blockedUsers = ref<string[]>([])
+if (!sessionUser.isGuest) getBlockedUsers().then((users) => (blockedUsers.value = users))
+
+async function unblock(user: string) {
+  if (await toggleBlocked(user, false))
+    blockedUsers.value = blockedUsers.value.filter((name) => name !== user)
+}
 
 const savingDirectMessages = ref(false)
 const directMessages = computed({

@@ -1,5 +1,8 @@
 <template>
   <div class="group flex min-w-0 max-w-[75%] flex-col" :class="mine ? 'items-end' : 'items-start'">
+    <span v-if="sender" class="mb-1 max-w-full truncate px-3 text-sm text-ink-gray-5">
+      {{ sender }}
+    </span>
     <component
       :is="tapForActions ? Dropdown : 'div'"
       class="max-w-full"
@@ -100,6 +103,7 @@ const props = defineProps<{
   last: boolean
   highlighted?: boolean
   seenAt?: string | null
+  sender?: string
 }>()
 
 const emit = defineEmits<{

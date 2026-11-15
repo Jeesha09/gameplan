@@ -6,7 +6,7 @@
     <template v-if="conversationId && title" #default>
       <PageHeaderMobileTitle :title="title">
         <template v-if="people[0]" #prefix>
-          <UserAvatar :user="people[0]" size="sm" />
+          <ConversationAvatar :people="people" size="sm" />
         </template>
       </PageHeaderMobileTitle>
     </template>
@@ -103,14 +103,14 @@
                 class="-ml-1.5 flex min-w-0 items-center gap-2 rounded-5 py-1 pl-1.5 pr-1 transition"
                 :class="open ? 'bg-surface-gray-3' : 'hover:bg-surface-gray-2'"
               >
-                <UserAvatar v-if="people[0]" :user="people[0]" size="md" class="shrink-0" />
+                <ConversationAvatar v-if="people[0]" :people="people" size="md" class="shrink-0" />
                 <span class="truncate text-lg font-semibold text-ink-gray-9">{{ title }}</span>
                 <span class="lucide-chevron-down size-4 shrink-0 text-ink-gray-5" />
               </button>
             </template>
           </Dropdown>
           <span v-else class="flex min-w-0 items-center gap-2">
-            <UserAvatar v-if="people[0]" :user="people[0]" size="md" class="shrink-0" />
+            <ConversationAvatar v-if="people[0]" :people="people" size="md" class="shrink-0" />
             <span class="truncate text-lg font-semibold text-ink-gray-9">{{ title }}</span>
           </span>
         </header>
@@ -133,7 +133,7 @@
       v-model:tab="panelTab"
       class="w-full shrink-0 sm:w-80 sm:border-l"
       :conversation="conversation.name"
-      :person="people[0]"
+      :people="people"
       @close="panelOpen = false"
     />
   </div>
@@ -158,7 +158,7 @@ import {
   type DropdownOptions,
 } from 'frappe-ui'
 import DropdownMoreOptions from '@/components/DropdownMoreOptions.vue'
-import UserAvatar from '@/components/UserAvatar.vue'
+import ConversationAvatar from '@/components/Messages/ConversationAvatar.vue'
 import ConversationList from '@/components/Messages/ConversationList.vue'
 import ConversationPanel from '@/components/Messages/ConversationPanel.vue'
 import MessageThread from '@/components/Messages/MessageThread.vue'

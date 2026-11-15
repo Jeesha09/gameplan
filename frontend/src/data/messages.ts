@@ -4,7 +4,7 @@ import type { Router } from 'vue-router'
 import { onSocketEvent, onSocketReconnect, type ReadCursor } from '@/socket'
 import { isAnonymousVisitor } from '@/utils/publicAccess'
 import { onReconnect } from './online'
-import { useSessionUser } from './users'
+import { useSessionUser, useUser } from './users'
 
 const METHODS = 'gameplan.direct_messages'
 
@@ -195,6 +195,15 @@ export async function setMessagesEnabled(enabled: boolean) {
   useSessionUser().direct_messages_enabled = enabled ? 1 : 0
   inbox.conversations = []
   inbox.loaded = false
+}
+
+export async function setBlocked(user: string, blocked: boolean) {
+  await call(`${METHODS}.${blocked ? 'block_user' : 'unblock_user'}`, { user })
+  useUser(user).blocked = blocked ? 1 : 0
+}
+
+export function getBlockedUsers() {
+  return call<string[]>(`${METHODS}.get_blocked_users`)
 }
 
 export async function openDirectMessage(router: Router, user: string) {

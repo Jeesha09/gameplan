@@ -59,6 +59,7 @@ READ_ONLY_ENDPOINTS = frozenset(
 		"gameplan.direct_messages.get_direct_conversation",
 		"gameplan.direct_messages.get_messages",
 		"gameplan.direct_messages.get_unread_conversation_count",
+		"gameplan.direct_messages.get_blocked_users",
 		"gameplan.direct_messages.search",
 		# Search. The SQLite index lives outside the transaction, but these only query it.
 		"gameplan.api.search_sqlite",
