@@ -39,6 +39,14 @@
         >
           Customize
         </Button>
+        <Button
+          v-if="canMessage"
+          class="shrink-0"
+          icon-left="lucide-message-circle"
+          @click="openDirectMessage(router, profile.user)"
+        >
+          Message
+        </Button>
       </div>
 
       <router-view v-bind="routeProps" />
@@ -69,6 +77,7 @@ import {
 } from '@/components/ProfileBento/profileBentoSource'
 import { confirmRestoreDefaultLayout } from '@/components/ProfileBento/restoreDefaultLayout'
 import { useProfileFieldEditing } from '@/components/ProfileBento/useProfileFieldEditing'
+import { messagesEnabled, openDirectMessage } from '@/data/messages'
 import { useSessionUser, useUser } from '@/data/users'
 import { isOnline } from '@/data/online'
 import { isOfflineError, loadFailureCopy } from '@/data/loadFailure'
@@ -109,6 +118,9 @@ const profileChildResource = computed(() => ({
   doc: profile.value,
 }))
 const isOwnProfile = computed(() => profile.value?.user === sessionUser.name)
+const canMessage = computed(
+  () => !isOwnProfile.value && messagesEnabled() && Boolean(profile.value?.direct_messages_enabled),
+)
 
 // A 404 or permission error is profileNotFound's; this is only for being offline.
 const profileLoadFailure = computed(() =>

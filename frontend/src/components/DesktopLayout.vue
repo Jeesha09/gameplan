@@ -3,7 +3,7 @@
        isFinished back to false and unmount the entire shell — the app blanks out. -->
   <div class="relative flex h-full flex-col" v-if="usersReady">
     <DesktopShell
-      :scroll="effectiveRoute.name !== 'Moderation'"
+      :scroll="!['Moderation', 'Messages', 'Conversation'].includes(String(effectiveRoute.name))"
       class="gameplan-desktop-shell h-full flex-1 standalone:border-t"
     >
       <template #rail>

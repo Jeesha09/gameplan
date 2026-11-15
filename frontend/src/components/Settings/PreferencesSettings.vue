@@ -91,6 +91,33 @@
         </div>
       </section>
 
+      <section v-if="!sessionUser.isGuest">
+        <h2 class="text-md-semibold text-ink-gray-8">Messages</h2>
+
+        <div class="mt-2 divide-y divide-outline-gray-1">
+          <div class="flex items-center gap-8 py-3.5">
+            <div class="min-w-0 flex-1">
+              <div class="text-base-medium text-ink-gray-8">Direct messages</div>
+              <div class="mt-1 text-base leading-5 text-ink-gray-6">
+                Let members message you privately. While off, nobody can message you
+              </div>
+              <router-link
+                v-if="directMessages"
+                :to="{ name: 'SettingsTab', params: { tab: 'notifications' } }"
+                class="mt-1 inline-block text-base leading-5 text-ink-gray-8 underline decoration-outline-gray-3 underline-offset-2 transition-colors hover:decoration-outline-gray-5"
+              >
+                Manage notifications
+              </router-link>
+            </div>
+            <Switch
+              v-model="directMessages"
+              :disabled="savingDirectMessages"
+              aria-label="Direct messages"
+            />
+          </div>
+        </div>
+      </section>
+
       <section>
         <h2 class="text-md-semibold text-ink-gray-8">Reactions</h2>
 
@@ -140,6 +167,7 @@ import {
 import PanelHeader from './PanelHeader.vue'
 import PanelBody from './PanelBody.vue'
 import CustomizeSidebarDialog from '@/components/AppRail/CustomizeSidebarDialog.vue'
+import { setMessagesEnabled } from '@/data/messages'
 import { resetQuickReactionEmojis } from '@/data/reactionPreferences'
 import {
   currentHideInactiveSpaces,
@@ -229,6 +257,25 @@ const hideInactiveSpaces = computed({
   get: () => currentHideInactiveSpaces.value,
   set: (value: boolean) => setHideInactiveSpaces(value),
 })
+
+const savingDirectMessages = ref(false)
+const directMessages = computed({
+  get: () => Boolean(sessionUser.direct_messages_enabled),
+  set: saveDirectMessages,
+})
+
+async function saveDirectMessages(enabled: boolean) {
+  if (savingDirectMessages.value) return
+  savingDirectMessages.value = true
+  try {
+    await setMessagesEnabled(enabled)
+    toast.success(enabled ? 'Direct messages turned on' : 'Direct messages turned off')
+  } catch {
+    toast.error('Could not save your messages setting')
+  } finally {
+    savingDirectMessages.value = false
+  }
+}
 
 const selectedBadgeStyle = computed({
   get: () => currentSidebarBadgeStyle.value,

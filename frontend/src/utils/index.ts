@@ -76,6 +76,13 @@ export function relativeTimestamp(timestamp: string): string {
   return dayjsLocal(timestamp).format('D MMM YYYY')
 }
 
+export function dayLabel(at: ReturnType<typeof dayjsLocal>) {
+  const today = dayjsLocal()
+  if (at.isSame(today, 'day')) return `Today, ${at.format('D MMMM')}`
+  if (at.isSame(today.subtract(1, 'day'), 'day')) return `Yesterday, ${at.format('D MMMM')}`
+  return at.format(at.year() === today.year() ? 'D MMMM, dddd' : 'D MMMM YYYY, dddd')
+}
+
 /**
  * Whether an editor body carries nothing a reader would see.
  *

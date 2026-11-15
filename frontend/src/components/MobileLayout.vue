@@ -18,6 +18,26 @@
           :active="route.name === 'Notifications'"
         />
         <MobileNavItem
+          v-if="messagesEnabled()"
+          label="Messages"
+          :route="{ name: 'Messages' }"
+          :active="route.name === 'Messages'"
+        >
+          <template #default="{ active }">
+            <span class="relative">
+              <span
+                class="lucide-message-circle block size-6"
+                :class="active ? 'text-ink-gray-8' : 'text-ink-gray-5'"
+                aria-hidden="true"
+              />
+              <span
+                v-if="unreadConversations"
+                class="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-surface-gray-7"
+              />
+            </span>
+          </template>
+        </MobileNavItem>
+        <MobileNavItem
           label="Search"
           icon="lucide-search"
           :route="{ name: 'Search' }"
@@ -55,6 +75,7 @@ import { MobileShell, MobileNav, MobileNavItem } from 'frappe-ui'
 import { useSessionUser } from '@/data/users'
 import ReadOnlyBanner from './ReadOnlyBanner.vue'
 import UserAvatar from './UserAvatar.vue'
+import { messagesEnabled, unreadConversations } from '@/data/messages'
 import { readOnlyMode } from '@/data/readOnlyMode'
 import { isPublicVisitor } from '@/utils/publicAccess'
 

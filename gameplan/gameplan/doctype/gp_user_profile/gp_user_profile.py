@@ -748,3 +748,7 @@ def get_last_post():
 		return None
 	posts.sort(reverse=True)
 	return posts[0]
+
+
+def on_doctype_update():
+	frappe.db.add_index("GP User Profile", ["direct_messages_enabled", "user"])

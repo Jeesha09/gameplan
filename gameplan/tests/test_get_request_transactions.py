@@ -53,6 +53,13 @@ READ_ONLY_ENDPOINTS = frozenset(
 		"gameplan.api.get_unsplash_photos",
 		# Unsplash proxy. Talks to a third party with our key and writes nothing of ours.
 		"gameplan.unsplash.search_photos",
+		# Direct message reads.
+		"gameplan.direct_messages.get_conversations",
+		"gameplan.direct_messages.get_conversation",
+		"gameplan.direct_messages.get_direct_conversation",
+		"gameplan.direct_messages.get_messages",
+		"gameplan.direct_messages.get_unread_conversation_count",
+		"gameplan.direct_messages.search",
 		# Search. The SQLite index lives outside the transaction, but these only query it.
 		"gameplan.api.search_sqlite",
 		"gameplan.api.get_search_filter_options",

@@ -12,6 +12,7 @@ DAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 PREF_FIELDS = (
 	"participation_level",
 	"receive_notifications",
+	"direct_message_notifications",
 	"active_hours_enabled",
 	"active_hours_start",
 	"active_hours_end",
@@ -21,6 +22,7 @@ PREF_FIELDS = (
 _DEFAULTS = frappe._dict(
 	participation_level=DEFAULT_PARTICIPATION,
 	receive_notifications=1,
+	direct_message_notifications=1,
 	active_hours_enabled=0,
 	active_hours_start=None,
 	active_hours_end=None,

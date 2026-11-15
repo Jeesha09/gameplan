@@ -427,6 +427,18 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/Notifications.vue'),
   },
   {
+    path: '/messages',
+    name: 'Messages',
+    component: () => import('@/pages/Messages.vue'),
+  },
+  {
+    path: '/messages/:conversationId',
+    name: 'Conversation',
+    component: () => import('@/pages/Messages.vue'),
+    props: true,
+    meta: { hideMobileNav: true },
+  },
+  {
     // On desktop settings is an overlay: the URL changes to /settings/:tab but the
     // dialog renders above whatever page it was opened from (see
     // settingsBackgroundPath + the beforeEach short-circuit below), and SettingsPage

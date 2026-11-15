@@ -14,6 +14,7 @@
   "discussion",
   "poll",
   "task",
+  "conversation",
   "project",
   "team",
   "read",
@@ -43,7 +44,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Type",
-   "options": "Mention\nReaction\nRich Quote\nComment\nNew Discussion\nAdded\nMoved\nPoll Vote",
+   "options": "Mention\nReaction\nRich Quote\nComment\nNew Discussion\nAdded\nMoved\nPoll Vote\nDirect Message",
    "reqd": 1
   },
   {
@@ -80,6 +81,12 @@
    "fieldtype": "Link",
    "label": "Task",
    "options": "GP Task"
+  },
+  {
+   "fieldname": "conversation",
+   "fieldtype": "Link",
+   "label": "Conversation",
+   "options": "GP Conversation"
   },
   {
    "fetch_from": "discussion.project",
@@ -134,7 +141,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-17 12:00:00.000000",
+ "modified": "2026-11-12 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gameplan",
  "name": "GP Notification",

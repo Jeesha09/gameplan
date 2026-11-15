@@ -2,7 +2,7 @@
   <div>
     <div class="flex select-none gap-1.5 flex-wrap">
       <Motion
-        v-if="!readOnlyMode"
+        v-if="!readOnlyMode && !hidePicker"
         as="button"
         aria-label="Add a reaction"
         @click="show = true"
@@ -100,6 +100,7 @@ const props = defineProps<{
   toolTipText: (reactions: ReactionCount) => string
   standardEmojis: string[]
   readOnlyMode?: boolean
+  hidePicker?: boolean
 }>()
 
 const canOpenModal = computed(() => !props.readOnlyMode)

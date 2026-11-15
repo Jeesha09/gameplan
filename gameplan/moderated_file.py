@@ -32,7 +32,9 @@ def file_has_permission(doc, ptype=None, user=None, **kwargs):
 class ModeratedFile(File):
 	# Download and ZIP paths call File methods directly, bypassing document permission hooks.
 	def is_downloadable(self):
-		return moderation_allows_file(self) and super().is_downloadable()
+		from gameplan.direct_messages import can_read_attachment
+
+		return moderation_allows_file(self) and (super().is_downloadable() or can_read_attachment(self))
 
 	def get_content(self, encodings=None):
 		file_has_permission(self)

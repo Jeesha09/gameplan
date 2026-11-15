@@ -40,6 +40,38 @@ export type GameplanSocketEvents = {
   }
   'gameplan:users_changed': { profiles?: string[] } | undefined
   'gameplan:restrictions_changed': void
+  'gameplan:message_received': {
+    conversation: string
+    message: SocketDirectMessage
+    unread_conversations: number
+  }
+  'gameplan:messages_read': { conversation: string | null; unread_conversations: number }
+  'gameplan:messages_seen': { conversation: string } & ReadCursor
+  'gameplan:conversation_cleared': { conversation: string; unread_conversations: number }
+  'gameplan:message_updated': { conversation: string; message: SocketDirectMessage }
+  'gameplan:conversation_muted': {
+    conversation: string
+    muted: 0 | 1
+    unread_conversations: number
+  }
+}
+
+export interface ReadCursor {
+  user: string
+  message: number
+  at: string | null
+}
+
+interface SocketDirectMessage {
+  name: number
+  owner: string
+  content: string
+  creation: string
+  edited_at: string | null
+  deleted_at: string | null
+  reply_to: number | null
+  reply: { name: number; owner: string; snippet: string; deleted: boolean } | null
+  reactions: Record<string, string[]>
 }
 
 type SocketEventName = keyof GameplanSocketEvents
@@ -52,6 +84,12 @@ const GAMEPLAN_SOCKET_EVENTS = [
   'gameplan:notification_changed',
   'gameplan:users_changed',
   'gameplan:restrictions_changed',
+  'gameplan:message_received',
+  'gameplan:messages_read',
+  'gameplan:messages_seen',
+  'gameplan:message_updated',
+  'gameplan:conversation_muted',
+  'gameplan:conversation_cleared',
 ] as const satisfies readonly SocketEventName[]
 
 let socket: Socket | null = null

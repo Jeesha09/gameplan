@@ -120,12 +120,14 @@ def user_info_rows(names):
 			"pinned_spaces",
 			"quick_reaction_emojis",
 			"sidebar_badge_style",
+			"direct_messages_enabled",
 			"email_digest_frequency",
 			"email_digest_day_of_week",
 			"email_digest_last_sent_on",
 			"participation_level",
 			"notification_channel",
 			"receive_notifications",
+			"direct_message_notifications",
 			"active_hours_enabled",
 			"active_hours_start",
 			"active_hours_end",
@@ -147,6 +149,7 @@ def user_info_rows(names):
 			user.image_background_color = user_profile.image_background_color
 			user.is_image_background_removed = user_profile.is_image_background_removed
 			user.bio = user_profile.bio
+			user.direct_messages_enabled = user_profile.direct_messages_enabled
 			if frappe.session.user == user.name:
 				user.community_order = user_profile.community_order
 				user.pinned_spaces = user_profile.pinned_spaces
@@ -158,6 +161,7 @@ def user_info_rows(names):
 				user.participation_level = user_profile.participation_level
 				user.notification_channel = user_profile.notification_channel
 				user.receive_notifications = user_profile.receive_notifications
+				user.direct_message_notifications = user_profile.direct_message_notifications
 				user.active_hours_enabled = user_profile.active_hours_enabled
 				user.active_hours_start = user_profile.active_hours_start
 				user.active_hours_end = user_profile.active_hours_end
@@ -207,6 +211,7 @@ def search_users(
 	community: str | None = None,
 	exclude_community: str | None = None,
 	exclude_space: str | int | None = None,
+	direct_messages: bool = False,
 ):
 	"""Page through Gameplan users whose name or email matches `query`, in get_user_info's shape."""
 	if not has_app_access():
@@ -226,6 +231,8 @@ def search_users(
 	q = user_search_query(
 		query, include_guests, include_disabled, community, exclude_community, exclude_space
 	)
+	if direct_messages:
+		q = q.where(accepts_direct_messages(User.name))
 	if order_by == "role":
 		q = order_by_role(q, order).orderby(User.full_name)
 	elif order_by == "relevance":
@@ -236,6 +243,25 @@ def search_users(
 		q = q.orderby(User[order_by], order=order)
 	q = q.orderby(User.name).offset(max(start, 0)).limit(min(max(limit, 1), USER_INFO_BATCH_LIMIT))
 	return user_info_rows([row.name for row in q.run(as_dict=1)])
+
+
+def accepts_direct_messages(user):
+	Profile = frappe.qb.DocType("GP User Profile")
+	counts = dict(
+		frappe.qb.from_(Profile)
+		.select(Profile.direct_messages_enabled, Count("*"))
+		.groupby(Profile.direct_messages_enabled)
+		.run()
+	)
+	if counts.get(1, 0) < counts.get(0, 0):
+		return user.isin(
+			frappe.qb.from_(Profile).select(Profile.user).where(Profile.direct_messages_enabled == 1)
+		)
+	return user.notin(
+		frappe.qb.from_(Profile)
+		.select(Profile.user)
+		.where((Profile.direct_messages_enabled == 0) & Profile.user.isnotnull())
+	)
 
 
 MEMBER_COUNT_CACHE_KEY = "gameplan:member_count"

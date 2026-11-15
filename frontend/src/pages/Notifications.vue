@@ -117,6 +117,7 @@ import { useLoadFailure } from '@/data/loadFailure'
 import { refuseOffline } from '@/data/offline/requests'
 import NotificationFilters from '@/components/NotificationFilters.vue'
 import NotificationListRow from '@/components/NotificationListRow.vue'
+import { dayLabel } from '@/utils'
 import {
   hasActiveNotificationFilters,
   notificationDateBounds,
@@ -151,6 +152,7 @@ const notificationFields = [
   'discussion',
   'poll',
   'task',
+  'conversation',
   'project',
   'team',
 ]
@@ -251,13 +253,6 @@ const dayGroups = computed(() => {
   }
   return groups
 })
-
-function dayLabel(at: ReturnType<typeof dayjsLocal>) {
-  const today = dayjsLocal()
-  if (at.isSame(today, 'day')) return `Today, ${at.format('D MMMM')}`
-  if (at.isSame(today.subtract(1, 'day'), 'day')) return `Yesterday, ${at.format('D MMMM')}`
-  return at.format(at.year() === today.year() ? 'D MMMM, dddd' : 'D MMMM YYYY, dddd')
-}
 
 const singleDayLabel = computed(() => {
   const bounds = notificationDateBounds.value

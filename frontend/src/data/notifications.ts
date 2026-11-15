@@ -119,6 +119,7 @@ export type NotificationRow = Pick<
   | 'comment'
   | 'poll'
   | 'task'
+  | 'conversation'
   | 'project'
   | 'team'
   | 'read'
@@ -128,6 +129,9 @@ export type NotificationRow = Pick<
 export function notificationRoute(
   notification: Omit<NotificationRow, 'read' | 'last_event_at' | 'message' | 'event_count'>,
 ): RouteLocationRaw | null {
+  if (notification.conversation) {
+    return { name: 'Conversation', params: { conversationId: notification.conversation } }
+  }
   if (notification.discussion) {
     return {
       name: 'Discussion',
@@ -173,13 +177,16 @@ export function notificationIcon(notification: { type?: string }) {
   if (notification.type === 'Added') return 'lucide-user-plus'
   if (notification.type === 'Moved') return 'lucide-corner-up-right'
   if (notification.type === 'Poll Vote') return 'lucide-bar-chart-2'
+  if (notification.type === 'Direct Message') return 'lucide-message-square'
   return 'lucide-at-sign'
 }
 
 export function notificationLocation(notification: {
   team?: string | null
   project?: string | number | null
+  conversation?: string | null
 }) {
+  if (notification.conversation) return 'Messages'
   const community = notification.team ? getCommunity(notification.team)?.title : null
   const space = notification.project ? getSpace(String(notification.project))?.title : null
   return [community, space].filter(Boolean).join(' / ')

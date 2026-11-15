@@ -50,12 +50,14 @@ export interface UserInfo {
   pinned_spaces?: unknown
   quick_reaction_emojis?: unknown
   sidebar_badge_style?: SidebarBadgeStyle
+  direct_messages_enabled?: 0 | 1
   email_digest_frequency?: EmailDigestFrequency
   email_digest_day_of_week?: EmailDigestDayOfWeek
   email_digest_last_sent_on?: string
   participation_level?: ParticipationLevel
   notification_channel?: NotificationChannel
   receive_notifications?: 0 | 1
+  direct_message_notifications?: 0 | 1
   active_hours_enabled?: 0 | 1
   active_hours_start?: string
   active_hours_end?: string
@@ -231,6 +233,7 @@ export interface UserSearchParams {
   community?: string
   exclude_community?: string
   exclude_space?: string | number
+  direct_messages?: boolean
 }
 
 export async function searchUsers(params: UserSearchParams = {}): Promise<UserInfo[]> {

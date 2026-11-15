@@ -9,6 +9,7 @@ type NotificationPreferencePatch = Pick<
   | 'notification_channel'
   | 'participation_level'
   | 'receive_notifications'
+  | 'direct_message_notifications'
   | 'active_hours_enabled'
   | 'active_hours_start'
   | 'active_hours_end'
@@ -28,6 +29,7 @@ export const defaultParticipationLevel: ParticipationLevel = 'Watch'
 
 const participation = ref<ParticipationLevel>(defaultParticipationLevel)
 const receiveNotifications = ref(true)
+const directMessageNotifications = ref(true)
 const channel = ref<NotificationChannel>('In-app')
 const activeHoursStart = ref(allDayStart)
 const activeHoursEnd = ref(allDayEnd)
@@ -39,6 +41,7 @@ const saveToastId = 'notification-preference-save'
 
 export const currentParticipationLevel = computed(() => participation.value)
 export const currentReceiveNotifications = computed(() => receiveNotifications.value)
+export const currentDirectMessageNotifications = computed(() => directMessageNotifications.value)
 export const currentNotificationChannel = computed(() => channel.value)
 export const currentActiveHoursStart = computed(() => activeHoursStart.value)
 export const currentActiveHoursEnd = computed(() => activeHoursEnd.value)
@@ -48,6 +51,7 @@ export function loadNotificationPreferences(user: {
   participation_level?: unknown
   notification_channel?: unknown
   receive_notifications?: unknown
+  direct_message_notifications?: unknown
   active_hours_enabled?: unknown
   active_hours_start?: unknown
   active_hours_end?: unknown
@@ -55,6 +59,7 @@ export function loadNotificationPreferences(user: {
 }) {
   participation.value = normalizeParticipation(user.participation_level)
   receiveNotifications.value = toBoolean(user.receive_notifications, true)
+  directMessageNotifications.value = toBoolean(user.direct_message_notifications, true)
   channel.value = normalizeChannel(user.notification_channel)
   const scheduled = toBoolean(user.active_hours_enabled, false)
   activeHoursStart.value = (scheduled && toTime(user.active_hours_start)) || allDayStart
@@ -87,6 +92,11 @@ export const setNotificationChannel = (value: unknown) =>
 
 export const setReceiveNotifications = (value: boolean) =>
   setPref(receiveNotifications, value, Boolean, 'receive_notifications', (on) => (on ? 1 : 0))
+
+export const setDirectMessageNotifications = (value: boolean) =>
+  setPref(directMessageNotifications, value, Boolean, 'direct_message_notifications', (on) =>
+    on ? 1 : 0,
+  )
 
 const ACTIVE_HOURS_QUIET_MS = 600
 let activeHoursTimer: ReturnType<typeof setTimeout> | undefined

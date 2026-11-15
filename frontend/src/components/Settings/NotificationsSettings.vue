@@ -93,6 +93,17 @@
           >
             <Button label="Manage" @click="showCommunitiesSettings(communityState.id, 'spaces')" />
           </SettingsRow>
+
+          <SettingsRow
+            v-if="sessionUser.direct_messages_enabled"
+            title="Direct messages"
+            description="Get notified when someone messages you. Unread counts show either way"
+          >
+            <Switch
+              :model-value="directMessageNotifications"
+              @update:model-value="setDirectMessageNotifications"
+            />
+          </SettingsRow>
         </div>
       </section>
 
@@ -152,10 +163,12 @@ import {
   currentActiveHoursDays as activeHoursDays,
   currentActiveHoursEnd as activeHoursEnd,
   currentActiveHoursStart as activeHoursStart,
+  currentDirectMessageNotifications as directMessageNotifications,
   currentNotificationChannel as notificationChannel,
   currentParticipationLevel as participationLevel,
   currentReceiveNotifications as receiveNotifications,
   setActiveHours,
+  setDirectMessageNotifications,
   setNotificationChannel,
   setParticipationLevel,
   setReceiveNotifications,

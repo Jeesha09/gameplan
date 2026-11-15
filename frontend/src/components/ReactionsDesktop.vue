@@ -1,6 +1,11 @@
 <template>
   <div class="flex select-none flex-wrap items-stretch gap-1.5">
-    <HoverCard v-if="!readOnlyMode" v-model:open="isPickerOpen" side="bottom" align="start">
+    <HoverCard
+      v-if="!readOnlyMode && !hidePicker"
+      v-model:open="isPickerOpen"
+      side="bottom"
+      align="start"
+    >
       <template #trigger="{ setOpen }">
         <button
           aria-label="Add a reaction"
@@ -75,6 +80,7 @@ const props = defineProps<{
   toolTipText: (reactions: ReactionCount) => string
   standardEmojis: string[]
   readOnlyMode?: boolean
+  hidePicker?: boolean
 }>()
 
 const showTooltips = computed(() => !props.readOnlyMode)

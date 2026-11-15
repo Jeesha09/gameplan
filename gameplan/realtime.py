@@ -34,6 +34,12 @@ NOTIFICATION_COUNT_CHANGED = "gameplan:notification_count_changed"
 NOTIFICATION_CHANGED = "gameplan:notification_changed"
 RESTRICTIONS_CHANGED = "gameplan:restrictions_changed"
 USERS_CHANGED = "gameplan:users_changed"
+MESSAGE_RECEIVED = "gameplan:message_received"
+MESSAGES_READ = "gameplan:messages_read"
+MESSAGES_SEEN = "gameplan:messages_seen"
+MESSAGE_UPDATED = "gameplan:message_updated"
+CONVERSATION_MUTED = "gameplan:conversation_muted"
+CONVERSATION_CLEARED = "gameplan:conversation_cleared"
 
 
 def notify_unread_counts_changed(users: str | list[str]):
@@ -42,6 +48,77 @@ def notify_unread_counts_changed(users: str | list[str]):
 		users = [users]
 	for user in {user for user in users if user}:
 		realtime.publish_realtime(UNREAD_COUNTS_CHANGED, user=user, after_commit=True)
+
+
+def notify_message_received(users: list[str], conversation: str, message: dict, unread: dict[str, int]):
+	"""Hand a new direct message to each person in the conversation, with their unread total."""
+	for user in users:
+		realtime.publish_realtime(
+			MESSAGE_RECEIVED,
+			message={
+				"conversation": conversation,
+				"message": message,
+				"unread_conversations": unread.get(user, 0),
+			},
+			user=user,
+			after_commit=True,
+		)
+
+
+def notify_message_updated(users: list[str], conversation: str, message: dict):
+	"""Hand an edited or deleted direct message to each person in the conversation."""
+	for user in users:
+		realtime.publish_realtime(
+			MESSAGE_UPDATED,
+			message={"conversation": conversation, "message": message},
+			user=user,
+			after_commit=True,
+		)
+
+
+def notify_conversation_muted(user: str, conversation: str, muted: int, unread_conversations: int):
+	"""Tell a person's other tabs that they muted or unmuted a conversation, and their unread total."""
+	realtime.publish_realtime(
+		CONVERSATION_MUTED,
+		message={
+			"conversation": conversation,
+			"muted": muted,
+			"unread_conversations": unread_conversations,
+		},
+		user=user,
+		after_commit=True,
+	)
+
+
+def notify_conversation_cleared(user: str, conversation: str, unread_conversations: int):
+	"""Tell a person's other tabs that they deleted a conversation from their list, and their unread total."""
+	realtime.publish_realtime(
+		CONVERSATION_CLEARED,
+		message={"conversation": conversation, "unread_conversations": unread_conversations},
+		user=user,
+		after_commit=True,
+	)
+
+
+def notify_messages_read(user: str, conversation: str | None, unread_conversations: int):
+	"""Tell a person's other tabs that they read a conversation, or all of them when None."""
+	realtime.publish_realtime(
+		MESSAGES_READ,
+		message={"conversation": conversation, "unread_conversations": unread_conversations},
+		user=user,
+		after_commit=True,
+	)
+
+
+def notify_messages_seen(users: list[str], conversation: str, seen: dict):
+	"""Tell the others in a conversation how far one person has now read, and when."""
+	for user in users:
+		realtime.publish_realtime(
+			MESSAGES_SEEN,
+			message={"conversation": conversation, **seen},
+			user=user,
+			after_commit=True,
+		)
 
 
 def notify_notification_changed(user: str, notification=None):

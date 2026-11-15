@@ -180,7 +180,7 @@ def get_unread_notifications(user: str):
 			"team",
 			"team.title as team_title",
 		],
-		filters={"to_user": user, "read": 0},
+		filters={"to_user": user, "read": 0, "type": ["!=", "Direct Message"]},
 		order_by="creation desc",
 		limit=MAX_DIGEST_ITEMS,
 	).run(as_dict=True)

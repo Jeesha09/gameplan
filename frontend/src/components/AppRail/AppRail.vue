@@ -109,6 +109,7 @@ import { activeCommunities, communities } from '@/data/communities'
 import { canModerateCommunity } from '@/utils/permissions'
 import type { Community } from '@/data/communities'
 import { draftCount } from '@/data/drafts'
+import { messagesEnabled, unreadConversations } from '@/data/messages'
 import { unreadNotifications } from '@/data/notifications'
 import { currentSidebarBadgeStyle } from '@/data/sidebarPreferences'
 import { getSpaceUnreadCount, spaces } from '@/data/spaces'
@@ -187,6 +188,17 @@ const shortcuts = computed<RailShortcut[]>(() => [
     route: { name: 'Notifications' },
     unreadCount: unreadNotifications.data || 0,
   },
+  ...(!messagesEnabled()
+    ? []
+    : [
+        {
+          label: 'Messages',
+          icon: 'lucide-message-circle',
+          isActive: isRoute('Messages', 'Conversation'),
+          route: { name: 'Messages' },
+          unreadCount: unreadConversations.value,
+        },
+      ]),
   {
     label: 'Drafts',
     icon: 'lucide-pencil-line',

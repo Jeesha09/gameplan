@@ -19,6 +19,7 @@
   "pinned_spaces",
   "quick_reaction_emojis",
   "sidebar_badge_style",
+  "direct_messages_enabled",
   "email_digest_frequency",
   "email_digest_day_of_week",
   "email_digest_last_sent_on",
@@ -26,6 +27,7 @@
   "notification_channel",
   "participation_level",
   "receive_notifications",
+  "direct_message_notifications",
   "active_hours_enabled",
   "active_hours_start",
   "active_hours_end",
@@ -209,6 +211,12 @@
    "options": "Unread count\nDot"
   },
   {
+   "default": "0",
+   "fieldname": "direct_messages_enabled",
+   "fieldtype": "Check",
+   "label": "Direct Messages Enabled"
+  },
+  {
    "default": "Off",
    "fieldname": "email_digest_frequency",
    "fieldtype": "Select",
@@ -260,6 +268,14 @@
    "permlevel": 1
   },
   {
+   "default": "1",
+   "description": "Off stops bell and email notifications for direct messages; unread counts keep working.",
+   "fieldname": "direct_message_notifications",
+   "fieldtype": "Check",
+   "label": "Direct Message Notifications",
+   "permlevel": 1
+  },
+  {
    "default": "0",
    "description": "Only send email inside the hours below, on the selected days.",
    "fieldname": "active_hours_enabled",
@@ -297,7 +313,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-30 12:00:00.000000",
+ "modified": "2026-11-13 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gameplan",
  "name": "GP User Profile",

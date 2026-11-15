@@ -128,6 +128,23 @@ def remove_empty_trailing_paragraphs(html):
 	return str(soup)
 
 
+def remove_empty_leading_lines(html):
+	from bs4 import BeautifulSoup, NavigableString
+
+	soup = BeautifulSoup(html, "html.parser")
+	for node in list(soup.descendants):
+		if isinstance(node, NavigableString):
+			if node.strip():
+				node.replace_with(node.lstrip())
+				break
+			continue
+		if node.name == "br" or (node.name == "p" and not node.get_text(strip=True)):
+			node.extract()
+		elif not node.get_text(strip=True):
+			break
+	return str(soup)
+
+
 def validate_type(func):
 	@wraps(func)
 	def wrapper(*args, **kwargs):

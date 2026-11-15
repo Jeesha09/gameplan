@@ -45,8 +45,20 @@ export interface GPTask extends DocType {
   comments_count?: number
 }
 
-// Last updated: 2026-09-10 10:00:00.000000
+// Last updated: 2026-10-30 12:00:00.000000
 export interface GPUserProfile extends DocType {
+  /** First Day Discussions: Int */
+  first_day_discussions?: number
+  /** First Day Replies: Int */
+  first_day_replies?: number
+  /** Posts: Int */
+  discussions_count?: number
+  /** Replies: Int */
+  comments_count?: number
+  /** Reactions Received: Int */
+  reactions_received?: number
+  /** Reactions Given: Int */
+  reactions_given?: number
   /** User: Link (User) */
   user: string
   /** Readme: Text Editor */
@@ -81,6 +93,8 @@ export interface GPUserProfile extends DocType {
   quick_reaction_emojis?: any
   /** Sidebar Badge Style: Select */
   sidebar_badge_style?: 'Unread count' | 'Dot'
+  /** Direct Messages Enabled: Check */
+  direct_messages_enabled?: 0 | 1
   /** Email Digest Frequency: Select */
   email_digest_frequency?: 'Off' | 'Weekly' | 'Fortnightly' | 'Monthly'
   /** Email Digest Day of Week: Select */
@@ -94,20 +108,22 @@ export interface GPUserProfile extends DocType {
     | 'Sunday'
   /** Email Digest Last Sent On: Date */
   email_digest_last_sent_on?: string
-  /** Participation Level: Select - Written as the bell on every discussion this user starts or comments in, unless they set one themselves first. Watch also lets reactions and poll votes on their content notify them. */
-  participation_level?: 'Watch' | 'Mentions only'
   /** Notification Channel: Select */
   notification_channel?: 'In-app' | 'Email'
+  /** Participation Level: Select */
+  participation_level?: 'Watch' | 'Mentions only'
   /** Receive Notifications: Check */
-  receive_notifications?: 0 | 1
+  receive_notifications: 0 | 1
+  /** Direct Message Notifications: Check */
+  direct_message_notifications: 0 | 1
   /** Active Hours Enabled: Check */
-  active_hours_enabled?: 0 | 1
+  active_hours_enabled: 0 | 1
   /** Active Hours Start: Time */
-  active_hours_start?: string
+  active_hours_start?: any
   /** Active Hours End: Time */
-  active_hours_end?: string
+  active_hours_end?: any
   /** Active Hours Days: JSON */
-  active_hours_days?: string
+  active_hours_days?: any
   /** Last Batch Sent At: Datetime */
   last_batch_sent_at?: string
 }
@@ -154,6 +170,7 @@ export interface GPNotification extends DocType {
     | 'Added'
     | 'Moved'
     | 'Poll Vote'
+    | 'Direct Message'
   /** Message: Text Editor */
   message?: string
   /** Read: Check */
@@ -166,6 +183,8 @@ export interface GPNotification extends DocType {
   poll?: string
   /** Task: Link (GP Task) */
   task?: string
+  /** Conversation: Link (GP Conversation) */
+  conversation?: string
   /** Project: Link (GP Project) */
   project?: string
   /** Team: Link (GP Team) */
@@ -178,10 +197,8 @@ export interface GPNotification extends DocType {
   email_sent_at?: string
 }
 
-// Last updated: 2026-10-16 20:00:00.000000
+// Last updated: 2026-11-05 14:00:00.000000
 export interface GPDiscussion extends DocType {
-  hidden_at?: string
-  spam_removed_at?: string
   /** Project: Link (GP Project) */
   project: string
   /** Content: Text Editor */
@@ -195,7 +212,7 @@ export interface GPDiscussion extends DocType {
   /** Last Post At: Datetime */
   last_post_at?: string
   /** Comments Count: Int */
-  comments_count: number
+  comments_count?: number
   /** Last Post By: Link (User) */
   last_post_by?: string
   /** Closed At: Datetime */
@@ -205,22 +222,32 @@ export interface GPDiscussion extends DocType {
   /** Slug: Data */
   slug?: string
   /** Participants Count: Int */
-  participants_count: number
+  participants_count?: number
   /** Pinned At: Datetime */
   pinned_at?: string
   /** Pinned By: Link (User) */
   pinned_by?: string
   /** Last Post Type: Select */
-  last_post_type: 'GP Comment' | 'GP Poll'
+  last_post_type?: '' | 'GP Comment' | 'GP Poll'
   /** Last Post: Dynamic Link (last_post_type) */
   last_post?: string
   /** Tags: Table (GP Tag Link) */
   tags: GPTagLink[]
+  /** Backlinks: Table (GP Backlink) */
+  backlinks: GPBacklink[]
   /** Pin Scope: Select */
   pin_scope?: 'Category' | 'Space'
+  /** Hidden At: Datetime */
+  hidden_at?: string
+  /** Spam Removed At: Datetime */
+  spam_removed_at?: string
+  /** Slow Mode Seconds: Int */
+  slow_mode_seconds?: number
+  /** Slow mode until: Datetime */
+  slow_mode_until?: string
 }
 
-// Last updated: 2026-05-01 22:51:01.454329
+// Last updated: 2026-10-25 21:24:33.681459
 export interface GPTeam extends DocType {
   /** Title: Data */
   title: string
@@ -248,9 +275,11 @@ export interface GPTeam extends DocType {
   visibility_set_by?: string
   /** Visibility Set At: Datetime */
   visibility_set_at?: string
+  /** Approval post count: Int */
+  approval_post_count?: number
 }
 
-// Last updated: 2023-05-08 16:57:35.133580
+// Last updated: 2026-10-19 12:00:00.000000
 export interface GPGuestAccess extends DocType {
   /** User: Link (User) */
   user: string
@@ -260,7 +289,7 @@ export interface GPGuestAccess extends DocType {
   team?: string
 }
 
-// Last updated: 2023-05-08 16:58:26.857607
+// Last updated: 2026-10-19 13:00:00.000000
 export interface GPInvitation extends DocType {
   /** Email: Data */
   email: string
@@ -274,6 +303,8 @@ export interface GPInvitation extends DocType {
   invited_by?: string
   /** Accepted At: Datetime */
   accepted_at?: string
+  /** Created Account: Check */
+  created_account: 0 | 1
   /** Teams: Small Text */
   teams?: string
   /** Projects: Small Text */
@@ -282,7 +313,7 @@ export interface GPInvitation extends DocType {
   role: '' | 'Gameplan Admin' | 'Gameplan Member' | 'Gameplan Guest'
 }
 
-// Last updated: 2024-12-15 00:46:16.394764
+// Last updated: 2026-10-01 06:12:56.974120
 export interface GPProject extends DocType {
   /** Title: Data */
   title: string
@@ -312,6 +343,8 @@ export interface GPProject extends DocType {
   visibility_set_by?: string
   /** Visibility Set At: Datetime */
   visibility_set_at?: string
+  /** Is Anonymous Readable: Check */
+  is_anonymous_readable: 0 | 1
 }
 
 // Last updated: 2026-10-16 20:00:00.000000
@@ -326,7 +359,7 @@ export interface GPReaction extends DocType {
   user: string
 }
 
-// Last updated: 2026-10-16 20:00:00.000000
+// Last updated: 2026-10-21 12:00:00.000000
 export interface GPComment extends DocType {
   /** Content: Text Editor */
   content: string
@@ -336,17 +369,20 @@ export interface GPComment extends DocType {
   reference_name?: string
   /** Edited At: Datetime */
   edited_at?: string
-  /** Deleted At: Datetime */
-  deleted_at?: string
   /** Hidden At: Datetime */
   hidden_at?: string
-  spam_removed_at?: string
+  /** Deleted At: Datetime */
+  deleted_at?: string
   /** Highlighted By: Link (User) */
   highlighted_by?: string
   /** Highlighted At: Datetime */
   highlighted_at?: string
   /** Tags: Table (GP Tag Link) */
   tags: GPTagLink[]
+  /** Spam Removed At: Datetime */
+  spam_removed_at?: string
+  /** Backlinks: Table (GP Backlink) */
+  backlinks: GPBacklink[]
 }
 
 // Last updated: 2023-05-05 17:19:19.900086
@@ -389,7 +425,7 @@ export interface GPPoll extends DocType {
   comment?: string
 }
 
-// Last updated: 2022-12-07 21:34:41.411618
+// Last updated: 2026-10-19 12:00:00.000000
 export interface GPActivity extends DocType {
   /** Reference DocType: Link (DocType) */
   reference_doctype?: string
@@ -403,7 +439,7 @@ export interface GPActivity extends DocType {
   data?: string
 }
 
-// Last updated: 2025-02-17 15:58:11.863114
+// Last updated: 2026-10-19 12:00:00.000000
 export interface GPSearchFeedback extends DocType {
   /** User: Link (User) */
   user: string
@@ -413,7 +449,7 @@ export interface GPSearchFeedback extends DocType {
   query?: string
 }
 
-// Last updated: 2025-08-31 19:25:15.771791
+// Last updated: 2026-11-04 20:24:33.637866
 export interface GPDraft extends DocType {
   /** Title: Data */
   title?: string
@@ -421,10 +457,18 @@ export interface GPDraft extends DocType {
   content?: string
   /** Type: Select */
   type?: 'Discussion' | 'Comment'
+  /** Mode: Select */
+  mode?: 'New' | 'Edit'
+  /** Reference DocType: Link (DocType) */
+  reference_doctype?: string
+  /** Reference Name: Dynamic Link (reference_doctype) */
+  reference_name?: string
   /** Project: Link (GP Project) */
   project?: string
   /** Team: Link (GP Team) */
   team?: string
+  /** Scheduled At: Datetime */
+  scheduled_at?: string
   /** Publication error: Small Text */
   publication_error?: string
 }
@@ -437,7 +481,7 @@ export interface GPTagLink extends ChildDocType {
   label?: string
 }
 
-// Last updated: 2025-05-22 12:26:40.729595
+// Last updated: 2026-10-19 12:00:00.000000
 export interface GPTag extends DocType {
   /** Label: Data */
   label?: string
@@ -521,4 +565,10 @@ export interface GPBookmark extends DocType {
   discussion?: string
   /** Comment: Link (GP Comment) */
   comment?: string
+}
+
+// Last updated: 2026-10-03 12:00:00.000000
+export interface GPBacklink extends ChildDocType {
+  /** Discussion: Link (GP Discussion) */
+  discussion?: string
 }

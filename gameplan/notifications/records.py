@@ -6,7 +6,7 @@ import frappe
 
 from gameplan.notifications.away import get_active_away_period
 
-TARGET_FIELDS = ("discussion", "comment", "poll", "task")
+TARGET_FIELDS = ("discussion", "comment", "poll", "task", "conversation")
 ROW_FIELDS = TARGET_FIELDS + ("project", "team")
 
 
@@ -52,6 +52,7 @@ def write_or_merge(
 	merge: bool = False,
 	merged_message: str | None = None,
 	from_user: str | None = None,
+	keep_sender: bool = False,
 	**targets,
 ):
 	"""Write a notification row, or fold this event into the unread one already there.
@@ -71,7 +72,7 @@ def write_or_merge(
 		doc = frappe.get_doc("GP Notification", existing, for_update=True)
 		doc.event_count = (doc.event_count or 1) + 1
 		doc.message = (merged_message or message).replace("{count}", str(doc.event_count))
-		doc.from_user = None
+		doc.from_user = from_user if keep_sender else None
 	else:
 		doc = frappe.get_doc(doctype="GP Notification", to_user=to_user, type=type, **points_at)
 		doc.event_count = 1
