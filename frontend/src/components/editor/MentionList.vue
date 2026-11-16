@@ -1,6 +1,9 @@
 <template>
+  <!-- Labelled like frappe-ui's own suggestion lists, so assistive tech and tests find it. -->
   <div
     v-if="items.length"
+    role="listbox"
+    aria-label="Suggestions"
     class="min-w-40 max-w-96 rounded-6 border border-outline-gray-2 bg-surface-elevation-2 p-1 text-base shadow-2xl"
   >
     <div

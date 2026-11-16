@@ -130,7 +130,8 @@ function openSlashCommands(editor: Editor) {
 }
 
 function openMentions(editor: Editor) {
-  editor.commands.openSuggestionMenu('mentionSuggestion')
+  // The name config.ts gives Gameplan's own mention suggester.
+  editor.commands.openSuggestionMenu('mentionSearch')
 }
 
 function insertEmoji(editor: Editor, emoji: string) {
