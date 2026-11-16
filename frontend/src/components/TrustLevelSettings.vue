@@ -16,7 +16,9 @@
     </div>
     <div v-for="group in SETTING_GROUPS" :key="group.title" class="mt-3">
       <p class="text-base font-medium text-ink-gray-8">{{ group.title }} needs</p>
-      <div class="mt-1.5 grid items-end gap-x-3 gap-y-2 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6">
+      <div
+        class="mt-1.5 grid items-end gap-x-3 gap-y-2 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6"
+      >
         <TextInput
           v-for="[field, label] in group.fields"
           :key="field"
