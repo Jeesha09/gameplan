@@ -39,6 +39,8 @@ export type Review = {
   report_count: number
   last_reported_at: string
   report_reasons: { reason: string; count: number }[]
+  report_weight?: number
+  auto_hidden?: 0 | 1
   decision?: string
 }
 export type ReviewDetails = {
@@ -48,7 +50,10 @@ export type ReviewDetails = {
     decision_note?: string
     decided_by?: string
     decided_at?: string
+    report_weight?: number
+    auto_hidden?: 0 | 1
   }
+  auto_hide: { active: boolean; threshold: number }
   current: {
     title?: string
     content: string
@@ -56,6 +61,7 @@ export type ReviewDetails = {
     owner: string
     discussion: string
     project: string
+    auto_hidden?: 0 | 1
   }
   reports: {
     name: string
@@ -64,6 +70,7 @@ export type ReviewDetails = {
     reason: string
     note: string
     automatic_rule?: number
+    weight?: number
   }[]
   evidence: { name: string; reported_title?: string; reported_content: string } | null
   polls: GPPoll[]

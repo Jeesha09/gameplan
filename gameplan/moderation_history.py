@@ -70,7 +70,7 @@ def history(community: str, kind: str = "all", target: str = "", start: int = 0)
 		.select(Comment.name)
 		.where((Comment.reference_doctype == "GP Discussion") & Comment.reference_name.isin(discussions))
 	)
-	post_actions = Log.action.isin(["Hide", "Restore", "Delete Spam"])
+	post_actions = Log.action.isin(["Hide", "Restore", "Delete Spam", "Auto Hide"])
 	sources = {
 		"discussion": (
 			Log.discussion.isin(discussions)

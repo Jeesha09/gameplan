@@ -56,6 +56,10 @@ def content_is_removed(doc):
 	return False
 
 
+# Log actions that store a removed post's original.
+REMOVAL_ACTIONS = ["Hide", "Delete Spam", "Auto Hide"]
+
+
 class Moderatable:
 	@frappe.whitelist(methods=["POST"])
 	@with_stored_document
@@ -70,57 +74,13 @@ class Moderatable:
 		self._remove_content("Delete Spam", reason)
 
 	def _remove_content(self, action, reason, cleanup=None):
-		from gameplan.search_sqlite import GameplanSearch
-
-		doc = self._moderation_target()
-		field = "hidden_at" if action == "Hide" else "spam_removed_at"
-		if doc.get(field):
-			return
-		if doc.get("deleted_at"):
-			frappe.throw("Deleted replies cannot be hidden")
-		if not isinstance(reason, str) or not reason.strip() or len(reason) > 500:
-			frappe.throw("Enter a reason of at most 500 characters")
-		doc._check_moderated_files()
-		original = doc._original_content() if is_removed(doc) else doc
-		frappe.get_doc(
-			doctype="GP Moderation Log",
-			**doc._log_filters(),
-			action=action,
-			reason=reason.strip(),
-			content=original.content,
-			title=original.get("title"),
-			cleanup=cleanup,
-		).insert(ignore_permissions=True)
-		values = {"hidden_at": None, "spam_removed_at": None, field: frappe.utils.now()}
-		label = "reply" if doc.doctype == "GP Comment" else "discussion"
-		values["content"] = f"<p>This {label} was removed by a moderator.</p>"
-		if doc.doctype == "GP Discussion":
-			values["title"] = "Removed discussion"
-		doc.db_set(values, notify=True)
-		search = GameplanSearch()
-		if search.is_search_enabled() and search.index_exists():
-			frappe.db.after_commit.add(lambda: remove_from_search(doc.doctype, doc.name))
-		doc._notify_moderation_change()
+		remove_content(self._moderation_target(), action, reason, cleanup)
 
 	@frappe.whitelist(methods=["POST"])
 	@with_stored_document
-	def restore(self):
+	def restore(self, reason: str = ""):
 		"""Restore removed content without sending new mention notifications."""
-		from frappe.search.sqlite_search import update_doc_index
-
-		doc = self._moderation_target()
-		if not is_removed(doc):
-			return
-		original = doc._original_content()
-		values = {"hidden_at": None, "spam_removed_at": None, "content": original.content}
-		if doc.doctype == "GP Discussion":
-			values["title"] = original.title
-		doc.db_set(values, notify=True)
-		frappe.get_doc(doctype="GP Moderation Log", **doc._log_filters(), action="Restore").insert(
-			ignore_permissions=True
-		)
-		frappe.db.after_commit.add(lambda: update_doc_index(doc))
-		doc._notify_moderation_change()
+		restore_content(self._moderation_target(), reason)
 
 	@frappe.whitelist(methods=["POST"])
 	@with_stored_document
@@ -140,7 +100,7 @@ class Moderatable:
 
 	def _original_content(self):
 		return frappe.get_last_doc(
-			"GP Moderation Log", filters={**self._log_filters(), "action": ["in", ["Hide", "Delete Spam"]]}
+			"GP Moderation Log", filters={**self._log_filters(), "action": ["in", REMOVAL_ACTIONS]}
 		)
 
 	def _log_filters(self):
@@ -234,6 +194,94 @@ class Moderatable:
 		if not parent_discussion(doc) or not project or not can_moderate_space(frappe.session.user, project):
 			frappe.throw("Only community moderators can perform this action", frappe.PermissionError)
 		return doc
+
+
+def remove_content(doc, action, reason, cleanup=None):
+	"""Hide, auto-hide, or remove `doc` as spam, keeping its original in the log. Callers check access."""
+	from gameplan.search_sqlite import GameplanSearch
+
+	field = "spam_removed_at" if action == "Delete Spam" else "hidden_at"
+	if doc.get(field):
+		if action == "Hide" and doc.get("auto_hidden"):
+			keep_hidden(doc, reason)
+		return
+	if doc.get("deleted_at"):
+		frappe.throw("Deleted replies cannot be hidden")
+	if not isinstance(reason, str) or not reason.strip() or len(reason) > 500:
+		frappe.throw("Enter a reason of at most 500 characters")
+	doc._check_moderated_files()
+	original = doc._original_content() if is_removed(doc) else doc
+	log = frappe.get_doc(
+		doctype="GP Moderation Log",
+		**doc._log_filters(),
+		action=action,
+		reason=reason.strip(),
+		content=original.content,
+		title=original.get("title"),
+		cleanup=cleanup,
+	).insert(ignore_permissions=True)
+	automatic = action == "Auto Hide"
+	if automatic:
+		# The System acts here, not the reporter whose report crossed the threshold.
+		frappe.db.set_value("GP Moderation Log", log.name, "owner", "Administrator", update_modified=False)
+	values = {"hidden_at": None, "spam_removed_at": None, field: frappe.utils.now()}
+	values.update(auto_hidden=int(automatic), content=placeholder(doc, automatic))
+	if doc.doctype == "GP Discussion":
+		values["title"] = "Removed discussion"
+	doc.db_set(values, notify=True)
+	search = GameplanSearch()
+	if search.is_search_enabled() and search.index_exists():
+		frappe.db.after_commit.add(lambda: remove_from_search(doc.doctype, doc.name))
+	doc._notify_moderation_change()
+
+
+def keep_hidden(doc, reason):
+	"""A moderator keeps an auto-hidden post hidden. From now on it counts as their Hide (D85, D86)."""
+	if not isinstance(reason, str) or not reason.strip() or len(reason) > 500:
+		frappe.throw("Enter a reason of at most 500 characters")
+	original = doc._original_content()
+	frappe.get_doc(
+		doctype="GP Moderation Log",
+		**doc._log_filters(),
+		action="Hide",
+		reason=reason.strip(),
+		content=original.content,
+		title=original.get("title"),
+	).insert(ignore_permissions=True)
+	doc.db_set({"auto_hidden": 0, "content": placeholder(doc, False)}, notify=True)
+	doc._notify_moderation_change()
+
+
+def restore_content(doc, reason=""):
+	"""Show removed content again. Restoring an auto-hidden post also closes its review (D95)."""
+	from frappe.search.sqlite_search import update_doc_index
+
+	if not is_removed(doc):
+		return
+	if not isinstance(reason, str) or len(reason) > 500:
+		frappe.throw("Enter a reason of at most 500 characters")
+	automatic = bool(doc.get("auto_hidden"))
+	original = doc._original_content()
+	values = {"hidden_at": None, "spam_removed_at": None, "auto_hidden": 0, "content": original.content}
+	if doc.doctype == "GP Discussion":
+		values["title"] = original.title
+	doc.db_set(values, notify=True)
+	frappe.get_doc(
+		doctype="GP Moderation Log", **doc._log_filters(), action="Restore", reason=reason.strip()
+	).insert(ignore_permissions=True)
+	frappe.db.after_commit.add(lambda: update_doc_index(doc))
+	doc._notify_moderation_change()
+	if automatic:
+		from gameplan.auto_hide import after_restore
+
+		after_restore(doc, reason.strip())
+
+
+def placeholder(doc, automatic):
+	label = "reply" if doc.doctype == "GP Comment" else "discussion"
+	if automatic:
+		return f"<p>This {label} was hidden after member reports and is waiting for review.</p>"
+	return f"<p>This {label} was removed by a moderator.</p>"
 
 
 def remove_from_search(doctype, name):

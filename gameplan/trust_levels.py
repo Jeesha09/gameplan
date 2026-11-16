@@ -215,7 +215,9 @@ def replied(user, limit, since=None):
 
 
 def removed(user, limit, since):
-	"""Posts of the member that a moderator hid or removed as spam since `since`."""
+	"""Posts of the member that a moderator hid or removed as spam since `since`.
+
+	A post hidden automatically counts only once a moderator keeps it hidden (D86)."""
 	found = 0
 	for doctype in ("GP Discussion", "GP Comment"):
 		Post = frappe.qb.DocType(doctype)
@@ -223,6 +225,7 @@ def removed(user, limit, since):
 			frappe.qb.from_(Post)
 			.select(Post.name)
 			.where((Post.owner == user) & ((Post.hidden_at >= since) | (Post.spam_removed_at >= since)))
+			.where(Post.auto_hidden == 0)
 			.limit(limit - found)
 			.run()
 		)

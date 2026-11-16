@@ -97,7 +97,9 @@
             {{
               comment.spam_removed_at
                 ? 'This reply was removed by a moderator.'
-                : 'This reply was hidden by a moderator.'
+                : comment.auto_hidden
+                  ? 'This reply was hidden after member reports and is waiting for review.'
+                  : 'This reply was hidden by a moderator.'
             }}
           </p>
           <Button v-if="canModerate" class="mt-2" variant="ghost" @click="toggleHiddenContent">
@@ -259,20 +261,27 @@ async function toggleHiddenContent() {
 
 function moderateReply(spam = false) {
   const restore = !spam && Boolean(props.comment.hidden_at || props.comment.spam_removed_at)
+  const automatic = restore && Boolean(props.comment.auto_hidden)
   dialog.prompt({
     title: restore ? 'Restore reply' : spam ? 'Delete spam' : 'Hide reply',
     message: restore
-      ? 'Make this reply visible again?'
+      ? automatic
+        ? 'Member reports hid this reply automatically. Restoring it dismisses those reports, and it will not hide automatically again.'
+        : 'Make this reply visible again?'
       : spam
         ? 'The reply will disappear from the thread and can be restored from Removed content.'
         : 'The reply will show a placeholder. Existing quotations in other posts stay unchanged.',
-    fields: restore ? [] : [{ name: 'reason', label: 'Reason', type: 'textarea', required: true }],
+    fields: restore
+      ? automatic
+        ? [{ name: 'reason', label: 'Note for the review', type: 'textarea' }]
+        : []
+      : [{ name: 'reason', label: 'Reason', type: 'textarea', required: true }],
     confirmLabel: restore ? 'Restore reply' : spam ? 'Delete spam' : 'Hide reply',
     onConfirm: async ({ values }) => {
       await commentType.runDocMethod.submit({
         name: props.comment.name,
         method: restore ? 'restore' : spam ? 'delete_spam' : 'hide',
-        params: restore ? {} : { reason: values.reason },
+        params: { reason: values.reason || '' },
       })
       hiddenContent.value = ''
       await props.comments.reload()

@@ -84,7 +84,7 @@
           <p class="text-p-sm text-ink-gray-5">
             by
             {{
-              ['Restriction Expired', 'Slow Mode Expired'].includes(item.action)
+              ['Restriction Expired', 'Slow Mode Expired', 'Auto Hide'].includes(item.action)
                 ? 'System'
                 : useUser(item.owner).full_name
             }}
@@ -106,7 +106,7 @@
     v-else-if="!error"
     icon="lucide-history"
     title="No moderation history"
-    description="Hides, removals, bans, slow mode and cleanups are recorded here."
+    description="Hides, automatic hides, removals, bans, slow mode and cleanups are recorded here."
   />
   <ModerationPager
     :previous="start > 0"
@@ -201,6 +201,7 @@ function applyFilters() {
 const undoing = ref('')
 const icons: Record<string, string> = {
   Hide: 'lucide-eye-off',
+  'Auto Hide': 'lucide-eye-off',
   'Delete Spam': 'lucide-trash-2',
   Restore: 'lucide-rotate-ccw',
   Ban: 'lucide-user-x',

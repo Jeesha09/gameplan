@@ -13,7 +13,8 @@
   "note",
   "reported_title",
   "reported_content",
-  "automatic_rule"
+  "automatic_rule",
+  "weight"
  ],
  "fields": [
   {
@@ -53,12 +54,19 @@
    "fieldtype": "Check",
    "label": "Automatic watched-word report",
    "read_only": 1
+  },
+  {
+   "fieldname": "weight",
+   "fieldtype": "Int",
+   "label": "Weight",
+   "default": "0",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-22 11:27:40.658918",
+ "modified": "2026-11-16 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gameplan",
  "name": "GP Report",

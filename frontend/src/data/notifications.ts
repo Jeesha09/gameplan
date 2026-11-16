@@ -180,6 +180,7 @@ export function notificationIcon(notification: { type?: string }) {
   if (notification.type === 'Poll Vote') return 'lucide-bar-chart-2'
   if (notification.type === 'Direct Message') return 'lucide-message-square'
   if (notification.type === 'Trust Level') return 'lucide-award'
+  if (notification.type === 'Moderation') return 'lucide-shield'
   return 'lucide-at-sign'
 }
 

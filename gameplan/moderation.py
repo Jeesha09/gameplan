@@ -3,6 +3,7 @@ from frappe.query_builder.functions import Count
 from pypika.terms import ExistsCriterion
 
 from gameplan.community_bans import can_moderate_community
+from gameplan.mixins.moderation import REMOVAL_ACTIONS
 from gameplan.moderation_logs import latest_logs
 from gameplan.paging import page_start
 from gameplan.permissions import moderatable_project_names
@@ -46,7 +47,7 @@ def removed_content(community: str, doctype: str = "GP Discussion", start: int =
 	field = "comment" if doctype == "GP Comment" else "discussion"
 	Log = frappe.qb.DocType("GP Moderation Log")
 	logs = (
-		latest_logs([field], ["Hide", "Delete Spam"])
+		latest_logs([field], REMOVAL_ACTIONS)
 		.select(Log[field], Log.reason, Log.title)
 		.where(Log[field].isin([str(row.name) for row in rows]))
 		.run(as_dict=True)
@@ -130,9 +131,7 @@ def ban_candidates(community: str, query: str = "", after: str = ""):
 	if query:
 		escaped_query = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 		prefix = f"{escaped_query}%"
-		users = users.where(
-			(User.full_name.like(prefix)) | (User.name.like(prefix))
-		)
+		users = users.where((User.full_name.like(prefix)) | (User.name.like(prefix)))
 	if after:
 		users = users.where(User.name > after)
 

@@ -44,7 +44,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Type",
-   "options": "Mention\nReaction\nRich Quote\nComment\nNew Discussion\nAdded\nMoved\nPoll Vote\nDirect Message\nTrust Level",
+   "options": "Mention\nReaction\nRich Quote\nComment\nNew Discussion\nAdded\nMoved\nPoll Vote\nDirect Message\nTrust Level\nModeration",
    "reqd": 1
   },
   {
@@ -141,7 +141,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-11-12 12:00:00.000000",
+ "modified": "2026-11-16 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gameplan",
  "name": "GP Notification",

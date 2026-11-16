@@ -13,6 +13,8 @@
   "status",
   "report_count",
   "last_reported_at",
+  "report_weight",
+  "auto_hidden",
   "decision",
   "decision_note",
   "decided_by",
@@ -57,6 +59,20 @@
     "read_only": 1
   },
   {
+   "default": "0",
+   "fieldname": "report_weight",
+   "fieldtype": "Int",
+   "label": "Report Weight",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "auto_hidden",
+   "fieldtype": "Check",
+   "label": "Hidden Automatically",
+   "read_only": 1
+  },
+  {
    "fieldname": "decision",
    "fieldtype": "Select",
    "label": "Decision",
@@ -81,7 +97,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-22 11:27:40.512382",
+ "modified": "2026-11-16 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gameplan",
  "name": "GP Review",

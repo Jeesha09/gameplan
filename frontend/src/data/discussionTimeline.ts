@@ -13,6 +13,7 @@ export const COMMENT_FIELDS = [
   'edited_at',
   'deleted_at',
   'hidden_at',
+  'auto_hidden',
   'spam_removed_at',
   'reference_doctype',
   'reference_name',

@@ -196,7 +196,7 @@ doc_events = {
 	},
 	# Discourse-style limits on Gameplan Guests posting in a space only because it is public.
 	"GP Discussion": {
-		"on_update": "gameplan.watched_word_actions.flag",
+		"on_update": ["gameplan.watched_word_actions.flag", "gameplan.auto_hide.recheck_moved"],
 		"on_trash": ["gameplan.reporting.protect_pending_reviews", "gameplan.slow_mode.clear_state"],
 		"before_insert": ["gameplan.approval_policy.guard_publication", "gameplan.posting_limits.record"],
 		"validate": [

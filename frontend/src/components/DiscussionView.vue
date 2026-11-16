@@ -1024,19 +1024,26 @@ function showHighlightCard() {
 function moderateDiscussion(spam = false) {
   const restore = !spam && Boolean(discussion.doc?.hidden_at || discussion.doc?.spam_removed_at)
   const label = restore ? 'Restore discussion' : spam ? 'Delete spam' : 'Hide discussion'
+  const automatic = restore && Boolean(discussion.doc?.auto_hidden)
   dialog.prompt({
     title: label,
     message: restore
-      ? 'Make this discussion visible again?'
+      ? automatic
+        ? 'Member reports hid this discussion automatically. Restoring it dismisses those reports, and it will not hide automatically again.'
+        : 'Make this discussion visible again?'
       : 'This discussion and its replies will be unavailable to ordinary readers. You can restore it from Removed content.',
-    fields: restore ? [] : [{ name: 'reason', label: 'Reason', type: 'textarea', required: true }],
+    fields: restore
+      ? automatic
+        ? [{ name: 'reason', label: 'Note for the review', type: 'textarea' }]
+        : []
+      : [{ name: 'reason', label: 'Reason', type: 'textarea', required: true }],
     confirmLabel: label,
     onConfirm: async ({ values, close }) => {
       await moderationCall(
         `/api/v2/document/GP Discussion/${props.postId}/method/${
           restore ? 'restore' : spam ? 'delete_spam' : 'hide'
         }`,
-        restore ? {} : { reason: values.reason },
+        restore ? { reason: values.reason || '' } : { reason: values.reason },
       )
       reloadDiscussionLists()
       await discussion.reload()

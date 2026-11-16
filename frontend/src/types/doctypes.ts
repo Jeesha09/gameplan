@@ -172,6 +172,7 @@ export interface GPNotification extends DocType {
     | 'Poll Vote'
     | 'Direct Message'
     | 'Trust Level'
+     | 'Moderation'
   /** Message: Text Editor */
   message?: string
   /** Read: Check */
@@ -240,6 +241,7 @@ export interface GPDiscussion extends DocType {
   pin_scope?: 'Category' | 'Space'
   /** Hidden At: Datetime */
   hidden_at?: string
+  auto_hidden?: 0 | 1
   /** Spam Removed At: Datetime */
   spam_removed_at?: string
   /** Slow Mode Seconds: Int */
@@ -378,6 +380,7 @@ export interface GPComment extends DocType {
   highlighted_by?: string
   /** Highlighted At: Datetime */
   highlighted_at?: string
+  auto_hidden?: 0 | 1
   /** Tags: Table (GP Tag Link) */
   tags: GPTagLink[]
   /** Spam Removed At: Datetime */

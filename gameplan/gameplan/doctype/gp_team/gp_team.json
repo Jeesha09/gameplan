@@ -27,7 +27,9 @@
   "section_break_gvbw",
   "readme",
   "approval_post_count",
-  "approval_min_level"
+  "approval_min_level",
+  "auto_hide_enabled",
+  "auto_hide_threshold"
  ],
  "fields": [
   {
@@ -144,12 +146,24 @@
    "options": "\nBasic\nMember",
    "read_only": 1,
    "description": "Used instead of the approval post count while trust levels are on."
+  },
+  {
+   "fieldname": "auto_hide_enabled",
+   "fieldtype": "Check",
+   "label": "Auto-hide Reported Posts",
+   "default": "0"
+  },
+  {
+   "fieldname": "auto_hide_threshold",
+   "fieldtype": "Int",
+   "label": "Auto-hide Threshold",
+   "default": "6"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-11-12 14:00:00.000000",
+ "modified": "2026-11-16 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gameplan",
  "name": "GP Team",

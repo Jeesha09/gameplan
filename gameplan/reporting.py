@@ -88,6 +88,10 @@ def submit(doctype: str, name: str, reason: str, note: str = ""):
 		.insert(ignore_permissions=True)
 		.name
 	)
+	from gameplan import auto_hide
+
+	community = frappe.db.get_value("GP Project", project, "team")
+	weight = auto_hide.report_weight(community, reason)
 	# A locked existing review can be newer than MariaDB's read snapshot.
 	report = frappe.get_doc(
 		doctype="GP Report",
@@ -96,15 +100,19 @@ def submit(doctype: str, name: str, reason: str, note: str = ""):
 		note=note,
 		reported_title=doc.get("title"),
 		reported_content=doc.content,
+		weight=weight,
 	).insert(ignore_permissions=True, ignore_links=bool(pending))
 	frappe.db.sql(
 		"""
 		UPDATE `tabGP Review`
-		SET `report_count` = `report_count` + 1, `last_reported_at` = %s
+		SET `report_count` = `report_count` + 1, `report_weight` = `report_weight` + %s,
+			`last_reported_at` = %s
 		WHERE `name` = %s
 		""",
-		(report.creation, review),
+		(weight, report.creation, review),
 	)
+	if weight:
+		auto_hide.check(review, doc, community)
 	return {"name": report.name}
 
 
@@ -143,6 +151,8 @@ def queue(community: str, status: str = "Pending", start: int = 0, sort_by: str 
 			Review.status,
 			Review.report_count,
 			Review.last_reported_at,
+			Review.report_weight,
+			Review.auto_hidden,
 			Review.decision,
 			Review.decided_by,
 			Review.decided_at,
@@ -150,6 +160,9 @@ def queue(community: str, status: str = "Pending", start: int = 0, sort_by: str 
 		)
 		.where(visible & (Review.status == status))
 	)
+	if status == "Pending":
+		# Posts hidden automatically wait for a moderator, so they come first (D89).
+		rows_query = rows_query.orderby(Review.auto_hidden, order=frappe.qb.desc)
 	if sort_by == "most_reported":
 		rows_query = rows_query.orderby(Review.report_count, order=frappe.qb.desc)
 	rows = (
@@ -217,7 +230,7 @@ def detail(community: str, review: str, start: int = 0, report: str = ""):
 	reports = frappe.get_all(
 		"GP Report",
 		filters={"review": review.name},
-		fields=["name", "owner", "creation", "reason", "note", "automatic_rule"],
+		fields=["name", "owner", "creation", "reason", "note", "automatic_rule", "weight"],
 		order_by="creation asc, name asc",
 		limit_start=page_start(start),
 		limit_page_length=41,
@@ -235,14 +248,29 @@ def detail(community: str, review: str, start: int = 0, report: str = ""):
 	if report and not evidence:
 		frappe.throw("Report does not belong to this review", frappe.PermissionError)
 	polls = review_polls(doc)
+	# Moderators review what the members reported, not the placeholder that replaced it.
+	shown = doc._original_content() if doc.get("auto_hidden") else doc
+	from gameplan.auto_hide import is_active, settings
+
 	return {
 		"review": {
 			field: review.get(field)
-			for field in ("name", "status", "decision", "decision_note", "decided_by", "decided_at")
+			for field in (
+				"name",
+				"status",
+				"decision",
+				"decision_note",
+				"decided_by",
+				"decided_at",
+				"report_weight",
+				"auto_hidden",
+			)
 		},
+		"auto_hide": {"active": is_active(community), "threshold": settings(community).threshold},
 		"current": {
-			"title": doc.get("title"),
-			"content": doc.content,
+			"title": shown.get("title"),
+			"content": shown.content,
+			"auto_hidden": doc.get("auto_hidden"),
 			"version": version(doc, polls),
 			"owner": doc.owner,
 			"discussion": str(parent_discussion(doc)),
@@ -276,7 +304,11 @@ def resolve(
 	if decision not in DECISIONS:
 		frappe.throw("Choose a review decision")
 	note = checked_note(note, required=True)
-	if decision in ("Hide", "Delete Spam"):
+	if doc.get("auto_hidden"):
+		from gameplan.auto_hide import resolve as resolve_auto_hidden
+
+		resolve_auto_hidden(doc, decision, note)
+	elif decision in ("Hide", "Delete Spam"):
 		getattr(doc, "hide" if decision == "Hide" else "delete_spam")(note)
 	review.db_set(
 		{

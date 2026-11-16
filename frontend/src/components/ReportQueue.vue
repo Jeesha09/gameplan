@@ -9,6 +9,17 @@
       <Select v-model="sortBy" class="w-40" :options="sortOptions" />
     </label>
   </div>
+  <p v-if="autoHide" class="pb-3 text-p-sm text-ink-gray-6" data-testid="auto-hide-status">
+    <template v-if="autoHide.enabled && autoHide.levels_enabled">
+      Auto-hide is on. A post is hidden until review when its Spam and Abuse reports reach a weight
+      of {{ autoHide.threshold }}.
+    </template>
+    <template v-else-if="autoHide.enabled">
+      Auto-hide is paused while trust levels are off.
+    </template>
+    <template v-else>Auto-hide is off.</template>
+    <template v-if="!autoHide.can_edit"> Community admins change it.</template>
+  </p>
   <div
     v-if="status === 'Pending' && items.length"
     class="flex h-11 items-center gap-3 border-t border-outline-gray-1"
@@ -75,6 +86,11 @@
       </template>
       <template #status>
         <Badge
+          v-if="status === 'Pending' && item.auto_hidden"
+          label="Hidden automatically"
+          variant="outline"
+        />
+        <Badge
           v-for="{ reason, count } in topReasons(item).shown"
           :key="reason"
           :label="count > 1 ? `${reason} ×${count}` : reason"
@@ -116,6 +132,26 @@
   >
     <template v-if="details" #sidebar>
       <div class="space-y-5">
+        <section
+          v-if="details.review.report_weight || details.review.auto_hidden"
+          class="space-y-1"
+          aria-label="Report weight"
+          data-testid="report-weight"
+        >
+          <p class="text-base-semibold">
+            Report weight {{ details.review.report_weight || 0 }} of
+            {{ details.auto_hide.threshold }}
+          </p>
+          <p class="text-p-sm text-ink-gray-6">
+            <template v-if="details.review.auto_hidden && details.current.auto_hidden">
+              The post was hidden automatically and is waiting for your decision.
+            </template>
+            <template v-else-if="details.review.auto_hidden">
+              The post was hidden automatically.
+            </template>
+            <template v-else>Spam and Abuse reports add their reporter's weight.</template>
+          </p>
+        </section>
         <Select
           v-if="details.reports.length > 1"
           v-model="selectedReport"
@@ -135,6 +171,9 @@
                 ? 'Automatic watched-word rule'
                 : useUser(activeReport.owner).full_name
             }}
+          </p>
+          <p class="mt-1 text-p-sm text-ink-gray-6">
+            {{ activeReport.weight ? `Weight ${activeReport.weight}` : 'Does not count toward auto-hide' }}
           </p>
           <time class="mt-1 block text-p-sm text-ink-gray-6">{{
             dayjsLocal(activeReport.creation).format('D MMM YYYY [at] h:mm A')
@@ -161,7 +200,9 @@
             :disabled="resolving || evidenceLoading"
             :options="['Dismiss', 'Uphold', 'Hide', 'Delete Spam']"
           />
-          <p class="text-p-sm text-ink-gray-6">{{ decisionHelp[decision] }}</p>
+          <p class="text-p-sm text-ink-gray-6">
+            {{ (details.current.auto_hidden ? autoHiddenHelp : decisionHelp)[decision] }}
+          </p>
           <Textarea
             v-model="note"
             label="Decision note"
@@ -181,7 +222,14 @@
     <template v-if="details">
       <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
         <p class="text-base text-ink-gray-6">
-          {{ view === 'reported' ? 'Reported version' : 'Current post' }} ·
+          {{
+            view === 'reported'
+              ? 'Reported version'
+              : details.current.auto_hidden
+                ? 'Hidden post'
+                : 'Current post'
+          }}
+          ·
           {{ useUser(details.current.owner).full_name }}
         </p>
         <div class="flex gap-2">
@@ -316,7 +364,9 @@ const activeReport = computed(() =>
 const reportOptions = computed(
   () =>
     details.value?.reports.map((report) => ({
-      label: `${report.reason} · ${useUser(report.owner).full_name}`,
+      label: `${report.reason} · ${
+        report.automatic_rule ? 'Watched word' : useUser(report.owner).full_name
+      }${report.weight ? ` · weight ${report.weight}` : ''}`,
       value: report.name,
     })) || [],
 )
@@ -326,6 +376,31 @@ const decisionHelp: Record<string, string> = {
   Hide: 'Hide this post. Moderators can restore it later.',
   'Delete Spam': 'Remove this post as spam. Moderators can restore it later.',
 }
+// On a post hidden automatically, Dismiss restores it and the other decisions keep it hidden (D85).
+const autoHiddenHelp: Record<string, string> = {
+  Dismiss: 'Restore the post and close the review. It will not hide automatically again.',
+  Uphold: 'Accept the reports and keep the post hidden.',
+  Hide: 'Keep the post hidden. Moderators can restore it later.',
+  'Delete Spam': 'Remove this post as spam. Moderators can restore it later.',
+}
+type AutoHideSettings = {
+  enabled: number
+  threshold: number
+  levels_enabled: boolean
+  can_edit: boolean
+}
+const autoHide = ref<AutoHideSettings | null>(null)
+async function loadAutoHide() {
+  const community = props.communityId
+  autoHide.value = null
+  try {
+    const result = await call<AutoHideSettings>('gameplan.auto_hide.get_settings', { community })
+    if (community === props.communityId) autoHide.value = result
+  } catch {
+    // The status line is a hint. The queue works without it.
+  }
+}
+watch(() => props.communityId, loadAutoHide, { immediate: true })
 const showReview = ref(false),
   details = ref<Details | null>(null),
   reviewError = ref<unknown>(null)

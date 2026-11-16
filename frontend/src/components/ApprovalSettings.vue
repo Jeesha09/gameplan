@@ -39,6 +39,36 @@
     <p class="mt-3 text-base text-ink-gray-5">
       Changes affect future submissions. Existing pending submissions still need a decision.
     </p>
+    <section class="mt-6 border-t border-outline-gray-1 pt-5" aria-labelledby="auto-hide-title">
+      <h3 id="auto-hide-title" class="text-base font-medium text-ink-gray-8">Auto-hide</h3>
+      <p class="mt-1 text-p-sm text-ink-gray-6">
+        Hide a post until review when its Spam and Abuse reports reach a weight. New and Basic
+        members count 1, Members 2, Regulars, Leaders and Community staff 3. Posts by Community
+        staff never hide.
+      </p>
+      <Checkbox
+        v-model="autoHideEnabled"
+        class="mt-3"
+        label="Hide reported posts automatically"
+        :disabled="loading || saving || (!levelsEnabled && !autoHideEnabled)"
+        data-testid="auto-hide-switch"
+      />
+      <p v-if="!levelsEnabled" class="mt-2 text-p-sm text-ink-gray-6">
+        Auto-hide needs trust levels. A global admin turns them on under Site administration.
+        <template v-if="autoHideEnabled">Until then, auto-hide is paused.</template>
+      </p>
+      <TextInput
+        v-if="autoHideEnabled"
+        v-model="threshold"
+        class="mt-4"
+        label="Report weight that hides a post"
+        type="number"
+        :min="3"
+        :max="30"
+        :disabled="loading || saving"
+        data-testid="auto-hide-threshold"
+      />
+    </section>
     <ErrorMessage
       v-if="error"
       class="mt-3"
@@ -52,7 +82,8 @@
           !loaded ||
           (enabled &&
             !levelsEnabled &&
-            (!Number.isInteger(Number(count)) || Number(count) < 1 || Number(count) > 100))
+            (!Number.isInteger(Number(count)) || Number(count) < 1 || Number(count) > 100)) ||
+          !thresholdValid
         "
         :loading="saving"
         @click="save"
@@ -62,7 +93,7 @@
   </Dialog>
 </template>
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { Button, Checkbox, Dialog, ErrorMessage, Select, TextInput, call, toast } from 'frappe-ui'
 import { extractServerMessage } from '@/utils'
 const props = defineProps<{ communityId: string }>()
@@ -80,19 +111,29 @@ const open = ref(false),
   loading = ref(false),
   saving = ref(false),
   error = ref<unknown>(null)
+const autoHideEnabled = ref(false),
+  threshold = ref('6')
+const thresholdValid = computed(() => {
+  const number = Number(threshold.value)
+  return Number.isInteger(number) && number >= 3 && number <= 30
+})
+type AutoHideSettings = { enabled: number; threshold: number }
 async function show() {
   open.value = true
   error.value = null
   loading.value = true
   loaded.value = false
   try {
-    const [value, levels] = await Promise.all([
+    const [value, levels, autoHide] = await Promise.all([
       call<number>('gameplan.approval_policy.get_policy', { community: props.communityId }),
       call<{ levels_enabled: boolean; min_level: string }>(
         'gameplan.approval_policy.get_level_policy',
         { community: props.communityId },
       ),
+      call<AutoHideSettings>('gameplan.auto_hide.get_settings', { community: props.communityId }),
     ])
+    autoHideEnabled.value = Boolean(autoHide.enabled)
+    threshold.value = String(autoHide.threshold)
     levelsEnabled.value = Boolean(levels.levels_enabled)
     minLevel.value = levels.min_level
     loaded.value = true
@@ -118,6 +159,11 @@ async function save() {
         community: props.communityId,
         count: enabled.value ? Number(count.value) : 0,
       })
+    await call('gameplan.auto_hide.save_settings', {
+      community: props.communityId,
+      enabled: autoHideEnabled.value ? 1 : 0,
+      threshold: Number(threshold.value),
+    })
     open.value = false
     toast.success('Approval policy saved.')
   } catch (e) {
