@@ -604,13 +604,12 @@ def member_progress(user: str):
 
 
 @frappe.whitelist(methods=["GET", "POST"])
-def member_levels(level: str = "", query: str = "", start: int = 0):
-	"""List people with their stored levels, 50 at a time, newest name first. Global admins only.
+def member_levels(level: str = "", query: str = "", after: str = ""):
+	"""List people with their stored levels by name, 50 at a time after `after`. Global admins only.
 
 	`level` is a number, "pending" for people the first calculation has not reached, or "" for all.
+	`after` is the last user of the previous page, so a long list scrolls without an offset.
 	"""
-	from gameplan.paging import page_start
-
 	require_admin()
 	Profile, User, Level, Role = (
 		frappe.qb.DocType(dt) for dt in ("GP User Profile", "User", "GP Trust Level", "Has Role")
@@ -620,6 +619,7 @@ def member_levels(level: str = "", query: str = "", start: int = 0):
 		.select(Role.parent)
 		.where((Role.parenttype == "User") & Role.role.isin(["Gameplan Admin", "System Manager"]))
 	)
+	full_name = fn.IfNull(User.full_name, "")
 	rows = (
 		frappe.qb.from_(Profile)
 		.join(User)
@@ -638,13 +638,10 @@ def member_levels(level: str = "", query: str = "", start: int = 0):
 	query = (query or "").strip()
 	if query:
 		rows = rows.where(User.full_name.like(f"{query}%") | User.name.like(f"{query}%"))
-	rows = (
-		rows.orderby(User.full_name)
-		.orderby(User.name)
-		.limit(PAGE + 1)
-		.offset(page_start(start))
-		.run(as_dict=True)
-	)
+	if after:
+		last = frappe.db.get_value("User", after, "full_name") or ""
+		rows = rows.where((full_name > last) | ((full_name == last) & (User.name > after)))
+	rows = rows.orderby(full_name).orderby(User.name).limit(PAGE + 1).run(as_dict=True)
 	members = [
 		{
 			"user": row.user,

@@ -512,3 +512,18 @@ class TestReading(TrustLevelTestCase):
 			self.assertEqual(community_levels(self.community.name)["levels"].get(self.member.name), BASIC)
 		with self.as_user(self.member), self.assertRaises(frappe.PermissionError):
 			community_levels(self.community.name)
+
+	def test_the_level_list_pages_after_the_last_person_without_gaps(self):
+		from gameplan import trust_levels
+
+		with self.as_user(self.admin), patch.object(trust_levels, "PAGE", 2):
+			everyone = []
+			after = ""
+			while True:
+				page = trust_levels.member_levels(after=after)
+				everyone += [row["user"] for row in page["members"]]
+				if not page["more"]:
+					break
+				after = page["members"][-1]["user"]
+		self.assertEqual(len(everyone), len(set(everyone)))
+		self.assertTrue({self.member.name, self.second_member.name, self.outsider.name} <= set(everyone))

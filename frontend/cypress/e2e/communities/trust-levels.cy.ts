@@ -24,8 +24,8 @@ describe('Trust levels', () => {
       cy.contains('Trust levels saved.').should('be.visible')
 
       // No job worker runs here, so the first calculation has not reached anyone yet.
-      cy.contains('[role="radio"]', 'Not worked out').click()
-      row('Second Member').should('contain.text', 'Not worked out yet')
+      cy.contains('[role="radio"]', 'Not calculated').click()
+      row('Second Member').should('contain.text', 'Level not calculated yet')
       cy.contains('[role="radio"]', 'All').click()
 
       row('Second Member').find('button[aria-label="More actions"]').click()
