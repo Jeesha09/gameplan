@@ -8,7 +8,7 @@ from frappe.utils import now_datetime
 
 import gameplan
 from gameplan.community_bans import can_moderate_community, require_participation
-from gameplan.mixins.moderation import parent_discussion
+from gameplan.mixins.moderation import is_removed, parent_discussion
 from gameplan.paging import page_start
 from gameplan.permissions import (
 	apply_accessible_project_filter,
@@ -206,10 +206,17 @@ def queue(community: str, status: str = "Pending", start: int = 0, sort_by: str 
 	if discussion_names:
 		titles = (
 			frappe.qb.from_(Discussion)
-			.select(Discussion.name, Discussion.title, Discussion.owner)
+			.select(
+				Discussion.name,
+				Discussion.title,
+				Discussion.owner,
+				Discussion.hidden_at,
+				Discussion.spam_removed_at,
+			)
 			.where(Discussion.name.isin(discussion_names))
 		).run(as_dict=True)
 		discussion_titles = {str(discussion.name): discussion.title for discussion in titles}
+		discussion_titles.update(removed_titles([str(row.name) for row in titles if is_removed(row)]))
 		authors.update({("GP Discussion", str(discussion.name)): discussion.owner for discussion in titles})
 	for row in rows:
 		discussion = (
@@ -319,6 +326,23 @@ def resolve(
 			"decided_at": now_datetime(),
 		}
 	)
+
+
+def removed_titles(discussions):
+	"""Original titles of removed discussions, so moderators can tell them apart in the queue."""
+	if not discussions:
+		return {}
+	from gameplan.mixins.moderation import REMOVAL_ACTIONS
+	from gameplan.moderation_logs import latest_logs
+
+	Log = frappe.qb.DocType("GP Moderation Log")
+	logs = (
+		latest_logs(["discussion"], REMOVAL_ACTIONS)
+		.select(Log.discussion, Log.title)
+		.where(Log.discussion.isin(discussions))
+		.run(as_dict=True)
+	)
+	return {log.discussion: log.title for log in logs if log.title}
 
 
 def target(doctype, name, *, for_update=True):

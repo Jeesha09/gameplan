@@ -126,6 +126,8 @@ PRIVATE_FIELDS = {
 		**VISIBILITY_PRIVATE_FIELDS,
 		"approval_post_count": "Community moderation policy, not public content",
 		"approval_min_level": "Community moderation policy, not public content",
+		"auto_hide_enabled": "Community moderation policy, not public content",
+		"auto_hide_threshold": "Community moderation policy, not public content",
 	},
 	"GP Project": {
 		**VISIBILITY_PRIVATE_FIELDS,

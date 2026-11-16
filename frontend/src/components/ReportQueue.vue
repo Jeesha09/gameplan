@@ -173,7 +173,11 @@
             }}
           </p>
           <p class="mt-1 text-p-sm text-ink-gray-6">
-            {{ activeReport.weight ? `Weight ${activeReport.weight}` : 'Does not count toward auto-hide' }}
+            {{
+              activeReport.weight
+                ? `Weight ${activeReport.weight}`
+                : 'Does not count toward auto-hide'
+            }}
           </p>
           <time class="mt-1 block text-p-sm text-ink-gray-6">{{
             dayjsLocal(activeReport.creation).format('D MMM YYYY [at] h:mm A')

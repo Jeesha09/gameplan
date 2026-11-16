@@ -207,6 +207,8 @@ class TestDecisions(AutoHideTestCase):
 			items = queue(self.community.name)["items"]
 		self.assertEqual(items[0].name, review)
 		self.assertEqual(items[0].auto_hidden, 1)
+		# The queue names the hidden discussion by its original title, not the placeholder.
+		self.assertEqual(items[0].discussion_title, "Buy cheap pills")
 
 	def test_dismiss_restores_the_post_and_it_never_hides_automatically_again(self):
 		review = self.hide_with_regulars()
