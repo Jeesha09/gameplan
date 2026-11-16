@@ -110,7 +110,10 @@ const search = defineModel<string>('search', { default: '' })
 const showAddDialog = defineModel<boolean>('showAddDialog', { default: false })
 
 // Community staff read each member's site-wide trust level here. Only global admins change it.
-const levelRequest = useCall<{ enabled: number; levels: Record<string, number> }>({
+const levelRequest = useCall<
+  { enabled: number; levels: Record<string, number> },
+  { community: string }
+>({
   url: '/api/v2/method/gameplan.trust_levels.community_levels',
   params: () => ({ community: props.community.name }),
   immediate: canModerateCommunity(props.community, useSessionUser()),
