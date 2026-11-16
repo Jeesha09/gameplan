@@ -1,6 +1,6 @@
 <template>
   <Button variant="ghost" icon-left="lucide-settings-2" @click="show">Trust level settings</Button>
-  <Dialog v-model:open="open" title="Trust levels" :dismissible="!saving" size="2xl">
+  <Dialog v-model:open="open" title="Trust levels" :dismissible="!saving" size="4xl">
     <Checkbox
       v-model="enabled"
       label="Use trust levels"
@@ -11,9 +11,9 @@
       Members move from New to Basic, Member and Regular on their own, as they visit, read and take
       part. Leader is set by hand. Turning levels on works out everyone's level in the background.
     </p>
-    <div v-for="group in SETTING_GROUPS" :key="group.title" class="mt-5">
+    <div v-for="group in SETTING_GROUPS" :key="group.title" class="mt-4">
       <p class="text-base font-medium text-ink-gray-8">{{ group.title }} needs</p>
-      <div class="mt-2 grid gap-3 sm:grid-cols-3">
+      <div class="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <TextInput
           v-for="[field, label] in group.fields"
           :key="field"
