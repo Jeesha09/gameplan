@@ -1,10 +1,12 @@
 # Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and Contributors
 # MIT License. See license.txt
 
-"""Discourse-style posting safeguards for public-only Gameplan Guests.
+"""Discourse-style posting safeguards for public-only Gameplan Guests and New members.
 
-Apply first-day quotas, per-post limits and a 24-hour own-post edit window.
-Members and explicitly granted Guests are exempt. Validation hooks cover every save route.
+Apply first-day quotas and per-post limits. Public-only Guests also get a 24-hour own-post edit
+window. While trust levels are on, members and invited Guests at New get the same quotas and
+per-post limits outside the Communities they help run (D116). Others are exempt. Validation hooks
+cover every save route.
 """
 
 from datetime import timedelta
@@ -46,19 +48,31 @@ class NewUserLimitError(frappe.ValidationError):
 def check_new_user_limits(doc, method=None):
 	"""`validate` for every doctype a Gameplan Guest may create."""
 	user = frappe.session.user
-	posted = first_day_post_count(user, doc.doctype) if doc.is_new() and gameplan.is_guest(user) else None
+	counted = doc.is_new() and (gameplan.is_guest(user) or is_new_level(user))
+	posted = first_day_post_count(user, doc.doctype) if counted else None
 	if not is_limited(user, doc):
 		return
 	if doc.is_new():
 		check_first_day(posted, doc)
-	elif (doc.owner or frappe.db.get_value(doc.doctype, doc.name, "owner")) == user and post_changed(doc):
+	elif (
+		gameplan.is_guest(user)
+		and (doc.owner or frappe.db.get_value(doc.doctype, doc.name, "owner")) == user
+		and post_changed(doc)
+	):
 		check_edit_window(doc)
 	if doc.is_new() or post_changed(doc):
 		check_post(doc.get("content") if doc.meta.has_field("content") else None)
 
 
+def is_new_level(user) -> bool:
+	from gameplan.trust_levels import NEW, level_of
+
+	return level_of(user) == NEW
+
+
 def is_limited(user, doc) -> bool:
-	"""Whether `user` reaches `doc`'s space only because it is public."""
+	"""Whether `user` reaches `doc`'s space only because it is public, or is New outside its staff."""
+	from gameplan.community_bans import can_moderate_community
 	from gameplan.permissions import (
 		get_content_project,
 		get_project_info,
@@ -66,6 +80,11 @@ def is_limited(user, doc) -> bool:
 		is_publicly_readable_space,
 	)
 
+	if is_new_level(user):
+		project = get_content_project(doc)
+		community = project and frappe.db.get_value("GP Project", project, "team")
+		if community and not can_moderate_community(community, user):
+			return True
 	if not gameplan.is_guest(user):
 		return False
 	project = get_content_project(doc)
@@ -91,7 +110,7 @@ def first_day_post_count(user, doctype):
 def record_first_day_post(doc, method=None):
 	"""Count successful inserts, including posts later deleted or removed by a cascade."""
 	user = doc.owner
-	if not gameplan.is_guest(user) or first_day_post_count(user, doc.doctype) is None:
+	if not (gameplan.is_guest(user) or is_new_level(user)) or first_day_post_count(user, doc.doctype) is None:
 		return
 	Profile = frappe.qb.DocType("GP User Profile")
 	field = getattr(Profile, POST_COUNTER_FIELDS[doc.doctype])

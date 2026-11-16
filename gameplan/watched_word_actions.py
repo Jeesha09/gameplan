@@ -63,7 +63,7 @@ def flag(doc, method=None):
 		"GP Review",
 		{
 			"reference_doctype": doc.doctype,
-			"reference_name": doc.name,
+			"reference_name": str(doc.name),
 			"status": "Pending",
 		},
 	)

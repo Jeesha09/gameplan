@@ -209,6 +209,28 @@ class TestSlowMode(GameplanTestCase):
 		self.assertEqual(len(ended), 1)
 		self.assertEqual(frappe.db.get_value("GP Discussion", name, "slow_mode_seconds"), 0)
 
+	def test_open_ended_slow_modes_do_not_hide_an_elapsed_one_from_the_job(self):
+		from gameplan.restrictions import utc_now
+		from gameplan.slow_mode import expire_due
+		from gameplan.tests.fixtures import create_discussion
+
+		# `<=` on a date matches an empty one too, and they sort first: 100 slow modes with no end
+		# kept the job from reaching an elapsed one, and it re-queued itself forever.
+		for index in range(100):
+			other = create_discussion(f"Open ended {index}", self.space)
+			frappe.db.set_value("GP Discussion", other.name, "slow_mode_seconds", 60, update_modified=False)
+		name = str(self.discussion.name)
+		frappe.db.set_value(
+			"GP Discussion",
+			name,
+			{"slow_mode_seconds": 60, "slow_mode_until": utc_now() - timedelta(seconds=1)},
+			update_modified=False,
+		)
+		with patch("frappe.enqueue") as enqueue:
+			expire_due()
+		enqueue.assert_not_called()
+		self.assertEqual(frappe.db.get_value("GP Discussion", name, "slow_mode_seconds"), 0)
+
 	def test_end_time_choices_are_validated(self):
 		from gameplan.restrictions import utc_now
 

@@ -1,5 +1,7 @@
 """Remove every post by one author in a Community as spam, and undo exactly that cleanup."""
 
+import time
+
 import frappe
 
 from gameplan.community_bans import can_moderate_community
@@ -7,6 +9,13 @@ from gameplan.permissions import is_global_admin
 from gameplan.reporting import checked_note
 
 BATCH = 100
+# The long queue stops a job after 1,500 s. A big cleanup (50,000 posts take about 25 minutes)
+# works in slices of this length and hands the rest to a new job.
+TIME_BUDGET = 1_200
+
+
+def clock():
+	return time.monotonic()
 
 
 @frappe.whitelist(methods=["POST"])
@@ -52,34 +61,80 @@ def undo(cleanup: str):
 
 def run(cleanup, community, user, reason, actor):
 	frappe.set_user(actor)
-	if not can_moderate_community(community):
+	# A retried job finds its summary and stops; a resumed one skips posts already removed.
+	if summarized(cleanup) or not can_moderate_community(community):
 		return
-	removed = skipped = 0
+	if is_global_admin(user) or can_moderate_community(community, user):
+		record(
+			"Author Cleanup",
+			cleanup,
+			community,
+			user,
+			"Not run: this person now has a staff role in this Community.",
+			reason,
+		)
+		return
+	done = skipped = 0
+	deadline = clock() + TIME_BUDGET
 	for doctype, name in authored_posts(user, community):
+		if clock() > deadline:
+			# Posts already removed are left out of the next slice's list. Skipped ones stay in
+			# it, and the last slice counts them.
+			frappe.db.commit()
+			frappe.enqueue(
+				run,
+				queue="long",
+				cleanup=cleanup,
+				community=community,
+				user=user,
+				reason=reason,
+				actor=actor,
+			)
+			return
 		try:
 			frappe.get_doc(doctype, name)._remove_content("Delete Spam", reason, cleanup=cleanup)
-			removed += 1
 		except frappe.PermissionError:
 			skipped += 1
-		commit_every_batch(removed + skipped)
+		done += 1
+		commit_every_batch(done)
+	removed = frappe.db.count("GP Moderation Log", {"cleanup": cleanup, "action": "Delete Spam"})
 	rejected = reject_pending(user, community, reason)
-	note = f"Removed {removed} posts. Rejected {rejected} pending submissions."
+	note = f"Removed {count(removed, 'post')}. Rejected {count(rejected, 'pending submission')}."
 	if skipped:
-		note += f" Skipped {skipped} posts you cannot moderate."
+		note += f" Skipped {count(skipped, 'post')} you cannot moderate."
 	record("Author Cleanup", cleanup, community, user, note, reason)
 
 
-def run_undo(cleanup, actor):
+def run_undo(cleanup, actor, after="", restored=0, skipped=0):
+	"""Restore the posts of one cleanup, in slices. `after`, `restored` and `skipped` carry a
+	slice's progress to the next one."""
 	frappe.set_user(actor)
 	log = frappe.get_doc("GP Moderation Log", {"action": "Author Cleanup", "cleanup": cleanup})
 	if undone(cleanup) or not can_moderate_community(log.community):
 		return
-	restored = skipped = 0
+	deadline = clock() + TIME_BUDGET
+	last = after
+	filters = {"cleanup": cleanup, "action": "Delete Spam"}
+	if after:
+		filters["name"] = [">", after]
 	for removal in frappe.get_all(
 		"GP Moderation Log",
-		filters={"cleanup": cleanup, "action": "Delete Spam"},
+		filters=filters,
 		fields=["name", "discussion", "comment"],
+		order_by="name asc",
 	):
+		if clock() > deadline:
+			frappe.db.commit()
+			frappe.enqueue(
+				run_undo,
+				queue="long",
+				cleanup=cleanup,
+				actor=actor,
+				after=last,
+				restored=restored,
+				skipped=skipped,
+			)
+			return
 		doctype, name = (
 			("GP Comment", removal.comment) if removal.comment else ("GP Discussion", removal.discussion)
 		)
@@ -90,11 +145,20 @@ def run_undo(cleanup, actor):
 			restored += 1
 		else:
 			skipped += 1
+		last = removal.name
 		commit_every_batch(restored + skipped)
-	note = f"Restored {restored} posts."
+	note = f"Restored {count(restored, 'post')}."
 	if skipped:
 		note += f" Skipped {skipped} changed since the cleanup."
 	record("Undo Cleanup", cleanup, log.community, log.user, note)
+
+
+def count(number, noun):
+	return f"{number} {noun}{'' if number == 1 else 's'}"
+
+
+def summarized(cleanup):
+	return frappe.db.exists("GP Moderation Log", {"action": "Author Cleanup", "cleanup": cleanup})
 
 
 def undone(cleanup):

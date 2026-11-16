@@ -195,5 +195,11 @@ function refreshAllUnreadCounts() {
 // a request per cached community.
 const reloadAllUnreadCounts = useDebounceFn(refreshAllUnreadCounts, 500)
 onSocketEvent('gameplan:unread_counts_changed', reloadAllUnreadCounts)
+// A broadcast reaches every open tab at once. Spread the reloads over a few seconds so a post in
+// a very large Space does not become a burst of requests.
+const STALE_SPREAD_MS = 8000
+onSocketEvent('gameplan:unread_counts_stale', () => {
+  setTimeout(reloadAllUnreadCounts, Math.random() * STALE_SPREAD_MS)
+})
 onSocketReconnect(reloadAllUnreadCounts)
 onReconnect(reloadAllUnreadCounts)

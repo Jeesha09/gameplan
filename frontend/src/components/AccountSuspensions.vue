@@ -1,88 +1,105 @@
 <template>
-  <div class="space-y-4">
-    <p class="text-base text-ink-gray-6">
-      Silenced accounts can sign in and read, but cannot participate in any Community. Suspended
-      accounts cannot sign in or use the site, any installed app, or API access.
+  <div class="text-ink-gray-9">
+    <p class="pb-5 text-p-base text-ink-gray-6">
+      Silenced accounts can sign in and read, but can't post anywhere. Suspended accounts can't sign
+      in or use the site, its apps, or API access.
     </p>
-    <div class="space-y-1.5">
-      <div class="flex flex-wrap items-end gap-2">
-        <Combobox
-          v-model="chosen"
-          v-model:query="query"
-          label="User"
-          placeholder="Name or email"
-          class="min-w-[12rem] flex-1"
-          open-on-click
-          :options="options"
-          :filterable="false"
-          :loading="searching && !options.length"
-          :empty-text="
-            query.trim().length === 1
-              ? 'Type one more character to search the site.'
-              : 'No eligible users match this search.'
-          "
-          aria-describedby="account-suspension-user-help"
-          @update:open="pickerOpen = $event"
+    <div class="flex flex-wrap items-center gap-2 pb-3">
+      <Combobox
+        v-model="chosen"
+        v-model:query="query"
+        placeholder="Find an account by name or email"
+        aria-label="Account"
+        class="w-full max-w-sm"
+        open-on-click
+        :options="options"
+        :filterable="false"
+        :loading="searching && !options.length"
+        :empty-text="
+          query.trim().length === 1
+            ? 'Type one more character to search the site.'
+            : 'No eligible users match this search.'
+        "
+        @update:open="pickerOpen = $event"
+      >
+        <template #item-prefix="{ item }"
+          ><Avatar :image="item.image" :label="item.label" size="sm"
+        /></template>
+        <template #footer>
+          <Button
+            v-if="candidateCursor"
+            variant="ghost"
+            class="w-full"
+            :loading="searching"
+            @click="search(candidateCursor)"
+          >
+            Load more users
+          </Button>
+        </template>
+      </Combobox>
+      <template v-if="chosen">
+        <Button variant="solid" icon-left="lucide-shield-ban" @click="edit({ user: chosen })"
+          >Restrict</Button
         >
-          <template #item-prefix="{ item }"
-            ><Avatar :image="item.image" :label="item.label" size="sm"
-          /></template>
-          <template #footer>
-            <Button
-              v-if="candidateCursor"
-              variant="ghost"
-              class="w-full"
-              :loading="searching"
-              @click="search(candidateCursor)"
-            >
-              Load more users
-            </Button>
-          </template>
-        </Combobox>
-        <Button :disabled="!chosen" @click="edit({ user: chosen })">Restrict account</Button>
-        <Button v-if="chosen" @click="cleanupOpen = true">Remove all posts</Button>
-        <Button v-if="chosen" @click="showHistory({ user: chosen })">View history</Button>
-      </div>
-      <p id="account-suspension-user-help" class="text-base text-ink-gray-6">
-        Browse users or search the entire site by name or email (at least 2 characters).
+        <Button @click="cleanupOpen = true">Remove all posts</Button>
+        <Button variant="ghost" @click="showHistory({ user: chosen })">History</Button>
+      </template>
+      <p v-else class="ml-auto text-p-sm text-ink-gray-6">
+        {{
+          items.length ? `${items.length}${nextCursor ? '+' : ''} active` : 'No active restrictions'
+        }}
       </p>
     </div>
     <ErrorMessage
       v-if="error"
+      class="py-3"
       :message="extractServerMessage(error) || 'Could not load restrictions'"
     />
-    <p v-if="loading" role="status" class="text-base text-ink-gray-6">Loading restrictions…</p>
-    <div
-      v-for="item in items"
-      :key="item.user"
-      class="flex flex-wrap items-center justify-between gap-3 border-b border-outline-gray-2 py-4"
-    >
-      <div class="min-w-0 flex-1">
-        <div class="flex items-center gap-2">
-          <Avatar :image="item.user_image" :label="item.full_name || item.user" size="sm" /><span
-            class="text-base-medium"
-            >{{ item.full_name || item.user }}</span
-          >
-        </div>
-        <p class="mt-2 text-base text-ink-gray-6">
-          {{ item.kind === 'Silence' ? 'Silenced' : 'Suspended' }} ·
-          {{ expiryLabel(item.expires_at) }}
-        </p>
-        <p class="mt-2 whitespace-pre-wrap break-words text-base">{{ item.reason }}</p>
-      </div>
-      <div class="flex gap-2">
-        <Button @click="edit(item)">Change</Button
-        ><Button @click="edit(item, true)">Lift restriction</Button
-        ><Button @click="showHistory(item)">History</Button>
-      </div>
+    <p v-if="loading" role="status" class="py-6 text-base text-ink-gray-5">Loading restrictions…</p>
+    <div v-else-if="items.length" class="border-t border-outline-gray-1">
+      <ModerationRow v-for="item in items" :key="item.user">
+        <template #lead>
+          <Avatar :image="item.user_image" :label="item.full_name || item.user" size="md" />
+        </template>
+        <template #title>{{ item.full_name || item.user }}</template>
+        <template v-if="item.reason" #detail>{{ item.reason }}</template>
+        <template #meta>{{ untilLabel(item.expires_at) }}</template>
+        <template #status>
+          <Badge :label="item.kind === 'Silence' ? 'Silenced' : 'Suspended'" />
+        </template>
+        <template #actions>
+          <Button variant="subtle" @click="edit(item, true)">Lift</Button>
+          <Dropdown
+            align="end"
+            :button="{ icon: 'lucide-more-horizontal', variant: 'ghost', label: 'More actions' }"
+            :options="[
+              { label: 'Change restriction', icon: 'lucide-pencil', onClick: () => edit(item) },
+              {
+                label: 'Remove all posts',
+                icon: 'lucide-trash-2',
+                onClick: () => {
+                  chosen = item.user
+                  cleanupOpen = true
+                },
+              },
+              { label: 'View history', icon: 'lucide-history', onClick: () => showHistory(item) },
+            ]"
+          />
+        </template>
+      </ModerationRow>
     </div>
-    <p v-if="!loading && !items.length" class="py-6 text-base text-ink-gray-6">
-      No active account restrictions.
-    </p>
-    <div class="flex gap-2">
-      <Button v-if="cursors.length" @click="previous">Previous</Button
-      ><Button v-if="nextCursor" @click="next">Next</Button>
-    </div>
+    <ModerationEmpty
+      v-else-if="!error"
+      icon="lucide-shield-check"
+      title="No accounts are restricted"
+      description="Silence or suspend an account across every Community on this site."
+    />
+    <ModerationPager
+      :previous="cursors.length > 0"
+      :next="!!nextCursor"
+      @previous="previous"
+      @next="next"
+    />
     <CleanupDialog
       v-if="cleanupOpen"
       v-model:open="cleanupOpen"
@@ -97,18 +114,20 @@
       :lifting="lifting"
       @saved="saved"
     />
-    <Dialog v-model:open="historyOpen" title="Account restriction history">
+    <Dialog v-model:open="historyOpen" title="Account history">
       <ScrollArea class="h-96" viewport-class="h-96 pr-3">
         <div v-for="row in history" :key="row.name" class="border-b border-outline-gray-2 py-4">
           <p class="text-base-medium">
             {{ row.action }} ·
-            {{ row.action === 'Restriction Expired' ? 'System' : useUser(row.owner).full_name }}
+            {{ systemActions.includes(row.action) ? 'System' : useUser(row.owner).full_name }}
           </p>
           <p class="mt-1 text-p-sm text-ink-gray-6">
             {{ dayjsLocal(row.creation).format('D MMM YYYY, h:mm A z') }}
           </p>
           <p class="mt-2 whitespace-pre-wrap text-base">{{ row.reason }}</p>
-          <p class="mt-2 text-base text-ink-gray-6">{{ restrictionTransition(row) }}</p>
+          <p class="mt-2 text-base text-ink-gray-6">
+            {{ row.level ? levelTransition(row) : restrictionTransition(row) }}
+          </p>
         </div>
         <Button v-if="historyCursor" @click="loadHistory(historyCursor)">More history</Button>
       </ScrollArea>
@@ -119,17 +138,22 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   Avatar,
+  Badge,
   Button,
   Combobox,
   Dialog,
+  Dropdown,
   ScrollArea,
   ErrorMessage,
   call,
   dayjsLocal,
 } from 'frappe-ui'
 import CleanupDialog from './CleanupDialog.vue'
+import ModerationEmpty from './moderation/ModerationEmpty.vue'
+import ModerationPager from './moderation/ModerationPager.vue'
+import ModerationRow from './moderation/ModerationRow.vue'
 import RestrictionDialog from './RestrictionDialog.vue'
-import { expiryLabel, restrictionTransition, type RestrictionUser } from '@/data/restrictions'
+import { restrictionTransition, untilLabel, type RestrictionUser } from '@/data/restrictions'
 import { extractServerMessage } from '@/utils'
 import { useUser } from '@/data/users'
 const items = ref<RestrictionUser[]>([])
@@ -159,6 +183,13 @@ type HistoryItem = {
   reason?: string
   expires_at?: string
   previous_expires_at?: string
+  previous_level?: string
+  level?: string
+}
+const systemActions = ['Restriction Expired', 'Regular Promotion', 'Regular Demotion']
+function levelTransition(row: HistoryItem) {
+  if (['Level Locked', 'Level Unlocked'].includes(row.action)) return `Level ${row.level}`
+  return `${row.previous_level || 'New'} → ${row.level}`
 }
 type Page<T> = { items: T[]; has_more: boolean; next_cursor: string }
 type Candidate = { name: string; full_name: string; user_image?: string }

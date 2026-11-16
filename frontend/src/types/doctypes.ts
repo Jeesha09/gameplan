@@ -171,6 +171,7 @@ export interface GPNotification extends DocType {
     | 'Moved'
     | 'Poll Vote'
     | 'Direct Message'
+    | 'Trust Level'
   /** Message: Text Editor */
   message?: string
   /** Read: Check */

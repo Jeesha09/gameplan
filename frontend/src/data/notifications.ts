@@ -132,6 +132,7 @@ export function notificationRoute(
   if (notification.conversation) {
     return { name: 'Conversation', params: { conversationId: notification.conversation } }
   }
+  if (notification.type === 'Trust Level') return { name: 'MySubmissions' }
   if (notification.discussion) {
     return {
       name: 'Discussion',
@@ -178,6 +179,7 @@ export function notificationIcon(notification: { type?: string }) {
   if (notification.type === 'Moved') return 'lucide-corner-up-right'
   if (notification.type === 'Poll Vote') return 'lucide-bar-chart-2'
   if (notification.type === 'Direct Message') return 'lucide-message-square'
+  if (notification.type === 'Trust Level') return 'lucide-award'
   return 'lucide-at-sign'
 }
 

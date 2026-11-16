@@ -1,79 +1,105 @@
 <template>
-  <div class="my-4 flex flex-wrap gap-4">
-    <Select
+  <div class="flex items-center justify-between gap-3 pb-3">
+    <TabButtons
       v-model="status"
-      class="w-full max-w-xs"
-      label="Review status"
-      :options="['Pending', 'Resolved']"
+      :options="['Pending', 'Resolved'].map((v) => ({ label: v, value: v }))"
     />
-    <Select v-model="sortBy" class="w-full max-w-xs" label="Sort by" :options="sortOptions" />
+    <label class="flex items-center gap-2">
+      <span class="text-p-sm text-ink-gray-6">Sort</span>
+      <Select v-model="sortBy" class="w-40" :options="sortOptions" />
+    </label>
   </div>
-  <div v-if="status === 'Pending'" class="my-4 flex flex-wrap items-center gap-4">
-    <Checkbox
-      size="sm"
-      label="Select this page"
-      :model-value="pageSelected"
-      :indeterminate="pageHasSelection && !pageSelected"
-      :disabled="!pageSelected && (!items.length || selected.size + unselected.length > 50)"
-      @update:model-value="togglePageSelection"
-    />
-    <span role="status" class="text-p-sm text-ink-gray-6">{{ selected.size }} of 50 selected</span>
-    <Button :disabled="!selected.size" variant="solid" @click="showBulk = true"
-      >Review selected</Button
-    >
+  <div
+    v-if="status === 'Pending' && items.length"
+    class="flex h-11 items-center gap-3 border-t border-outline-gray-1"
+  >
+    <div class="flex w-5 shrink-0 justify-center">
+      <Checkbox
+        size="sm"
+        :model-value="pageSelected"
+        :indeterminate="pageHasSelection && !pageSelected"
+        :disabled="!pageSelected && (!items.length || selected.size + unselected.length > 50)"
+        aria-label="Select this page"
+        @update:model-value="togglePageSelection"
+      />
+    </div>
+    <span role="status" class="flex-1 text-p-sm text-ink-gray-6">{{
+      selected.size ? `${selected.size} of 50 selected` : 'Select reports to review them together'
+    }}</span>
+    <template v-if="selected.size">
+      <Button variant="ghost" @click="selected.clear()">Clear selection</Button>
+      <Button variant="solid" @click="showBulk = true">Review selected</Button>
+    </template>
   </div>
   <ErrorMessage
     v-if="error"
-    class="mt-3"
+    class="py-3"
     :message="extractServerMessage(error) || 'Could not load reports'"
   />
-  <p v-if="loading" role="status" class="mt-4 text-base text-ink-gray-5">Loading reports…</p>
-  <template v-else>
-    <div
-      v-for="item in items"
-      :key="item.name"
-      class="flex items-center justify-between gap-4 border-b border-outline-gray-2 py-5 text-ink-gray-9"
-    >
-      <Checkbox
-        v-if="status === 'Pending'"
-        :model-value="selected.has(item.name)"
-        :disabled="selected.size >= 50 && !selected.has(item.name)"
-        :aria-label="`Select ${item.reference_doctype === 'GP Comment' ? 'reply' : 'discussion'} #${
-          item.reference_name
-        }`"
-        @update:model-value="toggleSelection(item.name, $event)"
-      />
-      <div class="flex-1">
-        <p class="text-base-medium">
-          {{ item.reference_doctype === 'GP Comment' ? 'Reply' : 'Discussion' }} #{{
+  <p v-if="loading" role="status" class="py-6 text-base text-ink-gray-5">Loading reports…</p>
+  <div v-else-if="items.length" class="border-t border-outline-gray-1">
+    <ModerationRow v-for="item in items" :key="item.name">
+      <template v-if="status === 'Pending'" #select>
+        <Checkbox
+          size="sm"
+          :model-value="selected.has(item.name)"
+          :disabled="selected.size >= 50 && !selected.has(item.name)"
+          :aria-label="`Select ${item.reference_doctype === 'GP Comment' ? 'reply' : 'discussion'} #${
             item.reference_name
-          }}
-        </p>
-        <p
-          v-if="item.discussion_title"
-          class="mt-1 line-clamp-2 break-words text-base text-ink-gray-5"
+          }`"
+          @update:model-value="toggleSelection(item.name, $event)"
+        />
+      </template>
+      <template #lead>
+        <Avatar
+          v-if="item.author"
+          :image="useUser(item.author).user_image"
+          :label="useUser(item.author).full_name"
+          size="md"
+        />
+      </template>
+      <template #title>
+        {{
+          item.reference_doctype === 'GP Comment'
+            ? `Reply in “${item.discussion_title || `#${item.reference_name}`}”`
+            : item.discussion_title || `Discussion #${item.reference_name}`
+        }}
+      </template>
+      <template #meta>
+        <template v-if="item.author">{{ useUser(item.author).full_name }} · </template>
+        {{ item.report_count }} {{ item.report_count === 1 ? 'report' : 'reports' }} ·
+        <span :title="dayjsLocal(item.last_reported_at).format('D MMM YYYY [at] h:mm A')"
+          >last {{ dayjsLocal(item.last_reported_at).fromNow() }}</span
         >
-          {{ item.discussion_title }}
-        </p>
-        <p v-if="item.report_reasons.length" class="mt-1 text-p-sm text-ink-gray-6">
-          {{ item.report_reasons.map(({ reason, count }) => `${reason}: ${count}`).join(' · ') }}
-        </p>
-        <p class="mt-1 text-base text-ink-gray-5">
-          {{ item.report_count }} {{ item.report_count === 1 ? 'report' : 'reports' }} ·
-          {{ item.decision || 'Pending review' }} ·
-          {{ dayjsLocal(item.last_reported_at).format('D MMM YYYY [at] h:mm A') }}
-        </p>
-      </div>
-      <Button @click="openReview(item)">Review</Button>
-    </div>
-    <p v-if="!items.length && !error" class="mt-5 text-base text-ink-gray-5">
-      No {{ status.toLowerCase() }} reports.
-    </p>
-    <div class="mt-4 flex gap-2">
-      <Button v-if="start" @click="changePage(-40)">Previous</Button>
-      <Button v-if="hasMore" @click="changePage(40)">Next</Button>
-    </div>
-  </template>
+        <template v-if="item.decision"> · {{ item.decision }}</template>
+      </template>
+      <template #status>
+        <Badge
+          v-for="{ reason, count } in topReasons(item).shown"
+          :key="reason"
+          :label="count > 1 ? `${reason} ×${count}` : reason"
+        />
+        <Tooltip v-if="topReasons(item).more.length" :text="topReasons(item).more.join(' · ')">
+          <Badge :label="`+${topReasons(item).more.length}`" />
+        </Tooltip>
+      </template>
+      <template #actions>
+        <Button variant="subtle" @click="openReview(item)">Review</Button>
+      </template>
+    </ModerationRow>
+  </div>
+  <ModerationEmpty
+    v-else-if="!error"
+    icon="lucide-flag"
+    :title="`No ${status.toLowerCase()} reports`"
+    :description="status === 'Pending' ? 'Reports from members appear here.' : undefined"
+  />
+  <ModerationPager
+    :previous="start > 0"
+    :next="hasMore"
+    @previous="changePage(-40)"
+    @next="changePage(40)"
+  />
   <BulkReportReview
     :key="communityId"
     v-model:open="showBulk"
@@ -209,7 +235,22 @@
 </template>
 <script setup lang="ts">
 import { computed, provide, ref, watch } from 'vue'
-import { Button, Checkbox, ErrorMessage, Select, Textarea, call, dayjsLocal } from 'frappe-ui'
+import {
+  Avatar,
+  Badge,
+  Button,
+  Checkbox,
+  ErrorMessage,
+  Select,
+  TabButtons,
+  Textarea,
+  Tooltip,
+  call,
+  dayjsLocal,
+} from 'frappe-ui'
+import ModerationEmpty from './moderation/ModerationEmpty.vue'
+import ModerationPager from './moderation/ModerationPager.vue'
+import ModerationRow from './moderation/ModerationRow.vue'
 import ModerationDialog from './ModerationDialog.vue'
 import CommentEditor from '@/components/editor/CommentEditor.vue'
 import { threadPollsKey } from '@/components/PollBlock/poll-draft'
@@ -251,6 +292,17 @@ const status = ref('Pending'),
   loading = ref(false)
 const items = ref<Review[]>([]),
   error = ref<unknown>(null)
+// Up to two reasons fit; with more, show the most reported and list the rest in a tooltip.
+function topReasons(item: Review) {
+  const sorted = [...item.report_reasons].sort((a, b) => b.count - a.count)
+  const visible = sorted.length > 2 ? 1 : 2
+  return {
+    shown: sorted.slice(0, visible),
+    more: sorted
+      .slice(visible)
+      .map(({ reason, count }) => (count > 1 ? `${reason} ×${count}` : reason)),
+  }
+}
 const sortOptions = [
   { label: 'Recent', value: 'recent' },
   { label: 'Most reported', value: 'most_reported' },

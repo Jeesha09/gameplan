@@ -4,11 +4,12 @@ from datetime import timedelta
 import frappe
 from frappe.query_builder import Criterion
 from frappe.query_builder.functions import Count
-from frappe.utils import cint, now_datetime
+from frappe.utils import now_datetime
 
 import gameplan
 from gameplan.community_bans import can_moderate_community, require_participation
 from gameplan.mixins.moderation import parent_discussion
+from gameplan.paging import page_start
 from gameplan.permissions import (
 	apply_accessible_project_filter,
 	can_moderate_space,
@@ -154,7 +155,7 @@ def queue(community: str, status: str = "Pending", start: int = 0, sort_by: str 
 	rows = (
 		rows_query.orderby(Review.last_reported_at, order=frappe.qb.desc)
 		.orderby(Review.name, order=frappe.qb.desc)
-		.offset(max(0, cint(start)))
+		.offset(page_start(start))
 		.limit(41)
 		.run(as_dict=True)
 	)
@@ -176,13 +177,15 @@ def queue(community: str, status: str = "Pending", start: int = 0, sort_by: str 
 			)
 	comment_names = {row.reference_name for row in rows if row.reference_doctype == "GP Comment"}
 	comment_discussions = {}
+	authors = {}
 	if comment_names:
 		comments = (
 			frappe.qb.from_(Comment)
-			.select(Comment.name, Comment.reference_name)
+			.select(Comment.name, Comment.reference_name, Comment.owner)
 			.where(Comment.name.isin(comment_names))
 		).run(as_dict=True)
-		comment_discussions = {comment.name: comment.reference_name for comment in comments}
+		comment_discussions = {str(comment.name): str(comment.reference_name) for comment in comments}
+		authors.update({("GP Comment", str(comment.name)): comment.owner for comment in comments})
 	discussion_names = {row.reference_name for row in rows if row.reference_doctype == "GP Discussion"} | set(
 		comment_discussions.values()
 	)
@@ -190,17 +193,19 @@ def queue(community: str, status: str = "Pending", start: int = 0, sort_by: str 
 	if discussion_names:
 		titles = (
 			frappe.qb.from_(Discussion)
-			.select(Discussion.name, Discussion.title)
+			.select(Discussion.name, Discussion.title, Discussion.owner)
 			.where(Discussion.name.isin(discussion_names))
 		).run(as_dict=True)
 		discussion_titles = {str(discussion.name): discussion.title for discussion in titles}
+		authors.update({("GP Discussion", str(discussion.name)): discussion.owner for discussion in titles})
 	for row in rows:
 		discussion = (
 			row.reference_name
 			if row.reference_doctype == "GP Discussion"
-			else comment_discussions.get(row.reference_name)
+			else comment_discussions.get(str(row.reference_name))
 		)
 		row["discussion_title"] = discussion_titles.get(discussion, "")
+		row["author"] = authors.get((row.reference_doctype, str(row.reference_name)))
 		row["report_reasons"] = report_reasons.get(row.name, [])
 	return {"items": rows, "has_more": has_more}
 
@@ -214,7 +219,7 @@ def detail(community: str, review: str, start: int = 0, report: str = ""):
 		filters={"review": review.name},
 		fields=["name", "owner", "creation", "reason", "note", "automatic_rule"],
 		order_by="creation asc, name asc",
-		limit_start=max(0, cint(start)),
+		limit_start=page_start(start),
 		limit_page_length=41,
 	)
 	evidence = (

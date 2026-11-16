@@ -60,6 +60,41 @@ class TestApprovals(GameplanTestCase):
 			4,
 		)
 
+	def test_community_settings_and_bans_never_load_the_whole_community(self):
+		from unittest.mock import patch
+
+		from gameplan.restrictions import set_restriction
+
+		real = frappe.get_doc
+
+		def forbid_community(*args, **kwargs):
+			target = args[0] if args else kwargs.get("doctype")
+			if target == "GP Team":
+				raise AssertionError("Loaded every member of the Community")
+			return real(*args, **kwargs)
+
+		with self.as_user(self.admin), patch("frappe.get_doc", forbid_community):
+			set_policy(self.community.name, 5)
+			set_restriction(self.outsider.name, 1, "Scale check", self.community.name)
+		self.assertEqual(frappe.db.get_value("GP Team", self.community.name, "approval_post_count"), 5)
+
+	def test_approval_notifies_once_and_rejection_never_notifies(self):
+		mention = (
+			f'<p>Hey <span data-type="mention" data-id="{self.outsider.name}" '
+			'data-label="Outsider">@Outsider</span></p>'
+		)
+
+		def mentions():
+			return frappe.db.count("GP Notification", {"to_user": self.outsider.name, "type": "Mention"})
+
+		rejected = self.submit(reply=True, content=mention)
+		self.decide(rejected, "Reject", "Please rephrase this")
+		approved = self.submit(reply=True, content=mention)
+		self.assertEqual(mentions(), 0)
+		self.decide(approved)
+		self.decide(approved)
+		self.assertEqual(mentions(), 1)
+
 	def test_reject_withdraw_and_retry_do_not_publish_or_earn_credit(self):
 		result = self.submit(key="same-intent")
 		self.assertEqual(self.submit(key="same-intent"), result)
@@ -159,6 +194,30 @@ class TestApprovals(GameplanTestCase):
 		self.community.set_member_moderator(self.second_member.name, 0)
 		with self.assertRaises(frappe.PermissionError):
 			self.decide(result)
+
+	def test_moderator_queue_lists_posts_and_replies_of_visible_spaces_only(self):
+		from gameplan.visibility import VISIBILITY_MEMBER_ACCESS
+
+		other = create_community("Elsewhere", members=[self.member])
+		other_space = create_space("Elsewhere space", other)
+		private = create_space("Staff only", self.community, visibility=VISIBILITY_MEMBER_ACCESS)
+		set_policy(other.name, 100)
+		visible = [self.submit()["name"], self.submit(reply=True)["name"]]
+		hidden = self.submit()["name"]
+		frappe.db.set_value("GP Submission", hidden, "project", str(private.name))
+		with self.as_user(self.member):
+			elsewhere = submit(
+				"GP Discussion",
+				"elsewhere",
+				"<p>Elsewhere</p>",
+				project=str(other_space.name),
+				title="Elsewhere",
+			)["name"]
+		with self.as_user(self.second_member):
+			names = [row.name for row in queue(self.community.name)["items"]]
+		self.assertCountEqual(names, visible)
+		self.assertNotIn(hidden, names)
+		self.assertNotIn(elsewhere, names)
 
 	def test_embedded_poll_is_created_only_after_approval(self):
 		payload = escape(

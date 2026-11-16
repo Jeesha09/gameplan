@@ -15,4 +15,5 @@ class GPReaction(Document):
 
 def on_doctype_update():
 	frappe.db.add_index("GP Reaction", ["reference_doctype", "reference_name"])
-	frappe.db.add_index("GP Reaction", ["user"])
+	# Trust levels count the reactions a member gave.
+	frappe.db.add_index("GP Reaction", ["user", "creation"], "user_reactions")

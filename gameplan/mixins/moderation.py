@@ -29,6 +29,22 @@ def discussion_is_removed(name):
 	)
 
 
+def notification_is_removed(notification):
+	"""A notification is hidden while its discussion or its reply is removed."""
+	if discussion_is_removed(notification.get("discussion")):
+		return True
+	comment = notification.get("comment")
+	return bool(
+		comment
+		and is_removed(
+			frappe._dict(
+				frappe.db.get_value("GP Comment", comment, ["hidden_at", "spam_removed_at"], as_dict=True)
+				or {}
+			)
+		)
+	)
+
+
 def content_is_removed(doc):
 	if is_removed(doc) or discussion_is_removed(parent_discussion(doc)):
 		return True
@@ -83,7 +99,7 @@ class Moderatable:
 		doc.db_set(values, notify=True)
 		search = GameplanSearch()
 		if search.is_search_enabled() and search.index_exists():
-			frappe.db.after_commit.add(lambda: search.remove_doc(doc.doctype, doc.name))
+			frappe.db.after_commit.add(lambda: remove_from_search(doc.doctype, doc.name))
 		doc._notify_moderation_change()
 
 	@frappe.whitelist(methods=["POST"])
@@ -190,16 +206,18 @@ class Moderatable:
 			frappe.throw("Make this content's attached files private before removing it")
 
 	def _notify_moderation_change(self):
-		if self.doctype == "GP Discussion":
-			from gameplan.realtime import notify_notification_count_changed, notify_unread_counts_changed
+		from gameplan.realtime import notify_notification_counts_refresh, notify_unread_counts_changed
 
+		if self.doctype == "GP Discussion":
+			# Names are text in the link columns: a number would stop MariaDB using their indexes.
 			notify_unread_counts_changed(
 				frappe.get_all("GP Unread Record", filters={"discussion": str(self.name)}, pluck="user")
 			)
-			for user in set(
-				frappe.get_all("GP Notification", filters={"discussion": str(self.name)}, pluck="to_user")
-			):
-				notify_notification_count_changed(user, force_refresh=True)
+		field = {"GP Discussion": "discussion", "GP Comment": "comment"}.get(self.doctype)
+		if field:
+			notify_notification_counts_refresh(
+				frappe.get_all("GP Notification", filters={field: str(self.name)}, pluck="to_user")
+			)
 		frappe.publish_realtime(
 			"new_activity",
 			{"reference_doctype": "GP Discussion", "reference_name": str(parent_discussion(self))},
@@ -216,3 +234,24 @@ class Moderatable:
 		if not parent_discussion(doc) or not project or not can_moderate_space(frappe.session.user, project):
 			frappe.throw("Only community moderators can perform this action", frappe.PermissionError)
 		return doc
+
+
+def remove_from_search(doctype, name):
+	"""Drop removed content from the search index, retrying in a job when the index file is busy.
+
+	Search rechecks removal before it answers, so a late removal never shows removed content.
+	"""
+	import sqlite3
+
+	from gameplan.search_sqlite import GameplanSearch
+
+	try:
+		GameplanSearch().remove_doc(doctype, name)
+	except sqlite3.OperationalError:
+		frappe.enqueue(
+			"gameplan.mixins.moderation.remove_from_search",
+			doctype=doctype,
+			name=name,
+			job_id=f"search-remove:{doctype}:{name}",
+			deduplicate=True,
+		)

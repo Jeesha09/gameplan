@@ -53,6 +53,18 @@ class TestSiteSilence(GameplanTestCase):
 		self.assertNotIn(revoke_sessions, enqueued)
 		self.assertEqual(account_suspensions()["items"][0].kind, "Silence")
 
+	def test_silenced_accounts_still_receive_email_digests(self):
+		from datetime import date
+
+		from gameplan.email_digest import get_due_profiles
+
+		profile = frappe.get_doc("GP User Profile", {"user": self.outsider.name})
+		profile.update({"email_digest_frequency": "Weekly", "email_digest_day_of_week": "Monday"})
+		profile.email_digest_last_sent_on = None
+		profile.save(ignore_permissions=True)
+		self.silence()
+		self.assertIn(profile.name, [row.name for row in get_due_profiles(date(2026, 6, 29))])
+
 	def test_one_site_restriction_switches_between_silence_and_suspension(self):
 		self.silence()
 		set_restriction(self.outsider.name, 1, "Escalated", kind="Suspend")

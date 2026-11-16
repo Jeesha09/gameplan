@@ -31,7 +31,7 @@ describe('Community moderation core', () => {
           cy.get('#moderation-sidebar').contains('button', 'Removed content').should('be.visible')
         }
         cy.get('#moderation-sidebar').contains('button', 'Community bans').click()
-        cy.contains('h2', 'Community bans').should('be.visible')
+        cy.contains('header:visible', 'Community bans').should('be.visible')
       })
     })
   })
@@ -44,7 +44,7 @@ describe('Community moderation core', () => {
         .should('not.exist')
       cy.get('[aria-label="Moderation"]').filter(':visible').first().click()
       cy.location('pathname').should('eq', '/g/moderation')
-      cy.contains('header:visible', 'Moderation').should('be.visible')
+      cy.get('#moderation-sidebar').contains('Moderation').should('be.visible')
       cy.get('[role="combobox"]').first().click()
       cy.contains('[role="option"]', 'Beta').click()
       cy.location('search').should('include', `community=${ids.communities![1]}`)
@@ -127,9 +127,10 @@ describe('Community moderation core', () => {
       cy.visit(path)
       cy.selectDropdownOption('Discussion Options', 'Hide discussion')
       confirmRemoval('Hide discussion')
-      cy.contains('header:visible', 'Moderation').should('be.visible')
+      cy.get('#moderation-sidebar').contains('Moderation').should('be.visible')
       cy.contains('Spam review').should('be.visible')
-      cy.contains('button', 'Preview').click()
+      cy.get('button[aria-label="More actions"]').first().click()
+      cy.contains('[role="menuitem"]', 'Preview original').click()
       cy.contains('Seed content').should('be.visible')
 
       cy.switchUser('member')
@@ -141,7 +142,7 @@ describe('Community moderation core', () => {
       cy.visit(`${moderationPath(ids.community!)}?tab=removed`)
       cy.contains('button', 'Restore').click()
       cy.get('[role="dialog"]').contains('button', 'Restore').click()
-      cy.contains('No removed content.').should('be.visible')
+      cy.contains(/No removed (discussions|replies)/).should('be.visible')
       cy.visit(path)
       cy.contains('Seed content').should('be.visible')
     })
@@ -171,14 +172,14 @@ describe('Community moderation core', () => {
         reply().should('not.exist')
         cy.switchUser('secondMember')
         cy.visit(`${moderationPath(ids.community!)}?tab=removed`)
-        cy.contains('[role="combobox"]', 'Discussions').click()
-        cy.contains('[role="option"]', 'Replies').click()
-        cy.contains('Spam removed').should('be.visible')
-        cy.contains('button', 'Preview').click()
+        cy.contains('[role="radio"]', 'Replies').click()
+        cy.contains('[data-testid="moderation-row"]', 'Spam').should('be.visible')
+        cy.get('button[aria-label="More actions"]').first().click()
+        cy.contains('[role="menuitem"]', 'Preview original').click()
         cy.contains('Spam reply sentinel').should('be.visible')
         cy.contains('button', 'Restore').click()
         cy.get('[role="dialog"]').contains('button', 'Restore').click()
-        cy.contains('No removed content.').should('be.visible')
+        cy.contains(/No removed (discussions|replies)/).should('be.visible')
         cy.switchUser('member')
         cy.visit(
           `/g/community/${ids.community}/space/${ids.space}/discussion/${ids.discussion}/${ids.discussion_slug}`,
@@ -217,10 +218,10 @@ describe('Community moderation core', () => {
       cy.intercept('POST', '**/gameplan.moderation.ban_candidates', (req) => {
         if (req.body.query === 'Member') req.alias = 'memberCandidates'
       })
-      cy.get('input[placeholder="Name or email"]').type('Member')
+      cy.get('input[placeholder="Find a member to ban"]').type('Member')
       cy.wait('@memberCandidates').its('response.statusCode').should('eq', 200)
       cy.contains('[role="option"]', 'Member').click()
-      cy.contains('button', 'Ban from Community').click()
+      cy.contains('button', /^Ban$/).click()
       confirmRemoval('Save restriction')
       cy.contains('button', 'Lift ban').should('be.visible')
 
@@ -262,7 +263,7 @@ describe('Community moderation core', () => {
       cy.contains('button', 'Lift ban').click()
       cy.get('[role="dialog"]').find('textarea').type('Appeal accepted')
       cy.get('[role="dialog"]').contains('button', 'Lift restriction').click()
-      cy.contains('No active Community bans.').should('be.visible')
+      cy.contains('No active bans').should('be.visible')
       cy.switchUser('member')
       cy.visit(
         `/g/community/${ids.community}/space/${ids.space}/discussion/${ids.discussion}/${ids.discussion_slug}`,

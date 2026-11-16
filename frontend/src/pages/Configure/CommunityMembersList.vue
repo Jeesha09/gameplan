@@ -42,6 +42,7 @@
       :community="community"
       :member="member"
       :can-manage="canManage"
+      :level="levels[member.user]"
     />
   </List>
 
@@ -80,10 +81,11 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Button } from 'frappe-ui'
+import { Button, useCall } from 'frappe-ui'
 import { List, ListHeader, ListHeaderCell } from 'frappe-ui/list'
 import type { Community } from '@/data/communities'
-import { useUser } from '@/data/users'
+import { useSessionUser, useUser } from '@/data/users'
+import { canModerateCommunity } from '@/utils/permissions'
 import AddCommunityMembersDialog from './AddCommunityMembersDialog.vue'
 import ConfigureEmptyState from './ConfigureEmptyState.vue'
 import CommunityGuestsList from './CommunityGuestsList.vue'
@@ -106,6 +108,15 @@ const props = withDefaults(
 // header while this component still renders the list and owns the add dialog.
 const search = defineModel<string>('search', { default: '' })
 const showAddDialog = defineModel<boolean>('showAddDialog', { default: false })
+
+// Community staff read each member's site-wide trust level here. Only global admins change it.
+const levelRequest = useCall<{ enabled: number; levels: Record<string, number> }>({
+  url: '/api/v2/method/gameplan.trust_levels.community_levels',
+  params: () => ({ community: props.community.name }),
+  immediate: canModerateCommunity(props.community, useSessionUser()),
+  refetch: true,
+})
+const levels = computed(() => levelRequest.data?.levels || {})
 
 const communityMembers = computed(() => {
   const seen = new Set<string>()

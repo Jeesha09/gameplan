@@ -1,14 +1,15 @@
 import hashlib
 
 import frappe
-from frappe.utils import cint, now_datetime
+from frappe.utils import now_datetime
 
 from gameplan.approval_access import can_read_submission, read_criterion, submission_project, target_criterion
 from gameplan.approval_files import published_content
 from gameplan.approval_policy import needs_approval, publishing_submission
 from gameplan.community_bans import can_moderate_community, require_participation
 from gameplan.mixins.archivable import check_if_space_is_archived
-from gameplan.permissions import apply_accessible_project_filter, can_moderate_space
+from gameplan.paging import page_start
+from gameplan.permissions import can_moderate_space, moderatable_project_names
 from gameplan.reporting import checked_note
 
 
@@ -104,25 +105,60 @@ def hold(doc, request_key, draft="", edit=None):
 	return outcome(submission)
 
 
+def community_submissions(projects):
+	"""Submissions for the Spaces in `projects`: new discussions, replies and edits.
+
+	Join each submission to its discussion by primary key and compare the Space to a list. The
+	generic read criterion repeats nested subqueries that scan the member table for every row,
+	which took more than a minute on a large forum."""
+	Submission = frappe.qb.DocType("GP Submission")
+	Parent = frappe.qb.DocType("GP Discussion").as_("parent")
+	EditedPost = frappe.qb.DocType("GP Discussion").as_("edited_post")
+	EditedReply = frappe.qb.DocType("GP Comment").as_("edited_reply")
+	ReplyPost = frappe.qb.DocType("GP Discussion").as_("reply_post")
+	if not projects:
+		return frappe.qb.from_(Submission).where(Submission.name.isnull() & Submission.name.notnull())
+	projects = [str(name) for name in projects]
+	is_new = Submission.edit_name.isnull() | (Submission.edit_name == "")
+	has_parent = Submission.discussion.notnull() & (Submission.discussion != "")
+	return (
+		frappe.qb.from_(Submission)
+		.left_join(Parent)
+		.on(Parent.name == Submission.discussion)
+		.left_join(EditedPost)
+		.on((Submission.edit_doctype == "GP Discussion") & (EditedPost.name == Submission.edit_name))
+		.left_join(EditedReply)
+		.on((Submission.edit_doctype == "GP Comment") & (EditedReply.name == Submission.edit_name))
+		.left_join(ReplyPost)
+		.on(
+			(EditedReply.reference_doctype == "GP Discussion")
+			& (ReplyPost.name == EditedReply.reference_name)
+		)
+		.where(
+			(is_new & ~has_parent & Submission.project.isin(projects))
+			| (is_new & has_parent & Parent.project.isin(projects))
+			| (~is_new & (Submission.edit_doctype == "GP Discussion") & EditedPost.project.isin(projects))
+			| (~is_new & (Submission.edit_doctype == "GP Comment") & ReplyPost.project.isin(projects))
+		)
+	)
+
+
 @frappe.whitelist(methods=["GET", "POST"])
 def queue(community: str = "", status: str = "Pending", start: int = 0):
 	"""List the author's submissions, or an accessible Community queue for its moderators."""
 	if status not in ("Pending", "Approved", "Rejected", "Withdrawn"):
 		frappe.throw("Choose a submission status")
-	Submission, Project = frappe.qb.DocType("GP Submission"), frappe.qb.DocType("GP Project")
-	criterion = read_criterion(frappe.session.user)
+	Submission = frappe.qb.DocType("GP Submission")
 	if community:
 		if not can_moderate_community(community):
 			frappe.throw("Only Community moderators can review submissions", frappe.PermissionError)
-		projects = apply_accessible_project_filter(
-			frappe.qb.from_(Project).select(Project.name).where(Project.team == community), Project.name
-		)
-		criterion &= target_criterion(projects)
+		query = community_submissions(moderatable_project_names(community))
 	else:
-		criterion &= Submission.owner == frappe.session.user
+		query = frappe.qb.from_(Submission).where(
+			read_criterion(frappe.session.user) & (Submission.owner == frappe.session.user)
+		)
 	rows = (
-		frappe.qb.from_(Submission)
-		.select(
+		query.select(
 			Submission.name,
 			Submission.title,
 			Submission.owner,
@@ -130,15 +166,32 @@ def queue(community: str = "", status: str = "Pending", start: int = 0):
 			Submission.discussion,
 			Submission.edit_name,
 			Submission.status,
+			Submission.content,
 		)
-		.where(criterion & (Submission.status == status))
+		.where(Submission.status == status)
 		.orderby(Submission.creation, order=frappe.qb.desc)
 		.orderby(Submission.name, order=frappe.qb.desc)
-		.offset(max(0, cint(start)))
+		.offset(page_start(start))
 		.limit(41)
 		.run(as_dict=True)
 	)
-	return {"items": rows[:40], "has_more": len(rows) > 40}
+	has_more = len(rows) > 40
+	rows = rows[:40]
+	discussions = list({row.discussion for row in rows if row.discussion})
+	titles = (
+		{
+			str(name): title
+			for name, title in frappe.get_all(
+				"GP Discussion", filters={"name": ["in", discussions]}, fields=["name", "title"], as_list=True
+			)
+		}
+		if discussions
+		else {}
+	)
+	for row in rows:
+		row.excerpt = frappe.utils.strip_html(row.pop("content") or "").strip()[:160]
+		row.discussion_title = titles.get(row.discussion) if row.discussion else None
+	return {"items": rows, "has_more": has_more}
 
 
 @frappe.whitelist(methods=["GET", "POST"])

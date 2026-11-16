@@ -18,7 +18,9 @@
   "slow_mode_seconds",
   "previous_expires_at",
   "expires_at",
-  "cleanup"
+  "cleanup",
+  "previous_level",
+  "level"
  ],
  "fields": [
   {
@@ -33,7 +35,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Action",
-   "options": "Hide\nRestore\nDelete Spam\nBan\nUnban\nSlow Mode Changed\nBan Changed\nSuspend\nSuspension Changed\nLift Suspension\nRestriction Expired\nSilence\nSilence Changed\nLift Silence\nAuthor Cleanup\nUndo Cleanup\nSlow Mode Expired",
+   "options": "Hide\nRestore\nDelete Spam\nBan\nUnban\nSlow Mode Changed\nBan Changed\nSuspend\nSuspension Changed\nLift Suspension\nRestriction Expired\nSilence\nSilence Changed\nLift Silence\nAuthor Cleanup\nUndo Cleanup\nSlow Mode Expired\nLevel Changed\nLevel Locked\nLevel Unlocked\nRegular Promotion\nRegular Demotion",
    "reqd": 1
   },
   {
@@ -102,11 +104,23 @@
    "label": "Cleanup",
    "search_index": 1,
    "description": "The Author Cleanup entry that performed this action."
+  },
+  {
+   "fieldname": "previous_level",
+   "fieldtype": "Data",
+   "label": "Previous level",
+   "read_only": 1
+  },
+  {
+   "fieldname": "level",
+   "fieldtype": "Data",
+   "label": "Level",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-05 14:00:00.000000",
+ "modified": "2026-11-12 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gameplan",
  "name": "GP Moderation Log",

@@ -26,7 +26,8 @@
   "archived_at",
   "section_break_gvbw",
   "readme",
-  "approval_post_count"
+  "approval_post_count",
+  "approval_min_level"
  ],
  "fields": [
   {
@@ -134,12 +135,21 @@
    "hidden": 1,
    "label": "Approval post count",
    "read_only": 1
+  },
+  {
+   "fieldname": "approval_min_level",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Approve posts from members below",
+   "options": "\nBasic\nMember",
+   "read_only": 1,
+   "description": "Used instead of the approval post count while trust levels are on."
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-25 21:24:33.681459",
+ "modified": "2026-11-12 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gameplan",
  "name": "GP Team",

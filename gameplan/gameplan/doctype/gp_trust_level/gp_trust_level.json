@@ -1,0 +1,60 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-11-12 14:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "user",
+  "level",
+  "locked",
+  "grace_until"
+ ],
+ "fields": [
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "User",
+   "options": "User",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "level",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Level",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "locked",
+   "fieldtype": "Check",
+   "label": "Locked",
+   "read_only": 1
+  },
+  {
+   "fieldname": "grace_until",
+   "fieldtype": "Datetime",
+   "label": "Regular grace period ends",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-11-12 14:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gameplan",
+ "name": "GP Trust Level",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "autoname": "field:user",
+ "naming_rule": "By fieldname",
+ "description": "A member's site-wide trust level, 0 New to 4 Leader. Written only by gameplan.trust_levels."
+}

@@ -45,6 +45,7 @@ import { computed } from 'vue'
 import { ListCell, ListRow } from 'frappe-ui/list'
 import UserAvatar from '@/components/UserAvatar.vue'
 import { useUser } from '@/data/users'
+import { LEVEL_NAMES } from '@/data/trustLevels'
 import type { Community, CommunityMember } from '@/data/communities'
 import MemberOptions from './MemberOptions.vue'
 
@@ -52,12 +53,17 @@ const props = defineProps<{
   community: Community
   member: CommunityMember
   canManage: boolean
+  level?: number
 }>()
 
 const user = computed(() => useUser(props.member.user))
 const roleLabel = computed(() => {
-  if (props.member.is_admin) return 'Community Admin'
-  return props.member.is_moderator ? 'Moderator' : 'Member'
+  const role = props.member.is_admin
+    ? 'Community Admin'
+    : props.member.is_moderator
+      ? 'Moderator'
+      : 'Member'
+  return props.level === undefined ? role : `${role} · ${LEVEL_NAMES[props.level]}`
 })
 const profileRoute = computed(() => {
   return user.value.user_profile

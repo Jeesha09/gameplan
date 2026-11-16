@@ -1,8 +1,9 @@
 import frappe
-from frappe.utils import cint
 
+from gameplan.paging import page_start
 from gameplan.permissions import is_global_admin
 from gameplan.restrictions import active_condition, iso_expiry
+from gameplan.trust_levels import LEVEL_ACTIONS
 
 
 def require_scope(community=""):
@@ -32,7 +33,7 @@ def active_rows(community="", start=0, after=""):
 	)
 	if after:
 		query = query.where(Restriction.user > after)
-	rows = query.orderby(Restriction.user).offset(max(0, cint(start))).limit(41).run(as_dict=True)
+	rows = query.orderby(Restriction.user).offset(page_start(start)).limit(41).run(as_dict=True)
 	for row in rows:
 		row.expires_at = iso_expiry(row.expires_at)
 		row.modified = str(row.modified)
@@ -93,13 +94,21 @@ def candidates(query: str = "", after: str = ""):
 
 @frappe.whitelist(methods=["GET", "POST"])
 def account_history(user: str, before: str = ""):
-	"""Read one user's site silence and suspension history; accessible only to global admins."""
+	"""Read one user's site silence, suspension and trust level history; accessible only to global admins."""
 	require_scope()
 	Log = frappe.qb.DocType("GP Moderation Log")
 	query = (
 		frappe.qb.from_(Log)
 		.select(
-			Log.name, Log.action, Log.owner, Log.creation, Log.reason, Log.previous_expires_at, Log.expires_at
+			Log.name,
+			Log.action,
+			Log.owner,
+			Log.creation,
+			Log.reason,
+			Log.previous_expires_at,
+			Log.expires_at,
+			Log.previous_level,
+			Log.level,
 		)
 		.where(
 			(Log.user == user)
@@ -113,6 +122,7 @@ def account_history(user: str, before: str = ""):
 					"Silence Changed",
 					"Lift Silence",
 					"Restriction Expired",
+					*LEVEL_ACTIONS,
 				]
 			)
 		)

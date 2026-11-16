@@ -32,8 +32,10 @@ export type NotificationChange = {
  */
 export type GameplanSocketEvents = {
   'gameplan:unread_counts_changed': void
-  /** `count` is the recipient's unread notification count after the change. */
-  'gameplan:notification_count_changed': { count: number; force_refresh?: boolean }
+  /** Broadcast to everyone when a large audience has news; each tab reloads after a random delay. */
+  'gameplan:unread_counts_stale': void
+  /** `count` is the recipient's unread notification count after the change; null in a broadcast. */
+  'gameplan:notification_count_changed': { count: number | null; force_refresh?: boolean }
   'gameplan:notification_changed': {
     count: number
     notification: NotificationChange | null
@@ -80,6 +82,7 @@ type SocketEventName = keyof GameplanSocketEvents
 // isn't in the type, and every key in the type must appear here or nothing dispatches it.
 const GAMEPLAN_SOCKET_EVENTS = [
   'gameplan:unread_counts_changed',
+  'gameplan:unread_counts_stale',
   'gameplan:notification_count_changed',
   'gameplan:notification_changed',
   'gameplan:users_changed',

@@ -55,7 +55,7 @@ class TestAuthorCleanup(GameplanTestCase):
 		self.assertFalse(self.removed(self.elsewhere))
 		self.assertEqual(frappe.db.get_value("GP Submission", pending["name"], "status"), "Rejected")
 		[row] = self.cleanup_rows()
-		self.assertEqual(row.title, "Removed 2 posts. Rejected 1 pending submissions.")
+		self.assertEqual(row.title, "Removed 2 posts. Rejected 1 pending submission.")
 		self.assertFalse(row.undone)
 
 	def test_undo_restores_only_posts_still_removed_by_that_cleanup(self):
@@ -69,7 +69,7 @@ class TestAuthorCleanup(GameplanTestCase):
 		self.assertFalse(self.removed(self.spam))
 		self.assertFalse(self.removed(self.reply))
 		undo_row, cleanup_row = self.cleanup_rows()
-		self.assertEqual(undo_row.title, "Restored 1 posts. Skipped 1 changed since the cleanup.")
+		self.assertEqual(undo_row.title, "Restored 1 post. Skipped 1 changed since the cleanup.")
 		self.assertTrue(cleanup_row.undone)
 		with self.as_user(self.member), self.assertRaisesRegex(frappe.ValidationError, "already undone"):
 			undo(cleanup_row.cleanup)
@@ -81,6 +81,71 @@ class TestAuthorCleanup(GameplanTestCase):
 		self.assertTrue(self.removed(self.spam))
 		self.assertTrue(self.removed(self.elsewhere))
 		self.assertEqual(len(self.cleanup_rows(self.other)), 1)
+
+	def test_a_long_cleanup_continues_in_a_new_job_and_summarizes_once(self):
+		with self.as_user(self.member):
+			start(self.outsider.name, "Spam wave", self.community.name)
+		# One post fits in the first slice; the clock then passes its end.
+		with (
+			patch("gameplan.author_cleanup.TIME_BUDGET", 1),
+			patch("gameplan.author_cleanup.clock", side_effect=[0, 0, 2]),
+			# A real commit would keep this test's data for the tests that run after it.
+			patch("frappe.db.commit"),
+		):
+			self.run_jobs(self.member)
+		self.assertEqual(self.cleanup_rows(), [])
+		continuation = [call for call in self.enqueue.call_args_list if call.args and call.args[0] is run]
+		self.assertEqual(len(continuation), 1)
+		self.run_jobs(self.member)
+		[row] = self.cleanup_rows()
+		self.assertEqual(row.title, "Removed 2 posts. Rejected 0 pending submissions.")
+
+	def test_a_long_undo_continues_with_its_progress(self):
+		with self.as_user(self.member):
+			start(self.outsider.name, "Spam wave", self.community.name)
+		self.run_jobs(self.member)
+		with self.as_user(self.member):
+			undo(self.cleanup_rows()[0].cleanup)
+		with (
+			patch("gameplan.author_cleanup.TIME_BUDGET", 1),
+			patch("gameplan.author_cleanup.clock", side_effect=[0, 0, 2]),
+			# A real commit would keep this test's data for the tests that run after it.
+			patch("frappe.db.commit"),
+		):
+			self.run_jobs(self.member)
+		self.assertEqual([row.action for row in self.cleanup_rows() if row.action == "Undo Cleanup"], [])
+		self.run_jobs(self.member)
+		undo_row = next(row for row in self.cleanup_rows() if row.action == "Undo Cleanup")
+		self.assertEqual(undo_row.title, "Restored 2 posts.")
+		self.assertFalse(self.removed(self.spam))
+		self.assertFalse(self.removed(self.reply))
+
+	def test_a_retried_cleanup_removes_and_records_each_post_once(self):
+		with self.as_user(self.member):
+			start(self.outsider.name, "Spam wave", self.community.name)
+		[job] = [call for call in self.enqueue.call_args_list if call.args and call.args[0] is run]
+		kwargs = {k: v for k, v in job.kwargs.items() if k not in ("queue", "enqueue_after_commit")}
+		with self.as_user(self.member):
+			frappe.get_doc("GP Discussion", self.spam.name)._remove_content(
+				"Delete Spam", "Spam wave", cleanup=kwargs["cleanup"]
+			)
+			run(**kwargs)
+			run(**kwargs)
+		[row] = self.cleanup_rows()
+		self.assertEqual(row.title, "Removed 2 posts. Rejected 0 pending submissions.")
+		self.assertEqual(
+			frappe.db.count("GP Moderation Log", {"cleanup": kwargs["cleanup"], "action": "Delete Spam"}), 2
+		)
+
+	def test_a_queued_cleanup_skips_someone_who_became_staff(self):
+		with self.as_user(self.member):
+			start(self.outsider.name, "Spam wave", self.community.name)
+		self.community.set_member_moderator(self.outsider.name, 1)
+		self.run_jobs(self.member)
+		self.assertFalse(self.removed(self.spam))
+		self.assertFalse(self.removed(self.reply))
+		[row] = self.cleanup_rows()
+		self.assertIn("staff role", row.title)
 
 	def test_scope_and_staff_protections(self):
 		for user, community in (

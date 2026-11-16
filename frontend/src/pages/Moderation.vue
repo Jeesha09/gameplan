@@ -32,9 +32,17 @@
           class="mt-0.5"
           @click="openPostingLimits"
         />
+        <SidebarItem
+          label="Trust levels"
+          icon="lucide-award"
+          :active="siteWide && siteSection === 'trust-levels'"
+          class="mt-0.5"
+          @click="openTrustLevels"
+        />
       </template>
       <template #site-wide>
         <PostingLimits v-if="siteSection === 'posting-limits'" />
+        <TrustLevels v-else-if="siteSection === 'trust-levels'" />
         <AccountSuspensions v-else />
       </template>
     </CommunityModeration>
@@ -61,12 +69,20 @@ import { canModerateCommunity, isGlobalAdmin } from '@/utils/permissions'
 import CommunityModeration from './CommunityModeration.vue'
 import AccountSuspensions from '@/components/AccountSuspensions.vue'
 import PostingLimits from '@/components/PostingLimits.vue'
+import TrustLevels from '@/components/TrustLevels.vue'
 const route = useRoute()
 const router = useRouter()
 const siteWide = computed(() => route.query.scope === 'site' && isGlobalAdmin(useSessionUser()))
 const siteSection = computed(() =>
-  route.query.tab === 'posting-limits' ? 'posting-limits' : 'suspensions',
+  ['posting-limits', 'trust-levels'].includes(String(route.query.tab))
+    ? String(route.query.tab)
+    : 'suspensions',
 )
+const siteTitles: Record<string, string> = {
+  'posting-limits': 'Posting limits',
+  'trust-levels': 'Trust levels',
+  suspensions: 'Account restrictions',
+}
 const sectionTitles: Record<string, string> = {
   approvals: 'Approvals',
   reports: 'Reports',
@@ -76,8 +92,7 @@ const sectionTitles: Record<string, string> = {
   history: 'History',
 }
 const sectionTitle = computed(() => {
-  if (siteWide.value)
-    return siteSection.value === 'posting-limits' ? 'Posting limits' : 'Account restrictions'
+  if (siteWide.value) return siteTitles[siteSection.value]
   if (!selected.value) return 'Moderation'
   return sectionTitles[String(route.query.tab)] || 'Approvals'
 })
@@ -86,6 +101,12 @@ function openCommunitySection(tab: string) {
 }
 function openAccountSuspensions() {
   router.replace({ name: 'Moderation', query: { community: selected.value, scope: 'site' } })
+}
+function openTrustLevels() {
+  router.replace({
+    name: 'Moderation',
+    query: { community: selected.value, scope: 'site', tab: 'trust-levels' },
+  })
 }
 function openPostingLimits() {
   router.replace({

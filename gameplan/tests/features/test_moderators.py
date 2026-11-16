@@ -1,6 +1,8 @@
 # Copyright (c) 2026, Frappe Technologies Pvt Ltd and Contributors
 # See license.txt
 
+from unittest.mock import patch
+
 import frappe
 from frappe.client import set_value
 
@@ -28,6 +30,35 @@ class TestCommunityModerators(GameplanTestCase):
 		with self.as_user(self.member):
 			self.community.set_member_moderator(self.second_member.name, 1)
 
+	def test_appointing_a_moderator_writes_one_member_row_however_large_the_community(self):
+		from gameplan.tests.fixtures import create_member
+
+		def writes(member_count):
+			extra = [
+				create_member(f"bulk-{member_count}-{i}@example.com", f"Bulk {i}")
+				for i in range(member_count)
+			]
+			community = create_community(
+				f"Big {member_count}", members=[self.second_member, *extra], admins=[self.member]
+			)
+			statements = []
+			original = frappe.db.sql
+
+			def record(query, *args, **kwargs):
+				statements.append(str(query))
+				return original(query, *args, **kwargs)
+
+			with self.as_user(self.member):
+				community = frappe.get_doc("GP Team", community.name)
+				with patch.object(frappe.db, "sql", record):
+					community.set_member_moderator(self.second_member.name, 1)
+			# SQLite quotes names with ", MariaDB with `.
+			return len(
+				[q for q in statements if q.lstrip().upper().startswith("UPDATE") and "tabGP Member" in q]
+			)
+
+		self.assertEqual((writes(2), writes(25)), (1, 1))
+
 	def test_community_admin_can_appoint_and_remove_a_moderator(self):
 		self.appoint_moderator()
 		self.assertTrue(is_community_moderator(self.second_member.name, self.community.name))
@@ -41,6 +72,24 @@ class TestCommunityModerators(GameplanTestCase):
 		self.assertIsNotNone(self.community.get_member(self.second_member.name))
 		self.assertFalse(is_community_moderator(self.second_member.name, self.community.name))
 		self.assertFalse(can_moderate_space(self.second_member.name, self.space.name))
+
+	def test_the_api_appoints_without_loading_the_community_and_its_members(self):
+		from gameplan.api import set_community_moderator
+
+		real_get_doc = frappe.get_doc
+
+		def get_doc(*args, **kwargs):
+			if args and args[0] == "GP Team":
+				raise AssertionError("the Community document was loaded")
+			return real_get_doc(*args, **kwargs)
+
+		with self.as_user(self.member), patch("frappe.get_doc", side_effect=get_doc):
+			set_community_moderator(self.community.name, self.second_member.name, 1)
+		self.assertTrue(is_community_moderator(self.second_member.name, self.community.name))
+		with self.as_user(self.second_member.name), self.assertRaises(frappe.PermissionError):
+			set_community_moderator(self.community.name, self.second_member.name, 0)
+		with self.as_user(self.member), self.assertRaises(frappe.ValidationError):
+			set_community_moderator(self.community.name, self.outsider.name, 1)
 
 	def test_global_admin_can_assign_without_community_membership(self):
 		with self.as_user(self.admin):

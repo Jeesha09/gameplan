@@ -96,7 +96,10 @@ const emit = defineEmits<{ (e: 'read', name: string): void }>()
 const route = computed(() => notificationRoute(props.notification))
 const location = computed(() => notificationLocation(props.notification))
 const showAvatar = computed(() =>
-  Boolean(props.notification.from_user && props.notification.type !== 'Reaction'),
+  Boolean(
+    props.notification.from_user &&
+      !['Reaction', 'Trust Level'].includes(props.notification.type),
+  ),
 )
 
 function open() {

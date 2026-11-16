@@ -529,14 +529,21 @@ class GPDiscussion(
 		self.slug = url_safe_slug(self.title)
 
 	def update_participants_count(self):
-		participants = frappe.db.get_all(
-			"GP Comment",
-			filters={"reference_doctype": self.doctype, "reference_name": str(self.name)},
-			pluck="owner",
+		# `reference_name` is text: a number would stop MariaDB using its index. Ask for distinct
+		# authors instead of every reply's author, which grows with the thread.
+		participants = set(
+			frappe.db.get_all(
+				"GP Comment",
+				filters={"reference_doctype": self.doctype, "reference_name": str(self.name)},
+				pluck="owner",
+				distinct=True,
+			)
 		)
-		participants += frappe.db.get_all("GP Poll", filters={"discussion": str(self.name)}, pluck="owner")
-		participants.append(self.owner)
-		self.participants_count = len(list(set(participants)))
+		participants.update(
+			frappe.db.get_all("GP Poll", filters={"discussion": str(self.name)}, pluck="owner", distinct=True)
+		)
+		participants.add(self.owner)
+		self.participants_count = len(participants)
 
 	def update_last_post(self):
 		def get_last_post(doctype, filters):
@@ -631,7 +638,11 @@ def _get_visible_sources(discussions, comments):
 
 def on_doctype_update():
 	frappe.db.add_index("GP Discussion", ["project", "last_post_at"])
-	frappe.db.add_index("GP Discussion", ["owner"])
+	# Removed discussions are rare: the moderator queue finds them through these.
+	# One author's discussions, for checks such as "has this person posted in this Community".
+	frappe.db.add_index("GP Discussion", ["owner", "project"], "author_discussions")
+	frappe.db.add_index("GP Discussion", ["hidden_at"], "hidden_discussions")
+	frappe.db.add_index("GP Discussion", ["spam_removed_at"], "spam_removed_discussions")
 
 
 def move_discussion(discussion, project):

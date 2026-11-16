@@ -13,21 +13,21 @@ describe('Site posting limits', () => {
   it('lets global admins configure limits in site-wide moderation', () => {
     resetData('onboarded')
     cy.visit('/g/moderation?scope=site&tab=posting-limits')
-    cy.contains('h2', 'Posting limits').should('be.visible')
+    cy.contains('header:visible', 'Posting limits').should('be.visible')
     cy.get('#moderation-sidebar [data-slot="sidebar-item"][data-state="active"]').should(
       'have.length',
       1,
     )
     cy.contains('button', 'Account restrictions').click()
-    cy.contains('No active account restrictions.').should('be.visible')
-    cy.contains('button', 'Posting limits').click()
-    cy.contains('h2', 'Posting limits').should('be.visible')
+    cy.contains('No active restrictions').should('be.visible')
+    cy.get('#moderation-sidebar').contains('button', 'Posting limits').click()
+    cy.contains('header:visible', 'Posting limits').should('be.visible')
     cy.get('[aria-label="Discussions per hour"]').should('not.exist')
-    cy.get('[role="switch"]').should('have.attr', 'aria-checked', 'false').click()
+    cy.get('[role="switch"]').first().should('have.attr', 'aria-checked', 'false').click()
     cy.get('[aria-label="Discussions per hour"]').should('have.value', '5').clear().type('3')
-    cy.get('[role="switch"]').click()
+    cy.get('[role="switch"]').first().click()
     cy.get('[aria-label="Discussions per hour"]').should('not.exist')
-    cy.get('[role="switch"]').click()
+    cy.get('[role="switch"]').first().click()
     cy.get('[aria-label="Discussions per hour"]').should('have.value', '3')
     cy.contains('button', /^Save$/).click()
     cy.contains('Posting limits saved').should('be.visible')

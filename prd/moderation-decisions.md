@@ -1,6 +1,6 @@
 # Moderation decisions
 
-Owner: Ebrahim. Decisions updated: 2026-11-02.
+Owner: Ebrahim. Decisions updated: 2026-11-06.
 
 This log records choices Ebrahim confirmed in this chat.
 The roadmap describes sequencing and contains proposals for later features.
@@ -71,6 +71,77 @@ A recommendation becomes a decision only after Ebrahim accepts it.
 | D59 | Censor ordinary reads without changing stored originals, including existing posts. | Cover pages, API responses, search, and notifications. Authors can edit originals. Authorized moderators can inspect them. |
 | D60 | Block identifies matched entries to the author. Keep full lists admin-only. | Limit each action to 2,000 rules per Community, entries to 100 characters, and CSV files to 1 MB. Show invalid row numbers. |
 | D61 | Apply Block, Require approval, and Flag to future writes. | Do not scan old posts. Recheck Block at approval. Approval satisfies the other review actions for that version. |
+| D62 | Add automatic trust levels per Community: New, Member, Trusted. Every contributor has one, including invited Guests. | Levels control only approval and content caps. Posting limits, slow mode, and report weight stay as they are. Staff have no level. |
+| D63 | Trust levels are off by default and switch on and off per Community. | A Community admin or global admin flips the switch. While off, today's approval and caps behavior applies unchanged. There is no site-wide master switch. |
+| D64 | Levels replace D37's accepted-contributions rule. | D37's N becomes the Member threshold. This supersedes D37's "no automated trust engine is required". D44 is unchanged: slow mode has no level exemption. |
+| D65 | New is subject to approval when the Community's approval policy is on. Member skips approval. Trusted skips approval and is exempt from the link, image, file, and mention caps. | Both New and Member keep the site caps. Posting-rate limits apply to everyone but global admins. The stricter public-access Guest caps stay in force at every level. |
+| D66 | Promotion uses three signals: accepted contributions (D38), time as a member of that Community, and a clean record. | No new tracking. Reading time, posts read, and likes are not used. |
+| D67 | Defaults: Member needs 3 accepted contributions. Trusted needs 25 accepted, 30 days as a member, and a clean record. | Community admins and global admins edit the thresholds per Community. Moderators cannot. |
+| D68 | A clean record means that in the last 90 days, in that Community, none of the member's posts were hidden or spam-removed, no report against them was upheld, and they were not banned. | Rejected or withdrawn submissions and dismissed reports do not count. |
+| D69 | Levels never drop automatically. Moderators, Community admins, and global admins can set or lower a level, and lock or unlock it, with a required reason. | Changes appear in History. A lock stops automatic changes. A Community ban pauses promotion while it lasts and does not change the stored level. |
+| D70 | Member promotion happens when the accepted contribution that reaches the threshold is accepted. A nightly job promotes to Trusted. | The job looks only at members whose conditions could have changed, with indexed queries. |
+| D71 | Only staff and the member see a level. Other members never see it, and there is no badge on posts. | A member sees their own level and progress near the approval notice. |
+| D72 | History records every manual change and every automatic promotion to Trusted, shown as System. Automatic promotion to Member is not recorded individually. | The member's panel shows when and why they reached Member. |
+| D73 | A member gets an in-app notification when promoted, automatically or by hand. No email. No notice when a level is lowered, and none for the first calculation. | The moderator's reason stays staff-only. |
+| D74 | Turning levels on runs a chunked background job from existing contributions, membership age, and the moderation log. | Existing approval and caps behavior continues until the job finishes. Staff are skipped. Members who already qualify go straight to Trusted. |
+| D75 | Staff keep a tracked level that applies again if they lose the role. Leaving a Community deletes the level, and rejoining starts at New. | This matches moderator appointments (D09). |
+| D76 | Moderators and admins use a new Trust levels tab in Community moderation. It lists levels, filters by level, and opens a panel of requirements with the manual change and lock actions. | The switch and thresholds sit beside the approval settings, for Community admins only. |
+| D77 | Ship as two stacked PRs above the moderation UI branch: 12/13 for the engine and 13/13 for the UI. Push to Ebrahim's fork without opening PRs. | Each stays below 1,000 changed lines, tests included (D04). |
+| D78 | Weighted auto-hide is a per-Community switch, off by default. Community admins and global admins change it. | Moderators see it but cannot change it. |
+| D79 | Auto-hide works only while trust levels are on. | The switch is disabled with a note while levels are off. |
+| D80 | Each counted report adds the reporter's level weight. A post hides when the total reaches the threshold. | The threshold defaults to 6. Community admins set it from 3 to 30. Weights are in D116. Community staff count 3. |
+| D81 | Only Spam and Abuse/inappropriate reports count. | Off-topic, AI-generated, Other, and automatic watched-word reports still reach the queue but never hide a post. |
+| D82 | Reaching the threshold applies the existing Hide, never Delete spam. | The actor is System. History shows Auto Hide. The review stays Pending, marked Hidden automatically. |
+| D83 | Posts by Community staff and global admins are never auto-hidden. | Reports on them still reach the queue. Regular and Leader authors are not exempt. |
+| D84 | Weight comes from trust level only. | A Discourse-style reporter accuracy bonus is deferred. |
+| D85 | On an auto-hidden post, Dismiss restores the post and closes the review. Hide and Uphold keep it hidden. Delete spam removes it as spam. | The decisions keep their current meaning on posts that are not auto-hidden. |
+| D86 | An auto-hide does not count against the author's record. | Only a moderator's Hide, Uphold, or Delete spam counts. |
+| D87 | Editing does not unhide an auto-hidden post. | The post stays hidden until a moderator decides. |
+| D88 | The author gets an in-app notification when a post is auto-hidden. | It does not name the reporters. |
+| D89 | Auto-hidden reviews sit first in the Pending queue with a Hidden automatically badge. | Moderators get no extra notification. |
+| D90 | Only reports filed after the switch is turned on count. Each weight is fixed when the report is filed. | The running total is stored on the review. Reviews already pending start at 0. |
+| D91 | A post never auto-hides again after a moderator dismisses its reports or restores it. | New reports still reach the queue. |
+| D92 | Discussions auto-hide at the same threshold as replies. | Hiding a discussion hides its replies (D15). |
+| D93 | The switch and threshold sit in Approval settings under the trust level settings. | Community admins only. |
+| D94 | Turning trust levels off pauses auto-hide and keeps its setting. | Posts already auto-hidden stay hidden until a moderator decides. |
+| D95 | Restoring an auto-hidden post from anywhere closes its review as Dismiss. | The restore reason becomes the note. D91 then applies. |
+| D96 | The author is told when a moderator dismisses or restores an auto-hidden post. | No second notification when the post stays hidden. |
+| D97 | A changed threshold applies from the next report. A moved post keeps its total and is checked against its new Community. | Pending reviews are not re-checked. |
+| D98 | Weighted auto-hide ships as one PR after trust levels, whatever its size. | This overrides D04 for this PR. |
+| D99 | A reporter whose level is not worked out yet is worked out when they report. | A locked level counts as that level. |
+| D100 | An auto-hidden post reads "hidden after member reports and is waiting for review". | After a moderator keeps it hidden, it uses the usual wording. |
+| D101 | Review detail shows the total against the threshold and each report's weight. | The queue keeps the Hidden automatically badge. |
+| D102 | Weights are fixed. The threshold is the only setting. | |
+| D103 | Trust levels mirror Discourse: 0 New, 1 Basic, 2 Member, 3 Regular, 4 Leader. | Supersedes D62's three levels. |
+| D104 | Levels are site-wide, one per person. | Supersedes D62 and D63's per-Community levels. |
+| D105 | Levels use discussions entered, visit days, reactions given and received, replies in distinct discussions, accepted posts, removals, and restrictions. | Reading time and posts read are not tracked. Supersedes D66. |
+| D106 | Regular is rechecked nightly over a rolling window and can be lost after a grace period. New, Basic, and Member never drop by themselves. | Supersedes D69's "levels never drop automatically" for Regular. |
+| D107 | Leader is granted only by hand. | |
+| D108 | Keep manual change and lock with a reason, History entries, promotion notifications, My submissions progress, off by default, and the stored-level job design. | |
+| D109 | The redesign replaces PRs 12 and 13 in place. | |
+| D110 | Global admins turn levels on and edit every requirement in Site administration. | Supersedes D63 and D67's Community admin control. |
+| D111 | Only global admins change or lock a level. Community moderators see levels read-only. | Supersedes D69's moderator control. |
+| D112 | Removals and restrictions in any Community count toward Regular. | Supersedes D68. |
+| D113 | While levels are on, a Community holds posts for approval from members below a chosen level: none, Basic, or Member. | Community admins choose. None is the default. Supersedes D64. |
+| D114 | Community staff have a site-wide level and keep their exemptions inside their own Community. Global admins have no level. | Supersedes D62 and D75 for staff. |
+| D115 | Invited Guests earn levels like members. | |
+| D116 | New gets approval where required, the new-user limits, and report weight 1. Basic lifts the new-user limits, weight 1. Member doubles the posting-rate limits, weight 2. Regular skips the content caps, weight 3. Leader can close, reopen, pin, and move discussions, weight 3. | Leader does not edit other people's posts. See D128 for moves. |
+| D117 | Basic needs 5 discussions entered, visits on 2 days, and 1 accepted post. | The accepted post stands in for reading time. |
+| D118 | Member needs visits on 15 days, 1 reaction given, 1 received, replies in 3 discussions, and 20 discussions entered. | |
+| D119 | Regular, over the last 100 days, needs visits on 50 days, replies in 10 discussions, 25% of new discussions entered up to 500, 30 reactions given, 20 received from at least 5 people, and at most 5 posts removed by moderators. It needs no ban, suspension, or silence in the last 6 months. | A Regular who falls short drops to Member after a 2-week grace period. |
+| D120 | Global admins can edit every requirement within a fixed range. | |
+| D121 | Auto-hide keeps its default threshold of 6 with the D116 weights. | |
+| D122 | A visit day is recorded at most once per member per UTC day, when they use Gameplan. | |
+| D123 | New to Basic and Basic to Member are checked on a new visit day and when a post is accepted. Regular is checked nightly. | |
+| D124 | While levels are off, the first-N approval rule (D37) works as before. | |
+| D125 | Turning levels on counts past visit days from posts, reactions, and discussion visits, and works out levels up to Member. | Nobody is notified. Regular comes from the nightly job. |
+| D126 | The level list with change and lock lives in Site administration. Community moderators see levels read-only in the member list. | My submissions keeps the member's progress view. Supersedes D76. |
+| D127 | Only the member, Community staff, and global admins see a level. | No badge on posts or profiles. Keeps D71. |
+| D128 | Leader moves discussions only between Spaces of the same Community. Leader actions go to that Community's History. | |
+| D129 | A member who drops from Regular to Member gets a notification. | Supersedes D73's "no notice when a level is lowered" for this case. |
+| D130 | A manual change to Regular also starts the grace period. A lock keeps a level for good. | |
+| D131 | The trust level engine and visit tracking are PR 12. The UI is PR 13. Weighted auto-hide is PR 14. Each is one PR whatever its size. | Supersedes D77. |
+| D132 | Leader unlocks nothing beyond report weight 3. Every member who can see a Space keeps editing, closing, reopening, pinning, and moving its discussions. | Supersedes D116's Leader actions and D128. Confirmed November 12, 2026. |
 
 
 
@@ -128,10 +199,14 @@ Tests: `gameplan/tests/features/test_moderators.py` and `frontend/cypress/e2e/co
 
 Plan these when their implementation slice is next. Roadmap recommendations do not settle them.
 
-- Ordinary members' editing rights and whether a Community can opt into forum-specific rules.
-- Separate silence behavior; timed Community bans and site suspensions are settled below.
-- Flood limits and automatic slow-mode expiry.
-- Bulk actions outside report review, background processing, and batch undo behavior.
+- Whether a Community can opt into forum-specific rules. Editing rights are settled below: authors keep their rights and moderators do not edit other people's posts.
+- Appointing moderators for individual Spaces or groups (deferred by D05).
+- The later enhancements in the roadmap: automatic silencing, AI spam detection, advanced regex rules, and assigning or claiming review items.
+- Migration from Discourse (deferred by D02).
+
+Trust levels were settled on November 6, 2026 (D62 to D77) and redesigned to mirror Discourse on November 12, 2026 (D103 to D132). The spec is `prd/trust-levels.md`. Weighted auto-hide was settled on November 12, 2026 (D78 to D102).
+
+Silence, flood limits, automatic slow-mode expiry, and author-wide cleanup with undo were settled on November 4 and 5, 2026. See the sections below.
 
 ## Keeping this log current
 

@@ -126,6 +126,7 @@ import {
 } from '@/data/notificationFilters'
 import {
   type NotificationRow,
+  notificationLocation,
   onRemoteNotificationChange,
   rememberNotificationRows,
   unreadNotifications,

@@ -56,3 +56,6 @@ def on_doctype_update():
 	# The inbox lists one user's rows newest-event-first. `read` is left out on purpose: it is a
 	# reserved word in MariaDB and add_index does not quote column names.
 	frappe.db.add_index("GP Notification", ["to_user", "last_event_at"])
+	# Who has notifications about this discussion or reply: asked when moderation removes it.
+	frappe.db.add_index("GP Notification", ["discussion"], "discussion_notifications")
+	frappe.db.add_index("GP Notification", ["comment"], "comment_notifications")

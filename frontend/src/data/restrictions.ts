@@ -24,6 +24,12 @@ export async function startCleanup(user: string, reason: string, community = '')
   toast.success('Cleanup started. The result appears in History.')
 }
 
+export function untilLabel(value?: string | null) {
+  if (!value) return 'Until manually lifted'
+  const zone = getConfig('localTimezone') || Intl.DateTimeFormat().resolvedOptions().timeZone
+  return `Until ${dayjs(value).tz(zone).format('D MMM YYYY, h:mm A z')}`
+}
+
 export function expiryLabel(value?: string | null) {
   if (!value) return 'Until manually lifted'
   const date = dayjs(value).tz(

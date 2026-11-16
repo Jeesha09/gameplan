@@ -14,7 +14,7 @@ def target_fields(doc) -> dict:
 	"""The columns a notification about `doc` fills: what it points at, and the Space it
 	sits in when that cannot be fetched from a discussion."""
 	if doc.doctype == "GP Discussion":
-		return {"discussion": doc.name}
+		return {"discussion": str(doc.name)}
 	if doc.doctype == "GP Poll":
 		return {"poll": doc.name, "discussion": doc.discussion}
 	if doc.doctype == "GP Task":
@@ -35,12 +35,13 @@ def target_fields(doc) -> dict:
 def content_key(doc) -> dict:
 	"""Filters that find the row about `doc` itself. A discussion excludes its polls and
 	comments, whose rows carry the discussion too so the inbox can route them."""
+	# Names are text in the link columns: a number would stop MariaDB using their indexes.
 	if doc.doctype == "GP Discussion":
-		return {"discussion": doc.name, "poll": ["is", "not set"], "comment": ["is", "not set"]}
+		return {"discussion": str(doc.name), "poll": ["is", "not set"], "comment": ["is", "not set"]}
 	if doc.doctype == "GP Poll":
-		return {"poll": doc.name, "discussion": doc.discussion}
+		return {"poll": str(doc.name), "discussion": str(doc.discussion)}
 	if doc.doctype == "GP Comment":
-		return {"comment": doc.name}
+		return {"comment": str(doc.name)}
 	raise ValueError(f"no notification identity for {doc.doctype}")
 
 
@@ -116,5 +117,7 @@ def repoint_discussion(discussion: str, project, team) -> None:
 def _unread_row_for(to_user: str, type: str, points_at: dict) -> str | None:
 	filters = {"to_user": to_user, "type": type, "read": 0}
 	for field in TARGET_FIELDS:
-		filters[field] = points_at[field] or ["is", "not set"]
+		# Link columns are text: a number stops MariaDB using the index and makes this locking read
+		# scan every notification of the user, which took 6 s and caused deadlocks under load.
+		filters[field] = str(points_at[field]) if points_at[field] else ["is", "not set"]
 	return frappe.db.get_value("GP Notification", filters, "name", for_update=True)

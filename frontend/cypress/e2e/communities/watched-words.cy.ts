@@ -25,12 +25,16 @@ describe('Watched words', () => {
   it('previews and imports CSV, adds a manual rule, tests matching, and exports CSV', () => {
     resetData('space_with_discussion').then((ids) => {
       settings(ids)
-      cy.contains('a', 'Sample CSV').should('have.attr', 'href').and('include', 'sample=1')
-      cy.contains('a', 'Sample CSV')
-        .invoke('attr', 'href')
-        .then((url) => {
-          cy.request(url!).its('headers.content-type').should('include', 'text/csv')
-        })
+      cy.get('button[aria-label="Import and export"]').click()
+      cy.contains('[role="menuitem"]', 'Download sample CSV').should('be.visible')
+      cy.get('body').type('{esc}')
+      cy.request(
+        '/api/method/gameplan.watched_words.download?community=' +
+          ids.community +
+          '&action=Block&sample=1',
+      )
+        .its('headers.content-type')
+        .should('include', 'text/csv')
       cy.get('input[type=file]').selectFile(
         {
           contents: Cypress.Buffer.from('spamword\n"buy, now",,true\nSPAMWORD\n'),
@@ -49,12 +53,16 @@ describe('Watched words', () => {
         .should('have.length', 0)
       cy.get('[role=dialog]').contains('button', 'Import 2 rules').click()
       cy.contains('Watched words imported').should('be.visible')
-      cy.get('input[placeholder="Word or phrase"]').type('forbiddenphrase')
-      cy.contains('button', /^Add rule$/).click()
+      cy.get('input[aria-label="Word or phrase"]').type('forbiddenphrase')
+      cy.contains('button', /^Add$/).click()
       cy.contains('span', 'forbiddenphrase').should('be.visible')
-      cy.get('textarea[placeholder="Test words or a post"]').type('SPAMWORD')
       cy.contains('button', /^Test rules$/).click()
-      cy.contains('p', 'Block: spamword').should('be.visible')
+      cy.get('[role=dialog] textarea').type('SPAMWORD')
+      cy.get('[role=dialog]')
+        .contains('button', /^Test$/)
+        .click()
+      cy.get('[role=dialog]').contains('div', 'Block').should('contain.text', 'spamword')
+      cy.get('body').type('{esc}')
       cy.request(
         '/api/method/gameplan.watched_words.download?community=' + ids.community + '&action=Block',
       ).then(({ body }) => {
@@ -118,12 +126,12 @@ describe('Watched words', () => {
       cy.switchUser('admin')
       cy.visit(`/g/community/${ids.community}/moderation`)
       cy.contains('button', /^Approvals$/).click()
-      cy.contains('Edit: Welcome thread').should('be.visible')
+      cy.contains('[data-testid="moderation-row"]', 'Welcome thread').should('contain.text', 'Edit')
       cy.contains('button', /^Review$/).click()
       cy.get('[role=dialog]')
         .contains('button:not([role=combobox])', /^Approve$/)
         .click()
-      cy.contains('No pending submissions.').should('be.visible')
+      cy.contains('No pending submissions').should('be.visible')
       thread(ids)
       cy.contains('p', 'reviewme proposed edit').should('be.visible')
     })

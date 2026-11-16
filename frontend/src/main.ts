@@ -20,6 +20,7 @@ import { useUser, users } from './data/users'
 import { isSessionUser, session } from './data/session'
 import { initSocket } from './socket'
 import { installErrorReporting } from './utils/errorReporting'
+import { retryOnConflict } from './utils/retryOnConflict'
 import { clearCachesOnUserSwitch, setupOfflineSupport } from './offline'
 import { setupOfflineDownloads } from './data/offlineDownloads'
 import CleanupFailure from './components/CleanupFailure.vue'
@@ -68,7 +69,7 @@ if (import.meta.env.DEV) {
 function setupApp() {
   // UnsplashImageBrowser.vue still uses the v1 resources Options API.
   app.use(FrappeUI, { resources: true })
-  setConfig('resourceFetcher', frappeRequest)
+  setConfig('resourceFetcher', retryOnConflict(frappeRequest))
   setConfig('defaultListUrl', 'gameplan.extends.client.get_list')
   setConfig('systemTimezone', window.system_timezone || null)
   setConfig('maxFileSize', window.max_file_size ? Number(window.max_file_size) : null)

@@ -9,7 +9,7 @@ from frappe.tests.utils import FrappeTestCase
 from gameplan.api import search_sqlite
 from gameplan.gameplan.doctype.gp_discussion.gp_discussion import move_discussion
 from gameplan.patches import drop_search_index_for_sort_columns
-from gameplan.search_sqlite import GameplanSearch, GameplanSearchIndexMissingError
+from gameplan.search_sqlite import GameplanSearch, GameplanSearchIndexMissingError, clear_filter_options_cache
 from gameplan.tests.base import GameplanTestCase
 from gameplan.tests.fixtures import (
 	create_comment,
@@ -820,6 +820,44 @@ class TestSearchIndexLifecycle(IsolatedSearchIndex, GameplanTestCase):
 
 		self.assertEqual(comment_ids_in(other_space), [f"GP Comment:{comment.name}"])
 		self.assertEqual(comment_ids_in(self.space), [])
+
+	def test_a_very_long_list_of_visible_spaces_does_not_break_search(self):
+		discussion = self.create_discussion("Zebrafish migration notes", "Long list of Spaces", self.space)
+		drain_search_index_queue()
+		# Everyone can see every General Space, and each is asked for twice, so a large site passed
+		# more SQL parameters than SQLite allows (32,766) and every search returned nothing.
+		visible = list(range(100_000, 140_000)) + [self.space.name, str(self.space.name)]
+		with (
+			self.as_user(self.member),
+			patch.object(GameplanSearch, "get_search_filters", lambda self: {"project": visible}),
+		):
+			results = self.search.search("Zebrafish")["results"]
+		self.assertEqual([str(row["name"]) for row in results], [str(discussion.name)])
+
+	def test_filter_counts_cover_only_the_newest_rows_up_to_the_sample_size(self):
+		self.create_discussion("Older Zebrafish note", "Body", self.space)
+		self.create_discussion("Newer Zebrafish note", "Body", self.space)
+		drain_search_index_queue()
+		with self.as_user(self.member):
+			full = self.search.get_filter_options()
+			with patch("gameplan.search_sqlite.FACET_SAMPLE_ROWS", 1):
+				sampled = self.search.get_filter_options()
+		self.assertGreater(sum(full["doctypes"].values()), 1)
+		self.assertEqual(sum(sampled["doctypes"].values()), 1)
+
+	def test_filter_counts_are_kept_for_a_few_minutes(self):
+		self.create_discussion("Zebrafish counts", "Body", self.space)
+		drain_search_index_queue()
+		self.addCleanup(clear_filter_options_cache)
+		with (
+			self.as_user(self.member),
+			patch.object(GameplanSearch, "_facet_cache_enabled", lambda self: True),
+			patch.object(GameplanSearch, "_removed_discussions", return_value=[]) as removed,
+		):
+			first = self.search.get_filter_options()
+			second = self.search.get_filter_options()
+		self.assertEqual(first, second)
+		self.assertEqual(removed.call_count, 1)
 
 
 class TestDropSearchIndexForSortColumnsPatch(IsolatedSearchIndex, GameplanTestCase):

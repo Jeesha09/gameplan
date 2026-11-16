@@ -4,9 +4,11 @@
     <p class="mt-3 text-base text-ink-gray-6">
       Track submissions awaiting approval, read moderator feedback, and open approved posts.
     </p>
+    <MyTrustLevels />
     <ApprovalQueue />
   </div>
 </template>
 <script setup lang="ts">
 import ApprovalQueue from '@/components/ApprovalQueue.vue'
+import MyTrustLevels from '@/components/MyTrustLevels.vue'
 </script>

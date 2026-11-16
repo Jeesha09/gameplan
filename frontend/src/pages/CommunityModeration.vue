@@ -41,6 +41,9 @@
           <div class="body-container">
             <slot v-if="siteWide" name="site-wide" />
             <template v-else>
+              <p v-if="sectionDescriptions[tab]" class="pb-5 text-p-base text-ink-gray-6">
+                {{ sectionDescriptions[tab] }}
+              </p>
               <ErrorMessage
                 v-if="error"
                 class="mt-4"
@@ -51,65 +54,89 @@
                 :community-id="communityId"
               />
               <template v-if="tab === 'removed'">
-                <Select
-                  v-model="doctype"
-                  class="my-4 max-w-xs"
-                  aria-label="Content type"
-                  :options="[
-                    { label: 'Discussions', value: 'GP Discussion' },
-                    { label: 'Replies', value: 'GP Comment' },
-                  ]"
-                />
-                <div
-                  v-for="item in items"
-                  :key="item.name"
-                  class="border-b border-outline-gray-2 py-5"
-                >
-                  <div class="text-base-medium text-ink-gray-9">{{ item.title }}</div>
-                  <p class="mt-1 text-base text-ink-gray-5">
-                    {{ item.spam_removed_at ? 'Spam removed' : 'Hidden' }} ·
-                    {{ useUser(item.owner).full_name }}
-                  </p>
-                  <p class="mt-2 whitespace-pre-wrap text-base text-ink-gray-7">
-                    {{ item.reason }}
-                  </p>
-                  <div class="mt-3 flex flex-wrap gap-2">
-                    <Button @click="preview(item)">Preview</Button>
-                    <Button
-                      :route="{
-                        name: 'Discussion',
-                        params: {
-                          communityId,
-                          spaceId: item.project,
-                          postId: item.discussion,
-                          slug: item.slug,
-                        },
-                      }"
-                      >Open discussion</Button
+                <div class="flex items-center justify-between gap-3 pb-3">
+                  <TabButtons
+                    v-model="doctype"
+                    :options="[
+                      { label: 'Discussions', value: 'GP Discussion' },
+                      { label: 'Replies', value: 'GP Comment' },
+                    ]"
+                  />
+                </div>
+                <div v-if="items.length" class="border-t border-outline-gray-1">
+                  <template v-for="item in items" :key="item.name">
+                    <ModerationRow>
+                      <template #lead>
+                        <Avatar
+                          :image="useUser(item.owner).user_image"
+                          :label="useUser(item.owner).full_name"
+                          size="md"
+                        />
+                      </template>
+                      <template #title>{{ item.title }}</template>
+                      <template v-if="item.reason" #detail>{{ item.reason }}</template>
+                      <template #meta>{{ useUser(item.owner).full_name }}</template>
+                      <template #status>
+                        <Badge :label="item.spam_removed_at ? 'Spam' : 'Hidden'" />
+                      </template>
+                      <template #actions>
+                        <Button variant="subtle" @click="restore(item)">Restore</Button>
+                        <Dropdown
+                          align="end"
+                          :button="{
+                            icon: 'lucide-more-horizontal',
+                            variant: 'ghost',
+                            label: 'More actions',
+                          }"
+                          :options="[
+                            {
+                              label: selected === item.name ? 'Hide preview' : 'Preview original',
+                              icon: 'lucide-eye',
+                              onClick: () => preview(item),
+                            },
+                            {
+                              label: 'Open discussion',
+                              icon: 'lucide-external-link',
+                              onClick: () =>
+                                router.push({
+                                  name: 'Discussion',
+                                  params: {
+                                    communityId,
+                                    spaceId: item.project,
+                                    postId: item.discussion,
+                                    slug: item.slug,
+                                  },
+                                }),
+                            },
+                          ]"
+                        />
+                      </template>
+                    </ModerationRow>
+                    <div
+                      v-if="selected === item.name"
+                      class="mb-3 ml-10 max-h-96 overflow-y-auto rounded-5 bg-surface-gray-1 p-4"
                     >
-                    <Button @click="restore(item)">Restore</Button>
-                  </div>
-                  <div
-                    v-if="selected === item.name"
-                    class="mt-3 max-h-96 overflow-y-auto rounded-5 border border-outline-gray-2 bg-surface-gray-1 p-4"
-                  >
-                    <CommentEditor :value="previewContent" :editable="false" />
-                  </div>
+                      <CommentEditor :value="previewContent" :editable="false" />
+                    </div>
+                  </template>
                 </div>
-                <p v-if="!loading && !items.length" class="mt-5 text-base text-ink-gray-5">
-                  No removed content.
-                </p>
-                <div class="mt-4 flex gap-2">
-                  <Button v-if="start > 0" @click="start -= 40">Previous</Button>
-                  <Button v-if="hasMore" @click="start += 40">Next</Button>
-                </div>
+                <ModerationEmpty
+                  v-else-if="!loading"
+                  icon="lucide-trash-2"
+                  :title="
+                    doctype === 'GP Comment' ? 'No removed replies' : 'No removed discussions'
+                  "
+                  description="Hidden posts and spam removals appear here, ready to restore."
+                />
+                <ModerationPager
+                  :previous="start > 0"
+                  :next="hasMore"
+                  @previous="start -= 40"
+                  @next="start += 40"
+                />
               </template>
               <template v-else-if="tab === 'bans'">
-                <p class="my-4 text-base text-ink-gray-5">
-                  Bans block participation in this Community until lifted or expired. Reading and
-                  participation elsewhere stay available.
-                </p>
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2 pb-3">
                   <Combobox
                     v-model="targetUser"
                     v-model:query="userQuery"
@@ -117,10 +144,9 @@
                     :loading="userSearchLoading"
                     variant="outline"
                     open-on-click
-                    label="User"
-                    placeholder="Name or email"
-                    description="Browse eligible members or type at least 2 characters to search."
-                    class="min-w-0 flex-1"
+                    placeholder="Find a member to ban"
+                    aria-label="Member"
+                    class="w-full max-w-sm"
                     :options="userOptions"
                     :filterable="false"
                     :empty-text="
@@ -134,37 +160,88 @@
                       <Avatar :image="item.image" :label="item.label" size="sm" />
                     </template>
                   </Combobox>
-                  <Button :disabled="!targetUser" @click="banUser">Ban from Community</Button>
-                  <Button :disabled="!targetUser" @click="cleanupOpen = true"
-                    >Remove all posts</Button
-                  >
+                  <template v-if="targetUser">
+                    <Button variant="solid" icon-left="lucide-user-x" @click="banUser">Ban</Button>
+                    <Button @click="cleanupOpen = true">Remove all posts</Button>
+                  </template>
+                  <p v-else class="ml-auto text-p-sm text-ink-gray-6">
+                    {{
+                      bans.length ? `${bans.length}${hasMore ? '+' : ''} active` : 'No active bans'
+                    }}
+                  </p>
                 </div>
-                <div
-                  v-for="ban in bans"
-                  :key="ban.user"
-                  class="flex items-center justify-between gap-3 border-b border-outline-gray-2 py-5"
-                >
-                  <div>
-                    <div class="text-base-medium text-ink-gray-9">
-                      {{ ban.full_name || useUser(ban.user).full_name }}
-                    </div>
-                    <p class="mt-1 whitespace-pre-wrap text-base text-ink-gray-5">
-                      {{ ban.reason }}
-                    </p>
-                    <p class="mt-1 text-base text-ink-gray-6">{{ expiryLabel(ban.expires_at) }}</p>
-                  </div>
-                  <div class="flex gap-2">
-                    <Button @click="editBan(ban)">Change</Button
-                    ><Button @click="editBan(ban, true)">Lift ban</Button>
-                  </div>
+                <div v-if="bans.length" class="border-t border-outline-gray-1">
+                  <ModerationRow v-for="ban in bans" :key="ban.user">
+                    <template #lead>
+                      <Avatar
+                        :image="useUser(ban.user).user_image"
+                        :label="ban.full_name || useUser(ban.user).full_name"
+                        size="md"
+                      />
+                    </template>
+                    <template #title>{{ ban.full_name || useUser(ban.user).full_name }}</template>
+                    <template v-if="ban.reason" #detail>{{ ban.reason }}</template>
+                    <template #meta>{{ untilLabel(ban.expires_at) }}</template>
+                    <template #status>
+                      <Badge
+                        :label="
+                          ban.expires_at ? `Ends ${dayjs(ban.expires_at).fromNow()}` : 'Indefinite'
+                        "
+                      />
+                    </template>
+                    <template #actions>
+                      <Button variant="subtle" @click="editBan(ban, true)">Lift ban</Button>
+                      <Dropdown
+                        align="end"
+                        :button="{
+                          icon: 'lucide-more-horizontal',
+                          variant: 'ghost',
+                          label: 'More actions',
+                        }"
+                        :options="[
+                          {
+                            label: 'Change ban',
+                            icon: 'lucide-pencil',
+                            onClick: () => editBan(ban),
+                          },
+                          {
+                            label: 'Remove all posts',
+                            icon: 'lucide-trash-2',
+                            onClick: () => {
+                              targetUser = ban.user
+                              cleanupOpen = true
+                            },
+                          },
+                          {
+                            label: 'View history',
+                            icon: 'lucide-history',
+                            onClick: () =>
+                              router.push({
+                                query: {
+                                  ...route.query,
+                                  tab: 'history',
+                                  kind: 'user',
+                                  target: ban.user,
+                                },
+                              }),
+                          },
+                        ]"
+                      />
+                    </template>
+                  </ModerationRow>
                 </div>
-                <div class="mt-4 flex gap-2">
-                  <Button v-if="start" @click="start -= 40">Previous</Button>
-                  <Button v-if="hasMore" @click="start += 40">Next</Button>
-                </div>
-                <p v-if="!loading && !bans.length" class="mt-5 text-base text-ink-gray-5">
-                  No active Community bans.
-                </p>
+                <ModerationEmpty
+                  v-else-if="!loading"
+                  icon="lucide-user-x"
+                  title="No one is banned"
+                  description="Banned members can still read, but cannot post, react or vote in this Community."
+                />
+                <ModerationPager
+                  :previous="start > 0"
+                  :next="hasMore"
+                  @previous="start -= 40"
+                  @next="start += 40"
+                />
               </template>
               <CleanupDialog
                 v-if="cleanupOpen"
@@ -212,7 +289,7 @@ import { Sidebar, SidebarHeader, SidebarItem, SidebarLabel, ScrollArea } from 'f
 import { useIsMobile } from '@/utils/useIsMobile'
 import CleanupDialog from '@/components/CleanupDialog.vue'
 import RestrictionDialog from '@/components/RestrictionDialog.vue'
-import { expiryLabel, type RestrictionUser } from '@/data/restrictions'
+import { untilLabel, type RestrictionUser } from '@/data/restrictions'
 import WatchedWords from '@/components/WatchedWords.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import ApprovalQueue from '@/components/ApprovalQueue.vue'
@@ -220,7 +297,24 @@ import ApprovalSettings from '@/components/ApprovalSettings.vue'
 import ReportQueue from '@/components/ReportQueue.vue'
 import { useRoute, useRouter } from 'vue-router'
 import ModerationHistory from '@/components/ModerationHistory.vue'
-import { Avatar, Button, Combobox, Select, ErrorMessage, call, dialog, useDoctype } from 'frappe-ui'
+import {
+  Avatar,
+  Badge,
+  Button,
+  Combobox,
+  Dialog,
+  Dropdown,
+  Select,
+  ErrorMessage,
+  TabButtons,
+  call,
+  dayjs,
+  dialog,
+  useDoctype,
+} from 'frappe-ui'
+import ModerationEmpty from '@/components/moderation/ModerationEmpty.vue'
+import ModerationPager from '@/components/moderation/ModerationPager.vue'
+import ModerationRow from '@/components/moderation/ModerationRow.vue'
 import CommentEditor from '@/components/editor/CommentEditor.vue'
 import { useCommunity } from '@/data/communities'
 import { useSessionUser, useUser } from '@/data/users'
@@ -288,6 +382,15 @@ const selected = ref('')
 const previewContent = ref('')
 const targetUser = ref('')
 const cleanupOpen = ref(false)
+const sectionDescriptions: Record<string, string> = {
+  approvals: 'Posts from new members wait here until a moderator approves them.',
+  reports:
+    'Content members have flagged. Review each report, or select several to resolve together.',
+  removed: 'Hidden posts and spam removals. Restoring brings a post back exactly as it was.',
+  bans: 'Banned members keep reading access but cannot participate in this Community.',
+  words: 'Words and phrases that block, hold, flag or censor posts in this Community.',
+  history: 'Every moderation action in this Community, newest first.',
+}
 const userQuery = ref('')
 const userPickerOpen = ref(false)
 const userSearchLoading = ref(false)
@@ -409,6 +512,10 @@ watch([() => props.communityId, doctype, tab, start, canModerate], load, { immed
 
 async function preview(item: RemovedItem) {
   error.value = null
+  if (selected.value === item.name) {
+    selected.value = ''
+    return
+  }
   try {
     const content = await targetType().runDocMethod.submit({
       name: item.name,

@@ -1,61 +1,110 @@
 <template>
-  <div class="mt-5 space-y-5 text-ink-gray-9">
-    <p class="text-base text-ink-gray-6">
-      Rules apply to this Community. Code is preserved. Block takes priority over approval and
-      flagging.
-    </p>
-    <Select v-model="action" label="Action" :options="actions" class="max-w-xs" />
-    <div class="flex flex-wrap gap-2">
-      <FileUploader
-        :file-types="['.csv']"
-        :private="true"
-        :validate-file="validateFile"
-        @success="previewFile"
-        @failure="showError"
-      >
-        <template #default="{ openFileSelector, uploading, progress }">
-          <Button :loading="uploading" @click="openFileSelector">{{
-            uploading ? `Uploading ${progress}%` : 'Add from CSV'
-          }}</Button>
-        </template>
-      </FileUploader>
-      <Button :href="downloadUrl(false)">Download list</Button>
-      <Button :href="downloadUrl(true)">Sample CSV</Button>
-    </div>
-    <div class="flex flex-wrap items-end gap-2">
-      <TextInput
-        v-model="word"
-        label="Word or phrase"
-        placeholder="Word or phrase"
-        class="min-w-0 flex-1"
-      />
-      <div class="flex h-7 items-center gap-2">
-        <Checkbox v-model="caseSensitive" label="Case sensitive" />
-        <Button :disabled="!word.trim()" :loading="saving" @click="addWord">Add rule</Button>
+  <div class="text-ink-gray-9">
+    <div class="flex items-center justify-between gap-3 pb-2">
+      <TabButtons v-model="action" :options="actions.map((value) => ({ label: value, value }))" />
+      <div class="flex items-center gap-1">
+        <Button variant="ghost" icon-left="lucide-flask-conical" @click="testOpen = true"
+          >Test rules</Button
+        >
+        <FileUploader
+          :file-types="['.csv']"
+          :private="true"
+          :validate-file="validateFile"
+          @success="previewFile"
+          @failure="showError"
+        >
+          <template #default="{ openFileSelector, uploading, progress }">
+            <Dropdown
+              align="end"
+              :button="{
+                icon: 'lucide-more-horizontal',
+                variant: 'ghost',
+                label: uploading ? `Uploading ${progress}%` : 'Import and export',
+                loading: uploading,
+              }"
+              :options="[
+                { label: 'Import from CSV', icon: 'lucide-upload', onClick: openFileSelector },
+                {
+                  label: 'Download this list',
+                  icon: 'lucide-download',
+                  onClick: () => open(downloadUrl(false)),
+                },
+                {
+                  label: 'Download sample CSV',
+                  icon: 'lucide-file-text',
+                  onClick: () => open(downloadUrl(true)),
+                },
+              ]"
+            />
+          </template>
+        </FileUploader>
       </div>
     </div>
-    <ErrorMessage v-if="error" :message="error" />
-    <div
-      v-for="rule in items"
-      :key="rule.name"
-      class="flex items-center justify-between gap-3 border-b border-outline-gray-2 py-4"
+    <p class="pb-4 text-p-sm text-ink-gray-6">{{ actionHints[action] }}</p>
+    <form
+      class="flex items-center gap-3 border-t border-outline-gray-1 py-3"
+      @submit.prevent="addWord"
     >
-      <span class="text-base"
-        >{{ rule.word }}
-        <span v-if="rule.case_sensitive" class="text-ink-gray-5">(case sensitive)</span></span
-      >
-      <Button @click="deleteRule(rule)">Delete</Button>
+      <TextInput
+        v-model="word"
+        placeholder="Add a word or phrase, use * as a wildcard"
+        aria-label="Word or phrase"
+        class="min-w-0 flex-1"
+      />
+      <Checkbox v-model="caseSensitive" label="Case sensitive" />
+      <Button type="submit" variant="solid" :disabled="!word.trim()" :loading="saving">Add</Button>
+    </form>
+    <ErrorMessage v-if="error" class="pb-3" :message="error" />
+    <div v-if="items.length" class="border-t border-outline-gray-1">
+      <ModerationRow v-for="rule in items" :key="rule.name">
+        <template #title
+          ><span class="font-mono">{{ rule.word }}</span></template
+        >
+        <template #status>
+          <Badge v-if="rule.case_sensitive" label="Case sensitive" />
+        </template>
+        <template #actions>
+          <Button
+            variant="ghost"
+            icon="lucide-trash-2"
+            :aria-label="`Delete ${rule.word}`"
+            @click="deleteRule(rule)"
+          />
+        </template>
+      </ModerationRow>
     </div>
-    <p v-if="!items.length" class="text-base text-ink-gray-5">No rules for this action.</p>
-    <div class="flex gap-2">
-      <Button v-if="start" @click="start -= 40">Previous</Button
-      ><Button v-if="hasMore" @click="start += 40">Next</Button>
-    </div>
-    <Textarea v-model="testText" label="Test words or a post" placeholder="Test words or a post" />
-    <Button @click="testRules">Test rules</Button>
-    <p v-for="(words, key) in results" :key="key" class="text-base">
-      {{ key }}: {{ words.length ? words.join(', ') : 'No matches' }}
-    </p>
+    <ModerationEmpty
+      v-else
+      icon="lucide-text-search"
+      :title="`No ${action.toLowerCase()} rules`"
+      description="Add words one at a time above, or import a CSV list."
+    />
+    <ModerationPager
+      :previous="start > 0"
+      :next="hasMore"
+      @previous="start -= 40"
+      @next="start += 40"
+    />
+    <Dialog v-model:open="testOpen" title="Test rules">
+      <Textarea
+        v-model="testText"
+        placeholder="Paste a post or a few words to see which rules match"
+        :rows="5"
+        aria-label="Text to test"
+      />
+      <div v-if="Object.keys(results).length" class="mt-4 divide-y divide-outline-gray-1">
+        <div v-for="(words, key) in results" :key="key" class="flex items-center gap-3 py-2">
+          <span class="w-32 shrink-0 text-p-sm text-ink-gray-6">{{ key }}</span>
+          <span class="flex flex-wrap gap-1">
+            <Badge v-for="match in words" :key="match" :label="match" />
+            <span v-if="!words.length" class="text-p-sm text-ink-gray-5">No matches</span>
+          </span>
+        </div>
+      </div>
+      <template #actions>
+        <Button variant="solid" :disabled="!testText.trim()" @click="testRules">Test</Button>
+      </template>
+    </Dialog>
     <Dialog v-model:open="previewOpen" title="Preview CSV import">
       <p class="text-base">
         {{ preview?.added }} new rules · {{ preview?.duplicates }} duplicates skipped. Existing
@@ -80,21 +129,35 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import {
+  Badge,
   Button,
   Dialog,
+  Dropdown,
   ErrorMessage,
   FileUploader,
+  TabButtons,
   TextInput,
   Checkbox,
-  Select,
   Textarea,
   call,
   dialog,
   toast,
 } from 'frappe-ui'
 import { extractServerMessage } from '@/utils'
+import ModerationEmpty from './moderation/ModerationEmpty.vue'
+import ModerationPager from './moderation/ModerationPager.vue'
+import ModerationRow from './moderation/ModerationRow.vue'
 const props = defineProps<{ communityId: string }>()
 const actions = ['Block', 'Censor', 'Require approval', 'Flag']
+const actionHints: Record<string, string> = {
+  Block: 'Posts containing these words are refused. The author sees which words matched.',
+  Censor: 'These words are masked wherever posts are shown. The original text is kept.',
+  'Require approval':
+    'Posts containing these words wait for a moderator before they are published.',
+  Flag: 'Posts are published, and a report is opened for moderators to review.',
+}
+const testOpen = ref(false)
+const open = (url: string) => window.open(url, '_self')
 const action = ref('Block'),
   word = ref(''),
   caseSensitive = ref(false),

@@ -1,0 +1,202 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-11-12 14:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "enabled",
+  "basic_section",
+  "basic_entered",
+  "basic_days",
+  "basic_accepted",
+  "member_section",
+  "member_days",
+  "member_given",
+  "member_received",
+  "member_replied",
+  "member_entered",
+  "regular_section",
+  "regular_window",
+  "regular_days",
+  "regular_replied",
+  "regular_entered_percent",
+  "regular_entered_max",
+  "regular_given",
+  "regular_received",
+  "regular_received_users",
+  "regular_max_removed",
+  "regular_restriction_days",
+  "regular_grace_days"
+ ],
+ "fields": [
+  {
+   "default": "0",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Use trust levels"
+  },
+  {
+   "fieldname": "basic_section",
+   "fieldtype": "Section Break",
+   "label": "Basic"
+  },
+  {
+   "default": "5",
+   "fieldname": "basic_entered",
+   "fieldtype": "Int",
+   "label": "Discussions entered",
+   "non_negative": 1
+  },
+  {
+   "default": "2",
+   "fieldname": "basic_days",
+   "fieldtype": "Int",
+   "label": "Days visited",
+   "non_negative": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "basic_accepted",
+   "fieldtype": "Int",
+   "label": "Accepted posts",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "member_section",
+   "fieldtype": "Section Break",
+   "label": "Member"
+  },
+  {
+   "default": "15",
+   "fieldname": "member_days",
+   "fieldtype": "Int",
+   "label": "Days visited",
+   "non_negative": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "member_given",
+   "fieldtype": "Int",
+   "label": "Reactions given",
+   "non_negative": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "member_received",
+   "fieldtype": "Int",
+   "label": "Reactions received",
+   "non_negative": 1
+  },
+  {
+   "default": "3",
+   "fieldname": "member_replied",
+   "fieldtype": "Int",
+   "label": "Discussions replied to",
+   "non_negative": 1
+  },
+  {
+   "default": "20",
+   "fieldname": "member_entered",
+   "fieldtype": "Int",
+   "label": "Discussions entered",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "regular_section",
+   "fieldtype": "Section Break",
+   "label": "Regular"
+  },
+  {
+   "default": "100",
+   "fieldname": "regular_window",
+   "fieldtype": "Int",
+   "label": "Window in days",
+   "non_negative": 1
+  },
+  {
+   "default": "50",
+   "fieldname": "regular_days",
+   "fieldtype": "Int",
+   "label": "Days visited in the window",
+   "non_negative": 1
+  },
+  {
+   "default": "10",
+   "fieldname": "regular_replied",
+   "fieldtype": "Int",
+   "label": "Discussions replied to in the window",
+   "non_negative": 1
+  },
+  {
+   "default": "25",
+   "fieldname": "regular_entered_percent",
+   "fieldtype": "Int",
+   "label": "Percent of new discussions entered",
+   "non_negative": 1
+  },
+  {
+   "default": "500",
+   "fieldname": "regular_entered_max",
+   "fieldtype": "Int",
+   "label": "Most discussions entered required",
+   "non_negative": 1
+  },
+  {
+   "default": "30",
+   "fieldname": "regular_given",
+   "fieldtype": "Int",
+   "label": "Reactions given in the window",
+   "non_negative": 1
+  },
+  {
+   "default": "20",
+   "fieldname": "regular_received",
+   "fieldtype": "Int",
+   "label": "Reactions received in the window",
+   "non_negative": 1
+  },
+  {
+   "default": "5",
+   "fieldname": "regular_received_users",
+   "fieldtype": "Int",
+   "label": "People the reactions come from",
+   "non_negative": 1
+  },
+  {
+   "default": "5",
+   "fieldname": "regular_max_removed",
+   "fieldtype": "Int",
+   "label": "Most posts removed by moderators in the window",
+   "non_negative": 1
+  },
+  {
+   "default": "180",
+   "fieldname": "regular_restriction_days",
+   "fieldtype": "Int",
+   "label": "Days without a ban, suspension or silence",
+   "non_negative": 1
+  },
+  {
+   "default": "14",
+   "fieldname": "regular_grace_days",
+   "fieldtype": "Int",
+   "label": "Grace period in days",
+   "non_negative": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-11-12 14:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gameplan",
+ "name": "GP Trust Settings",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "issingle": 1,
+ "description": "Site-wide trust level switch and requirements. Global admins edit them in Site administration."
+}

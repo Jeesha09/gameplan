@@ -5,6 +5,9 @@ from gameplan.approval_files import publishing_submission
 from gameplan.community_bans import can_moderate_community
 from gameplan.permissions import get_content_project, require_can_manage_community
 
+# Levels a Community can require before posts skip approval; "" holds nobody (D113).
+LEVEL_POLICIES = ("", "Basic", "Member")
+
 
 @frappe.whitelist(methods=["GET", "POST"])
 def get_policy(community: str):
@@ -17,8 +20,35 @@ def set_policy(community: str, count: int):
 	require_can_manage_community(community)
 	if not 0 <= count <= 100:
 		frappe.throw("Choose an approval threshold between 0 and 100")
-	frappe.get_doc("GP Team", community, for_update=True).db_set("approval_post_count", count)
+	# Lock and update the Community row only: loading the document would read every member.
+	if not frappe.db.get_value("GP Team", community, "name", for_update=True):
+		raise frappe.DoesNotExistError(f"GP Team {community} not found")
+	frappe.db.set_value("GP Team", community, "approval_post_count", count)
 	return count
+
+
+@frappe.whitelist(methods=["GET", "POST"])
+def get_level_policy(community: str):
+	"""Return the level below which a Community holds posts for approval, and whether levels are on."""
+	from gameplan.trust_levels import is_enabled
+
+	require_can_manage_community(community)
+	return {
+		"levels_enabled": is_enabled(),
+		"min_level": frappe.db.get_value("GP Team", community, "approval_min_level") or "",
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def set_level_policy(community: str, min_level: str):
+	"""Hold posts from members below Basic or Member for approval, or none with "". Community admins."""
+	require_can_manage_community(community)
+	if min_level not in LEVEL_POLICIES:
+		frappe.throw("Choose no approval, Basic or Member")
+	if not frappe.db.get_value("GP Team", community, "name", for_update=True):
+		raise frappe.DoesNotExistError(f"GP Team {community} not found")
+	frappe.db.set_value("GP Team", community, "approval_min_level", min_level)
+	return get_level_policy(community)
 
 
 def needs_approval(doc):
@@ -30,6 +60,15 @@ def needs_approval(doc):
 
 	if requires_approval(doc):
 		return True
+	from gameplan.trust_levels import LEVELS, is_enabled, level_of
+
+	if is_enabled():
+		# While levels are on, they replace the first-N rule (D113, D124).
+		minimum = frappe.db.get_value("GP Team", community, "approval_min_level")
+		if not minimum or can_moderate_community(community):
+			return False
+		level = level_of()
+		return level is not None and level < LEVELS.index(minimum)
 	threshold = cint(frappe.db.get_value("GP Team", community, "approval_post_count"))
 	if not threshold or can_moderate_community(community):
 		return False

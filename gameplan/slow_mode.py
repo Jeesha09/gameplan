@@ -107,9 +107,15 @@ def expire_due():
 	"""Record up to 100 elapsed slow modes; enforcement never waits for this job."""
 	from gameplan.restrictions import utc_now
 
+	# `<=` on a date also matches an empty one, so a slow mode with no end must be left out
+	# explicitly: 100 of them sorted first and the job never reached an elapsed one.
 	names = frappe.get_all(
 		"GP Discussion",
-		filters={"slow_mode_seconds": [">", 0], "slow_mode_until": ["<=", utc_now()]},
+		filters=[
+			["slow_mode_seconds", ">", 0],
+			["slow_mode_until", "is", "set"],
+			["slow_mode_until", "<=", utc_now()],
+		],
 		pluck="name",
 		order_by="slow_mode_until asc",
 		limit=100,

@@ -49,10 +49,14 @@ def active_condition(table):
 	return (table.active == 1) & (table.expires_at.isnull() | (table.expires_at > utc_now()))
 
 
+def is_suspended(user):
+	return suspended(current_state(user))
+
+
 def require_not_suspended(login_manager=None):
 	"""Reject active site suspensions for password, session, API-key and OAuth authentication."""
 	user = login_manager.user if login_manager else frappe.session.user
-	if user and user != "Guest" and suspended(current_state(user)):
+	if user and user != "Guest" and is_suspended(user):
 		frappe.throw(
 			"Your account is suspended. Check your suspension email for details.", frappe.AuthenticationError
 		)
@@ -101,7 +105,9 @@ def set_restriction(
 	if not isinstance(reason, str) or not reason.strip() or len(reason) > 500:
 		frappe.throw("Enter a reason of at most 500 characters")
 	if community:
-		frappe.get_doc("GP Team", community, for_update=True)
+		# Lock the Community row only: loading the document would read every member.
+		if not frappe.db.get_value("GP Team", community, "name", for_update=True):
+			raise frappe.DoesNotExistError(f"GP Team {community} not found")
 		if not can_moderate_community(community, for_update=True):
 			frappe.throw("You cannot manage this restriction", frappe.PermissionError)
 	if not frappe.db.get_value("User", user, "name", for_update=True) or user == "Guest":
@@ -241,9 +247,11 @@ def write_expiry(row):
 
 def expire_due():
 	"""Record up to 100 due expiries; authorization never waits for this job."""
+	# `<=` on a date also matches an empty one, so permanent restrictions must be left out
+	# explicitly: 100 of them sorted first and the job never reached an expiring one.
 	rows = frappe.get_all(
 		"GP User Restriction",
-		filters={"active": 1, "expires_at": ["<=", utc_now()]},
+		filters=[["active", "=", 1], ["expires_at", "is", "set"], ["expires_at", "<=", utc_now()]],
 		fields=["name", "user"],
 		order_by="expires_at asc, name asc",
 		limit=100,

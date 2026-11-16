@@ -1,44 +1,69 @@
 <template>
-  <div class="my-4 flex flex-wrap items-end justify-between gap-3">
-    <Select
+  <div class="flex items-center justify-between gap-3 pb-3">
+    <TabButtons
       v-model="status"
-      class="w-full max-w-xs"
-      label="Submission status"
-      :options="['Pending', 'Approved', 'Rejected', 'Withdrawn']"
+      :options="
+        ['Pending', 'Approved', 'Rejected', 'Withdrawn'].map((v) => ({ label: v, value: v }))
+      "
     />
     <slot name="actions" />
   </div>
-  <p v-if="loading" role="status" class="my-4 text-base">Loading submissions…</p>
   <ErrorMessage
     v-if="error"
+    class="py-3"
     :message="extractServerMessage(error) || 'Could not load submissions'"
   />
-  <div
-    v-for="item in items"
-    :key="item.name"
-    class="flex items-center justify-between gap-4 border-b border-outline-gray-2 py-5 text-ink-gray-9"
-  >
-    <div>
-      <p class="text-base-medium">
-        {{ item.edit_name ? 'Edit: ' : ''
-        }}{{ item.title || `Reply to discussion #${item.discussion}` }}
-      </p>
-      <p class="mt-1 text-base text-ink-gray-5">
+  <p v-if="loading" role="status" class="py-6 text-base text-ink-gray-5">Loading submissions…</p>
+  <div v-else-if="items.length" class="border-t border-outline-gray-1">
+    <ModerationRow v-for="item in items" :key="item.name">
+      <template #lead
+        ><Avatar
+          :image="useUser(item.owner).user_image"
+          :label="useUser(item.owner).full_name"
+          size="md"
+      /></template>
+      <template #title>
+        {{
+          item.title ||
+          (item.discussion_title
+            ? `Reply in “${item.discussion_title}”`
+            : `Reply to #${item.discussion}`)
+        }}
+      </template>
+      <template v-if="item.excerpt" #detail>{{ item.excerpt }}</template>
+      <template #meta>
         {{ useUser(item.owner).full_name }} ·
-        {{ dayjsLocal(item.creation).format('D MMM YYYY [at] h:mm A') }}
-      </p>
-    </div>
-    <Button @click="inspect(item.name)">{{
-      communityId && status === 'Pending' ? 'Review' : 'View submission'
-    }}</Button>
+        <span :title="dayjsLocal(item.creation).format('D MMM YYYY [at] h:mm A')">{{
+          dayjsLocal(item.creation).fromNow()
+        }}</span>
+      </template>
+      <template #status>
+        <Badge v-if="item.edit_name" label="Edit" />
+        <Badge v-else :label="item.discussion ? 'Reply' : 'Discussion'" />
+      </template>
+      <template #actions>
+        <Button variant="subtle" @click="inspect(item.name)">{{
+          communityId && status === 'Pending' ? 'Review' : 'View'
+        }}</Button>
+      </template>
+    </ModerationRow>
   </div>
-  <p v-if="!loading && !error && !items.length" class="mt-5 text-base text-ink-gray-5">
-    No {{ status.toLowerCase() }} submissions.
-  </p>
-  <div class="mt-4 flex gap-2">
-    <Button v-if="start" @click="changePage(-40)">Previous</Button>
-    <Button v-if="hasMore" @click="changePage(40)">Next</Button>
-  </div>
+  <ModerationEmpty
+    v-else-if="!error"
+    icon="lucide-check-check"
+    :title="`No ${status.toLowerCase()} submissions`"
+    :description="
+      communityId && status === 'Pending'
+        ? 'Posts from new members appear here before they are published.'
+        : undefined
+    "
+  />
+  <ModerationPager
+    :previous="start > 0"
+    :next="hasMore"
+    @previous="changePage(-40)"
+    @next="changePage(40)"
+  />
   <ModerationDialog
     v-model:open="open"
     title="Review submission"
@@ -114,7 +139,21 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Button, ErrorMessage, Select, Textarea, call, dayjsLocal, dialog } from 'frappe-ui'
+import {
+  Avatar,
+  Badge,
+  Button,
+  ErrorMessage,
+  Select,
+  TabButtons,
+  Textarea,
+  call,
+  dayjsLocal,
+  dialog,
+} from 'frappe-ui'
+import ModerationEmpty from './moderation/ModerationEmpty.vue'
+import ModerationPager from './moderation/ModerationPager.vue'
+import ModerationRow from './moderation/ModerationRow.vue'
 import ModerationDialog from './ModerationDialog.vue'
 import CommentEditor from '@/components/editor/CommentEditor.vue'
 import { useUser } from '@/data/users'
@@ -126,6 +165,8 @@ type Submission = {
   edit_name?: string
   title?: string
   discussion?: string
+  discussion_title?: string
+  excerpt?: string
   owner: string
   creation: string
   status: string
