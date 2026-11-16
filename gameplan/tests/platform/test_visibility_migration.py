@@ -256,6 +256,7 @@ LEGACY_PRIVACY_REFERENCES = {
 	"gameplan/mixins/attachments.py": 2,
 	"gameplan/tests/platform/test_attachments.py": 2,
 	"gameplan/tests/features/test_drafts.py": 1,
+	"gameplan/tests/features/test_direct_messages.py": 1,
 	"gameplan/tests/permissions/test_public_file.py": 4,
 	"gameplan/tests/platform/test_profile_image_ownership.py": 4,
 }
