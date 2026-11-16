@@ -108,7 +108,13 @@ const saved = ref(false)
 watch(policy, () => (saved.value = false), { deep: true })
 onMounted(async () => {
   try {
-    const data = await call('gameplan.posting_limits.settings')
+    // The server sends the switches as 0 or 1.
+    const data = await call<
+      Omit<Policy, 'enabled' | 'caps_enabled'> & {
+        enabled: number
+        caps_enabled: number
+      }
+    >('gameplan.posting_limits.settings')
     policy.value = {
       ...data,
       enabled: Boolean(data.enabled),
