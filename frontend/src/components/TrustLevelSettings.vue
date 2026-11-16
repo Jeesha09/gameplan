@@ -1,19 +1,22 @@
 <template>
   <Button variant="ghost" icon-left="lucide-settings-2" @click="show">Trust level settings</Button>
   <Dialog v-model:open="open" title="Trust levels" :dismissible="!saving" size="6xl">
-    <Checkbox
-      v-model="enabled"
-      label="Use trust levels"
-      :disabled="loading || saving"
-      data-testid="trust-levels-switch"
-    />
-    <p class="mt-2 text-p-sm text-ink-gray-6">
-      Members move from New to Basic, Member and Regular on their own, as they visit, read and take
-      part. Leader is set by hand. Turning levels on works out everyone's level in the background.
-    </p>
-    <div v-for="group in SETTING_GROUPS" :key="group.title" class="mt-4">
+    <!-- Every requirement stays on screen without scrolling, down to a 1024 × 600 window. -->
+    <div class="trust-level-settings">
+      <Checkbox
+        v-model="enabled"
+        label="Use trust levels"
+        :disabled="loading || saving"
+        data-testid="trust-levels-switch"
+      />
+      <p class="mt-2 text-p-sm text-ink-gray-6">
+        Members earn Basic, Member and Regular as they visit and take part. Leader is set by hand.
+        Turning levels on works out everyone's level in the background.
+      </p>
+    </div>
+    <div v-for="group in SETTING_GROUPS" :key="group.title" class="mt-3">
       <p class="text-base font-medium text-ink-gray-8">{{ group.title }} needs</p>
-      <div class="mt-2 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+      <div class="mt-1.5 grid items-end gap-x-3 gap-y-2 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6">
         <TextInput
           v-for="[field, label] in group.fields"
           :key="field"
@@ -104,3 +107,9 @@ async function save() {
   }
 }
 </script>
+<style>
+/* The dialog's default 2rem margins alone would push it past a short window. */
+.dialog-content:has(.trust-level-settings) {
+  margin-block: 0;
+}
+</style>
