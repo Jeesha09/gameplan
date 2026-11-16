@@ -15,7 +15,8 @@ function reportAs(user: string, ids: SeedIds) {
 function approvalSettings(ids: SeedIds) {
   cy.visit(`/g/community/${ids.community}/moderation`)
   cy.contains('button', 'Approval settings').click()
-  cy.get('[data-testid="auto-hide-switch"]').should('be.visible')
+  // The switch stays disabled until the dialog has loaded its settings.
+  cy.get('[data-testid="auto-hide-switch"]').should('be.visible').and('not.be.disabled')
 }
 
 describe('Weighted auto-hide', () => {
