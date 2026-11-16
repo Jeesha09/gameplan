@@ -53,7 +53,7 @@ describe('Post approval', () => {
     resetData('space_with_discussion').then((ids) => {
       moderation(ids)
       cy.contains('button', 'Approval settings').click()
-      cy.get('[role="dialog"] input[type="checkbox"]').check()
+      cy.get('[role="dialog"] input[type="checkbox"]').first().check()
       cy.get('[role="dialog"] input[type="number"]').should('have.value', '3').clear().type('1')
       cy.contains('button', 'Save approval policy').click()
       cy.contains('Approval policy saved.').should('be.visible')

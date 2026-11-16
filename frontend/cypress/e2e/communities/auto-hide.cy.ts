@@ -70,11 +70,12 @@ describe('Weighted auto-hide', () => {
       cy.contains('by System').should('be.visible')
 
       cy.switchUser('member')
-      cy.visit(thread(ids))
-      cy.contains('Seed content').should('be.visible')
+      // Opening the thread marks its notices read, so read them first.
       cy.visit('/g/notifications')
       cy.contains('was hidden after member reports').should('be.visible')
       cy.contains('made it visible again').should('be.visible')
+      cy.visit(thread(ids))
+      cy.contains('Seed content').should('be.visible')
     })
   })
 
