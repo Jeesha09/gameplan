@@ -109,11 +109,14 @@ async function onClick(event: MouseEvent) {
   router.push(clicked.path)
 }
 
+// onClick is async. The listener drops its promise, so one function adds and removes it.
+const clickListener = (event: Event) => void onClick(event as MouseEvent)
+
 function listen(container: HTMLElement | null | undefined, add: boolean) {
   const method = add ? 'addEventListener' : 'removeEventListener'
   container?.[method]('pointerover', onPointerOver as EventListener)
   container?.[method]('pointerout', onPointerOut as EventListener)
-  container?.[method]('click', onClick as EventListener)
+  container?.[method]('click', clickListener)
 }
 
 watch(

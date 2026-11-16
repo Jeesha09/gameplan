@@ -3,8 +3,13 @@
  * which fetches them, and offline downloads, which fills the same cache entries so a
  * downloaded discussion opens offline exactly as if it had been visited.
  */
+import type { useList } from 'frappe-ui'
+import type { GPActivity, GPComment, GPPoll } from '@/types/doctypes'
 
-export const COMMENT_FIELDS = [
+// The field list useList accepts for doctype T. frappe-ui does not export the options type.
+type Fields<T extends { name: string }> = NonNullable<Parameters<typeof useList<T>>[0]['fields']>
+
+export const COMMENT_FIELDS: Fields<GPComment> = [
   'name',
   'content',
   'owner',
@@ -19,9 +24,9 @@ export const COMMENT_FIELDS = [
   'reference_name',
 ]
 
-export const ACTIVITY_FIELDS = ['name', 'user', 'action', 'data', 'creation']
+export const ACTIVITY_FIELDS: Fields<GPActivity> = ['name', 'user', 'action', 'data', 'creation']
 
-export const POLL_FIELDS = [
+export const POLL_FIELDS: Fields<GPPoll> = [
   'name',
   'title',
   'anonymous',

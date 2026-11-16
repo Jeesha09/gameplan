@@ -659,7 +659,7 @@ const { results: matchingAuthors } = useUserSearch(() =>
 
 const lookedUpAuthorCounts = ref<Record<string, number>>({})
 const lookedUpAuthors = new Set<string>()
-const authorCountsCall = useCall<Record<string, number>>({
+const authorCountsCall = useCall<Record<string, number>, { authors: string }>({
   url: '/api/v2/method/gameplan.api.get_search_author_counts',
   immediate: false,
 })
@@ -898,7 +898,9 @@ function clearFilters() {
   }
 }
 
-function updateSort(value: string) {
+// Select reports any option value. Every sort is a string, so ignore anything else.
+function updateSort(value: unknown) {
+  if (typeof value !== 'string') return
   sortBy.value = value
   submit()
 }

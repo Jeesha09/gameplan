@@ -18,7 +18,7 @@
         <Checkbox
           size="sm"
           :model-value="isCommunitySelected(group.key)"
-          @update:model-value="(checked: boolean) => setCommunitySpaces(group.key, checked)"
+          @update:model-value="(checked) => setCommunitySpaces(group.key, Boolean(checked))"
         >
           <template #label>
             <span class="text-base-medium text-ink-gray-8">{{ group.group }}</span>
@@ -26,7 +26,10 @@
         </Checkbox>
       </template>
       <template #item-prefix="{ item }">
-        <SpaceIcon :icon="item.icon" class="size-4 text-ink-gray-6" />
+        <SpaceIcon
+          :icon="typeof item.icon === 'string' ? item.icon : null"
+          class="size-4 text-ink-gray-6"
+        />
       </template>
     </MultiSelect>
 
@@ -110,7 +113,8 @@ function triggerLabel(selected: Array<{ label: string }>, none: string, plural: 
   return `${selected.length} ${plural}`
 }
 
-const dateRange = computed<string[]>(() => {
+// DateRangePicker takes two dates or none.
+const dateRange = computed<[string, string] | []>(() => {
   const bounds = notificationDateBounds.value
   return bounds ? [bounds[0], bounds[1]] : []
 })

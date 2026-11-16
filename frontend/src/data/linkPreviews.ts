@@ -11,8 +11,8 @@ const cache = new Map<string, Promise<LinkPreview | null>>()
 
 export function fetchLinkPreview(url: string) {
   if (!cache.has(url)) {
-    const request = call('gameplan.api.get_link_preview', { url }).then(
-      (preview: LinkPreview | null) => {
+    const request = call<LinkPreview | null>('gameplan.api.get_link_preview', { url }).then(
+      (preview) => {
         if (!preview) cache.delete(url)
         return preview
       },

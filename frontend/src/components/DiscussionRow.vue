@@ -71,8 +71,10 @@
               {{ discussion.unread }}
             </div>
             <template #content>
-              <div v-if="discussion.comments_count + 1 === discussion.unread">New unread post</div>
-              <div v-else-if="discussion.comments_count > 0" class="p-0.5">
+              <div v-if="(discussion.comments_count ?? 0) + 1 === discussion.unread">
+                New unread post
+              </div>
+              <div v-else-if="(discussion.comments_count ?? 0) > 0" class="p-0.5">
                 <div>{{ discussion.unread }} unread</div>
                 <div class="text-ink-gray-3 mt-0.5">
                   {{ discussion.comments_count }}

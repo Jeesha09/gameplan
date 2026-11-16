@@ -294,11 +294,12 @@ const showNewCommunityButton = computed(
 const canCreateSpace = computed(() =>
   Boolean(
     selectedCommunity.value &&
-      canManageSelectedCommunity.value &&
-      !selectedCommunity.value.archived_at,
+    canManageSelectedCommunity.value &&
+    !selectedCommunity.value.archived_at,
   ),
 )
-const { communitySpaces } = useCommunitySpaceData(selectedCommunityId)
+// No Community selected matches no Spaces.
+const { communitySpaces } = useCommunitySpaceData(() => selectedCommunityId.value ?? '')
 const liveSpaces = computed(() => communitySpaces.value.filter((space) => !space.archived_at))
 const allSpacesNotifying = computed(() =>
   liveSpaces.value.every((space) => isSpaceNotifying(space.name)),

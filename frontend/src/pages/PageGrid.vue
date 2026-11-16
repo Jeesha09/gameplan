@@ -46,14 +46,17 @@
               <h1 class="text-base-semibold truncate text-ink-gray-7">
                 {{ d.title }}
               </h1>
-              <div
-                class="mt-1.5 text-sm flex gap-1 text-ink-gray-6"
-                v-if="d.project"
-                :set="(space = getSpace(d))"
-              >
-                <SpaceIcon :icon="space?.icon" class="size-4 text-ink-gray-6" />
-                <div>{{ space?.title }}</div>
-              </div>
+              <!-- One-item loop: names the page's Space once for the icon and the title. -->
+              <template v-if="d.project">
+                <div
+                  v-for="space in [getSpace(d)]"
+                  :key="d.project"
+                  class="mt-1.5 text-sm flex gap-1 text-ink-gray-6"
+                >
+                  <SpaceIcon :icon="space?.icon" class="size-4 text-ink-gray-6" />
+                  <div>{{ space?.title }}</div>
+                </div>
+              </template>
             </div>
             <div v-if="!readOnly" class="shrink-0 ml-1 invisible group-hover:visible">
               <Dropdown
@@ -96,11 +99,10 @@ const props = defineProps<{
   readOnly?: boolean
 }>()
 
-interface Page
-  extends Pick<
-    GPPage,
-    'name' | 'creation' | 'title' | 'content' | 'slug' | 'project' | 'team' | 'modified' | 'owner'
-  > {}
+interface Page extends Pick<
+  GPPage,
+  'name' | 'creation' | 'title' | 'content' | 'slug' | 'project' | 'team' | 'modified' | 'owner'
+> {}
 
 const pages = useList<Page>({
   doctype: 'GP Page',

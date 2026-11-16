@@ -93,7 +93,8 @@ export function mentionExtension() {
 }
 
 function tagItems() {
-  return (tagList.data ?? []).map((tag) => ({ id: tag.name, label: tag.label }))
+  // A tag with no label shows its name.
+  return (tagList.data ?? []).map((tag) => ({ id: tag.name, label: tag.label || tag.name }))
 }
 
 function discussionLinkItems(query: string): Promise<DiscussionLinkItem[]> {

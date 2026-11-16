@@ -1,6 +1,8 @@
 {
   "extends": "frappe-ui/tsconfig.base.json",
   "compilerOptions": {
+    // DOM.Iterable lets code loop over NodeList and FileList, as every supported browser can.
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "paths": {
       "@/*": ["./src/*"]
     }

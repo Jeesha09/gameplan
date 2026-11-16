@@ -141,7 +141,7 @@ const toolbarEl = ref<HTMLElement | null>(null)
 const { height: toolbarHeight } = useElementSize(toolbarEl, undefined, { box: 'border-box' })
 const sessionUser = useSessionUser()
 
-const notificationFields = [
+const notificationFields: (keyof NotificationRow)[] = [
   'name',
   'from_user',
   'message',
@@ -162,7 +162,7 @@ const filtersChangedSinceLoad = ref(false)
 watch(notificationFilters, () => (filtersChangedSinceLoad.value = true), { deep: true })
 
 const FILTERS_FROM = 5
-const readNotificationCount = useCall<number>({
+const readNotificationCount = useCall<number, { doctype: string; filters: string }>({
   url: '/api/v2/method/frappe.client.get_count',
   params: {
     doctype: 'GP Notification',

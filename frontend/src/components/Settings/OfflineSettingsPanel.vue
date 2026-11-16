@@ -25,7 +25,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { computedAsync } from '@vueuse/core'
-import { Button, Progress, Select, SettingsRow, dayjsLocal, dialog } from 'frappe-ui'
+import { Button, Progress, Select, SettingsRow, dayjs, dialog } from 'frappe-ui'
 import {
   MAX_DISCUSSIONS,
   WINDOW_OPTIONS,
@@ -56,7 +56,10 @@ function confirmWindow(days: OfflineWindow) {
     message: `Discussions from the ${window} in the communities you've joined will be kept on this device, with their comments and polls, and kept up to date in the background.`,
     confirmLabel: 'Download',
     cancelLabel: 'Cancel',
-    onConfirm: () => downloadForOffline(days),
+    // The download runs in the background, so the dialog closes at once.
+    onConfirm: () => {
+      downloadForOffline(days)
+    },
   })
 }
 
@@ -67,7 +70,9 @@ function confirmSync() {
       'Gameplan will check for discussions that are new or have changed since the last sync, and download them.',
     confirmLabel: 'Sync',
     cancelLabel: 'Cancel',
-    onConfirm: () => downloadForOffline(offlineWindow.value),
+    onConfirm: () => {
+      downloadForOffline(offlineWindow.value)
+    },
   })
 }
 
@@ -88,7 +93,8 @@ const status = computed(() => {
       : 'Checking for changes…'
   }
   const parts = [downloaded()]
-  if (downloads.lastSyncedAt) parts.push(`synced ${dayjsLocal(downloads.lastSyncedAt).fromNow()}`)
+  // A browser timestamp, not a server time, so plain dayjs reads it.
+  if (downloads.lastSyncedAt) parts.push(`synced ${dayjs(downloads.lastSyncedAt).fromNow()}`)
   // The downloads themselves: the discussions with their comments, activity and polls, and
   // the images saved with them. Not the app's own files, which are not the person's to keep.
   if (size.value) parts.push(`taking ${size.value}`)
@@ -115,7 +121,10 @@ function removeDownloads() {
       'Downloaded discussions will no longer open without a connection until you open them again online.',
     confirmLabel: 'Remove',
     cancelLabel: 'Cancel',
-    onConfirm: () => downloadForOffline(0),
+    // Removing is quick, so the dialog waits for it.
+    onConfirm: async () => {
+      await downloadForOffline(0)
+    },
   })
 }
 </script>

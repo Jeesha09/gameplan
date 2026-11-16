@@ -4,16 +4,19 @@ import type { GPUserProfile } from '@/types/doctypes'
 
 export type NotificationChannel = 'In-app' | 'Email'
 
-type NotificationPreferencePatch = Pick<
-  GPUserProfile,
-  | 'notification_channel'
-  | 'participation_level'
-  | 'receive_notifications'
-  | 'direct_message_notifications'
-  | 'active_hours_enabled'
-  | 'active_hours_start'
-  | 'active_hours_end'
-  | 'active_hours_days'
+// A save sends only the fields that changed.
+type NotificationPreferencePatch = Partial<
+  Pick<
+    GPUserProfile,
+    | 'notification_channel'
+    | 'participation_level'
+    | 'receive_notifications'
+    | 'direct_message_notifications'
+    | 'active_hours_enabled'
+    | 'active_hours_start'
+    | 'active_hours_end'
+    | 'active_hours_days'
+  >
 >
 
 export type DiscussionNotificationState = 'Mute' | 'Mentions only' | 'Watch'

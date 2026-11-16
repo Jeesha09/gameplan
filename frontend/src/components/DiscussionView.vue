@@ -199,7 +199,11 @@
               @save="updatePost"
               @discard="cancelEdit"
             />
-            <ErrorMessage v-if="editingPost" class="mt-2" :message="postDiscardError" />
+            <ErrorMessage
+              v-if="editingPost"
+              class="mt-2"
+              :message="extractServerMessage(postDiscardError)"
+            />
           </div>
           <div v-if="highlightedReply && !editingPost" class="mt-6">
             <div
@@ -595,7 +599,7 @@ function scrollToQuotingComment(commentId: string) {
 }
 
 const editingPost = ref(false)
-const postDiscardError = ref(null)
+const postDiscardError = ref<unknown>(null)
 // snapshot of title/content captured when edit mode opens, so we can detect
 // unsaved changes and confirm before discarding them
 const editSnapshot = ref<{ title: string; content: string } | null>(null)
@@ -1151,12 +1155,11 @@ const actions = computed(() => [
   {
     label: 'Bookmark',
     icon: 'lucide-bookmark',
-    onClick: () =>
+    onClick: () => {
       discussion.addBookmark
         .submit()
-        .catch((error) =>
-          captureError(error, { action: 'add-bookmark', discussion: props.postId }),
-        ),
+        .catch((error) => captureError(error, { action: 'add-bookmark', discussion: props.postId }))
+    },
     condition: () => !discussion.doc?.is_bookmarked,
   },
   {
@@ -1219,13 +1222,14 @@ const actions = computed(() => [
   {
     label: 'Remove Bookmark',
     icon: 'lucide-bookmark',
-    onClick: () =>
+    onClick: () => {
       discussion.removeBookmark
         .submit()
         .catch((error) =>
           captureError(error, { action: 'remove-bookmark', discussion: props.postId }),
-        ),
-    condition: () => discussion.doc?.is_bookmarked,
+        )
+    },
+    condition: () => Boolean(discussion.doc?.is_bookmarked),
   },
   {
     label: 'Move to...',

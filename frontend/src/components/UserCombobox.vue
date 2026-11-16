@@ -6,7 +6,7 @@
     :model-value="modelValue"
     :filterable="false"
     :loading="loading && !options.length"
-    @update:model-value="emit('update:modelValue', $event)"
+    @update:model-value="emit('update:modelValue', $event == null ? null : String($event))"
     @update:open="onOpen"
   >
     <template v-for="(_, name) in $slots" #[name]="slotProps">

@@ -13,12 +13,15 @@ export function loadDiscussionPreview(name: string) {
   if (!cache.has(name)) {
     cache.set(
       name,
-      call('frappe.client.get_value', {
-        doctype: 'GP Discussion',
-        filters: { name },
-        fieldname: ['title', 'project', 'creation', 'content'],
-      })
-        .then((doc: (Omit<DiscussionPreview, 'snippet'> & { content?: string }) | null) =>
+      call<(Omit<DiscussionPreview, 'snippet'> & { content?: string }) | null>(
+        'frappe.client.get_value',
+        {
+          doctype: 'GP Discussion',
+          filters: { name },
+          fieldname: ['title', 'project', 'creation', 'content'],
+        },
+      )
+        .then((doc) =>
           doc?.title
             ? {
                 ...doc,

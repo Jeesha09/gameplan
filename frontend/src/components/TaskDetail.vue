@@ -303,7 +303,9 @@ useCommandPaletteCommands(
         onClick: priority.onClick,
         defaultScore: task.doc?.priority === priority.value ? 0 : 2,
       })),
-      ...assignableUsers.value.map((user) => ({
+      // Users load on demand now, so the palette offers only clearing. The assignee picker
+      // searches for someone to assign.
+      ...noAssignee.map((user) => ({
         title: user.value === '<no_assignee>' ? 'Clear assignee' : `Assign to ${user.label}`,
         name: `task-assignee-${user.value}`,
         group: 'Task',

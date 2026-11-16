@@ -229,7 +229,7 @@
               </ListRow>
             </List>
 
-            <ErrorMessage class="mt-2" :message="people.error" />
+            <ErrorMessage class="mt-2" :message="extractServerMessage(people.error)" />
             <EmptyStateBox v-if="isEmpty" class="mt-2">
               <span class="lucide-users mb-1 size-7 text-ink-gray-4" aria-hidden="true" />
               {{ search ? 'No members match your search' : 'No members yet' }}
@@ -277,6 +277,7 @@ import {
   type PeopleSortField,
 } from '@/data/people'
 import { revalidateOnReconnect } from '@/data/offline/resources'
+import { extractServerMessage } from '@/utils'
 import OfflineContentFallback from '@/components/OfflineContentFallback.vue'
 import EmptyStateBox from '@/components/EmptyStateBox.vue'
 import UserAvatarWithHover from '@/components/UserAvatarWithHover.vue'

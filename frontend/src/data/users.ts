@@ -108,7 +108,7 @@ function mergeUserInfo(user: UserInfo) {
   }
 }
 
-export let users = useCall<UserInfo[]>({
+export let users = useCall<UserInfo[], { user: string | null }>({
   url: '/api/v2/method/gameplan.api.get_user_info',
   params: () => ({ user: getSessionUserFromCookie() }),
   cacheKey: 'SessionUser',

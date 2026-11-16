@@ -386,7 +386,7 @@ const sessionUser = useSessionUser()
 const isMobileViewport = useIsMobile()
 
 const showCommentBox = ref(false)
-const discardError = ref(null)
+const discardError = ref<unknown>(null)
 const composerMinimized = ref(false)
 const mobileComposerFullscreen = ref(false)
 const composerToolbarExpanded = ref(false)

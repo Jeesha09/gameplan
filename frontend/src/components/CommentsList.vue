@@ -102,7 +102,7 @@
             :editable="showCommentBox && !isDraftLoading"
             placeholder="Add a comment"
           />
-          <ErrorMessage :message="discardError || comments.insert.error" />
+          <ErrorMessage :message="extractServerMessage(discardError || comments.insert.error)" />
         </div>
       </div>
     </div>
@@ -122,6 +122,7 @@ import { GPActivity, GPComment } from '@/types/doctypes'
 import type { Space } from '@/data/spaces'
 import { useDraftSync } from '@/data/useDraftSync'
 import { refuseOffline } from '@/data/offline/requests'
+import { extractServerMessage } from '@/utils'
 
 interface Props {
   doctype: string
@@ -143,7 +144,7 @@ const route = useRoute()
 const socket = useSocket()
 
 const showCommentBox = ref(false)
-const discardError = ref(null)
+const discardError = ref<unknown>(null)
 
 // Auto-saved draft for the new-comment composer, keyed to this task. Survives reloads
 // and restores across tabs. One draft per (user, task).
