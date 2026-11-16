@@ -7,6 +7,7 @@ import os
 import re
 import time
 from collections import Counter
+from datetime import timedelta
 from functools import partial
 from html import escape
 from posixpath import splitext
@@ -28,9 +29,11 @@ from frappe.utils import (
 )
 from psycopg2.extras import DictCursor
 
+from gameplan import trust_levels
 from gameplan.activity_counts import backfill_activity_counts
 from gameplan.direct_messages import direct_key, preview, summary
 from gameplan.gameplan.doctype.gp_project.gp_project import DEFAULT_SPACE_ICON
+from gameplan.restrictions import utc_now
 from gameplan.search_sqlite import GameplanSearch, rebuild_index
 from gameplan.utils import remove_empty_trailing_paragraphs, url_safe_slug
 from gameplan.utils.sanitizer import sanitize_content
@@ -155,13 +158,14 @@ OPTIONS = {
 	"postgres": None,
 	"uploads_folder": None,
 	"log_folder": None,
-	"steps": ["users", "categories", "topics", "messages", "links", "backlinks"],
+	"steps": ["users", "categories", "topics", "messages", "trust_levels", "links", "backlinks"],
 	"category_ids": None,
 	"topic_ids": None,
 	"user_ids": None,
 	"users_from_topics": False,
 	"batch_size": 500,
 	"dry_run": False,
+	"lock_trust_levels": False,
 }
 
 config = frappe._dict()
@@ -248,6 +252,7 @@ def get_steps():
 		"categories": migrate_categories,
 		"topics": migrate_posts,
 		"messages": migrate_messages,
+		"trust_levels": migrate_trust_levels,
 		"links": migrate_links,
 		"backlinks": migrate_backlinks,
 	}
@@ -895,6 +900,86 @@ def enable_direct_messages(conversations):
 	enabled = frappe.db.sql("select row_count()")[0][0]
 	frappe.db.commit()
 	log(f"[messages] direct messages turned on for {enabled} people")
+
+
+LEVEL_ROLES = {"Gameplan Member", "Gameplan Guest"}
+ADMIN_ROLES = {"Gameplan Admin", "System Manager"}
+TRUST_LEVEL_FIELDS = [
+	"owner",
+	"creation",
+	"modified",
+	"modified_by",
+	"user",
+	"level",
+	"locked",
+	"grace_until",
+]
+
+
+def migrate_trust_levels():
+	load_id_map("users")
+	grace_until = utc_now() + timedelta(days=trust_levels.config().regular_grace_days)
+	last_id = 0
+	while rows := get_trust_levels(last_id, config.batch_size):
+		last_id = rows[-1].id
+		people = {get_user(row.id): row for row in rows if get_user(row.id)}
+		people = {user: people[user] for user in users_with_levels(list(people))}
+		stamp, values = now(), []
+		for user, row in people.items():
+			locked = int(bool(config.lock_trust_levels or row.manual_locked_trust_level is not None))
+			level = min(row.trust_level, trust_levels.LEADER)
+			grace = grace_until if level == trust_levels.REGULAR and not locked else None
+			values.append((user, "Administrator", stamp, stamp, "Administrator", user, level, locked, grace))
+			outcomes["trust_levels", trust_levels.LEVELS[level]] += 1
+		outcomes["trust_levels", "skipped"] += len(rows) - len(people)
+		writes["GP Trust Level"] += len(values)
+		if not config.dry_run and values:
+			write_trust_levels(list(people), values)
+		log(f"[trust_levels] up to id {last_id} · {len(values)} levels set")
+	counts = " · ".join(f"{level} {outcomes['trust_levels', level]}" for level in trust_levels.LEVELS)
+	log(f"[trust_levels] {counts} · skipped {outcomes['trust_levels', 'skipped']}")
+
+
+def write_trust_levels(users, values, attempts=5):
+	for attempt in range(attempts):
+		frappe.db.commit()
+		try:
+			frappe.db.delete("GP Trust Level", {"name": ("in", users)})
+			frappe.db.bulk_insert("GP Trust Level", ["name", *TRUST_LEVEL_FIELDS], values)
+			frappe.db.commit()
+			return
+		except frappe.QueryDeadlockError:
+			frappe.db.rollback()
+			if attempt == attempts - 1:
+				raise
+			time.sleep(1)
+
+
+def get_trust_levels(last_id, limit):
+	user_filter, user_values = slice_filter("users.id", config.user_ids)
+	return run_query(
+		f"""
+		select users.id, users.trust_level, users.manual_locked_trust_level
+		from users
+		where users.id > 0 and not users.staged and users.id > %s {user_filter}
+		order by users.id asc
+		limit %s
+	""",
+		(last_id, *user_values, limit),
+	)
+
+
+def users_with_levels(users):
+	if not users:
+		return set()
+	roles = frappe.get_all(
+		"Has Role",
+		filters={"parenttype": "User", "parent": ("in", users), "role": ("in", [*LEVEL_ROLES, *ADMIN_ROLES])},
+		fields=["parent", "role"],
+	)
+	members = {row.parent for row in roles if row.role in LEVEL_ROLES}
+	admins = {row.parent for row in roles if row.role in ADMIN_ROLES} | {"Administrator"}
+	return members - admins
 
 
 def local_time(column):
