@@ -110,7 +110,7 @@ const canEditSpace = computed(() => canManageSpaceSettings.value && !props.space
 const canRestoreSpace = computed(
   () =>
     canManageSpaceSettings.value &&
-    canMoveContentToSpace(null, { ...props.space, archived_at: null }, sessionUser),
+    canMoveContentToSpace(null, { ...props.space, archived_at: undefined }, sessionUser),
 )
 const contentLabel = computed(() => {
   const counts = [
