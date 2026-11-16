@@ -157,7 +157,10 @@ def _claim_period(user: str, kind: str, starts_at: datetime, ends_at: datetime |
 		return _insert_period(user, kind, starts_at, ends_at)
 	except frappe.UniqueValidationError:
 		frappe.db.rollback(save_point=savepoint)
-		return frappe.db.get_value("GP Away Period", {"user": user, "starts_at": starts_at}, "name")
+		# Frappe stores a whole-second datetime without microseconds but filters with ".000000".
+		# SQLite compares them as text, so they never match there. A string matches on both databases.
+		# Workaround for a Frappe SQLite bug; no upstream fix yet.
+		return frappe.db.get_value("GP Away Period", {"user": user, "starts_at": str(starts_at)}, "name")
 
 
 def _insert_period(user: str, kind: str, starts_at: datetime, ends_at: datetime | None) -> str:
