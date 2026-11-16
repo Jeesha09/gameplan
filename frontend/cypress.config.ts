@@ -37,12 +37,19 @@ function originAtPort(baseUrl: string, port: number) {
 }
 
 async function login(baseUrl: string, user: string, password: string) {
-  const response = await fetch(`${baseUrl}/api/method/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ usr: user, pwd: password }),
-  })
-  if (!response.ok) throw new Error(`Could not log in as ${user}: ${response.status}`)
+  // Frappe answers 508 when a request loses a database lock race, which a local SQLite site
+  // can do while the previous test's requests finish. Try again, as support/login.ts does.
+  let response: Response | undefined
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    response = await fetch(`${baseUrl}/api/method/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usr: user, pwd: password }),
+    })
+    if (response.status !== 508) break
+    await new Promise((resolve) => setTimeout(resolve, 250 * attempt))
+  }
+  if (!response?.ok) throw new Error(`Could not log in as ${user}: ${response?.status}`)
 
   return response.headers
     .getSetCookie()

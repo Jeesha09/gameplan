@@ -50,9 +50,13 @@ describe('Failed requests keep the right UI state', () => {
   })
 
   it('shows a failed People request instead of an empty list', () => {
-    cy.intercept('GET', '**/api/v2/method/*gp_user_profile.get_list*', {
+    // People loads one page at a time from gameplan.api.get_people.
+    cy.intercept('POST', '**/api/method/gameplan.api.get_people', {
       statusCode: 500,
-      body: { errors: [{ message: 'People request failed', type: 'ValidationError' }] },
+      body: {
+        exc_type: 'ValidationError',
+        _server_messages: JSON.stringify([JSON.stringify({ message: 'People request failed' })]),
+      },
     }).as('people')
     cy.visit('/g/people')
     cy.wait('@people')

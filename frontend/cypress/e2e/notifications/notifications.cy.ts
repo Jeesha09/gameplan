@@ -23,14 +23,17 @@ describe('Notifications', () => {
     cy.visit(`/g/community/${community}/space/${space}/discussion/${discussion}`)
     cy.wait('@getDiscussion')
 
-    cy.intercept({ method: 'POST', url: '/api/method/gameplan.approvals.submit', times: 1 }).as('comment')
+    cy.intercept({ method: 'POST', url: '/api/method/gameplan.approvals.submit', times: 1 }).as(
+      'comment',
+    )
     cy.button('Add a comment').click()
     // Click the editor to settle focus before typing — the auto-focus races the
-    // just-mounted ProseMirror view and drops the first keystroke. The mention
-    // suggestion list filters on label prefix, so "@Member" offers only Member
-    // (not "Second Member"), and {enter} accepts the highlighted entry.
+    // just-mounted ProseMirror view and drops the first keystroke. Mentions search the
+    // server, and "Member" also matches "Second Member", so wait for the exact name and
+    // pick it.
     cy.get('[contenteditable=true]').should('be.visible').click().type('Please take a look ')
-    cy.get('[contenteditable=true]').type('@Member{enter}', { delay: 100 })
+    cy.get('[contenteditable=true]').type('@Member', { delay: 100 })
+    cy.contains('[aria-label="Suggestions"] [role="option"] .truncate', /^Member$/).click()
     cy.get('[contenteditable=true] [data-type="mention"][data-id="member@example.com"]').should(
       'exist',
     )

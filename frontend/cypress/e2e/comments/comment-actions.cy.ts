@@ -45,9 +45,7 @@ describe('Comment actions', () => {
     // submit of partial text.
     cy.get('[contenteditable=true]').should('be.visible').click().type('This is the first comment')
     cy.button('Submit').click()
-    cy.wait('@comment')
-      .its('request.body.content')
-      .should('contain', 'This is the first comment')
+    cy.wait('@comment').its('request.body.content').should('contain', 'This is the first comment')
     cy.button('Add a comment').should('be.visible')
 
     cy.get('@comment')
@@ -96,7 +94,9 @@ describe('Comment actions', () => {
         cy.get('[contenteditable=true]')
           .clear()
           .type('This is an edited comment')
-          .type('{enter}@Second{enter}', { delay: 100 }) // mention Second Member
+          .type('{enter}@Second', { delay: 100 })
+        // Mentions search the server, so wait for Second Member before picking them.
+        cy.contains('[aria-label="Suggestions"] [role="option"] .truncate', 'Second Member').click()
 
         // Wait for draft auto-save to persist to server so a server-side GP Draft exists
         cy.wait('@createDraft')

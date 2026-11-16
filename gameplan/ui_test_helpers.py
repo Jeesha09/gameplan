@@ -268,9 +268,9 @@ def _private_space_with_guest():
 def _unread_discussion():
 	"""One community, two spaces, and a post the member has not read.
 
-	The unread record is not seeded: GP Discussion's `after_insert` creates one for every
-	space member except the owner, so a post written by member2 is genuinely unread for
-	member.
+	The unread record is not seeded. An open Space marks a post unread only for its members
+	and the discussion's participants, and the member has not joined General. So the member
+	replies first, and member2's later reply is genuinely unread for them.
 	"""
 	community = _create_community("Acme")
 	general = _general_space(community)
@@ -278,6 +278,14 @@ def _unread_discussion():
 	discussion = _create_discussion(
 		"Unread thread", general, content="Something to catch up on.", owner=SECOND_MEMBER
 	)
+	for owner, content in ((MEMBER, "<p>Following along.</p>"), (SECOND_MEMBER, "<p>One more thing.</p>")):
+		with _as_user(owner):
+			frappe.get_doc(
+				doctype="GP Comment",
+				reference_doctype="GP Discussion",
+				reference_name=discussion.name,
+				content=content,
+			).insert(ignore_permissions=True)
 	return {
 		"community": community.name,
 		"space": general,

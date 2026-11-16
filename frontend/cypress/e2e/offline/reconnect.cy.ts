@@ -102,7 +102,8 @@ describe('Coming back online', () => {
   })
 
   it('refreshes People after revisiting the page offline', () => {
-    cy.intercept('GET', '**/api/v2/method/*gp_user_profile.get_list*').as('people')
+    // People loads one page at a time from gameplan.api.get_people.
+    cy.intercept('POST', '**/api/method/gameplan.api.get_people').as('people')
     cy.visit('/g/people')
     cy.wait('@people')
     cy.contains('Second Member').click()
@@ -111,7 +112,7 @@ describe('Coming back online', () => {
     cy.goOffline()
     cy.get('a[href="/g/people"]:visible').first().click()
     cy.contains('Second Member').should('be.visible')
-    cy.intercept('GET', '**/api/v2/method/*gp_user_profile.get_list*').as('reconnectedPeople')
+    cy.intercept('POST', '**/api/method/gameplan.api.get_people').as('reconnectedPeople')
     cy.goOnline()
     cy.wait('@reconnectedPeople').its('response.statusCode').should('eq', 200)
   })
