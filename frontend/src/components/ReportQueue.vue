@@ -9,15 +9,13 @@
       <Select v-model="sortBy" class="w-40" :options="sortOptions" />
     </label>
   </div>
-  <p v-if="autoHide" class="pb-3 text-p-sm text-ink-gray-6" data-testid="auto-hide-status">
+  <!-- Nothing about auto-hide shows while a Community has it off. -->
+  <p v-if="autoHide?.enabled" class="pb-3 text-p-sm text-ink-gray-6" data-testid="auto-hide-status">
     <template v-if="autoHide.enabled && autoHide.levels_enabled">
       Auto-hide is on. A post is hidden until review when its Spam and Abuse reports reach a weight
       of {{ autoHide.threshold }}.
     </template>
-    <template v-else-if="autoHide.enabled">
-      Auto-hide is paused while trust levels are off.
-    </template>
-    <template v-else>Auto-hide is off.</template>
+    <template v-else>Auto-hide is paused while trust levels are off.</template>
     <template v-if="!autoHide.can_edit"> Community admins change it.</template>
   </p>
   <div
@@ -133,7 +131,7 @@
     <template v-if="details" #sidebar>
       <div class="space-y-5">
         <section
-          v-if="details.review.report_weight || details.review.auto_hidden"
+          v-if="showWeights"
           class="space-y-1"
           aria-label="Report weight"
           data-testid="report-weight"
@@ -172,7 +170,7 @@
                 : useUser(activeReport.owner).full_name
             }}
           </p>
-          <p class="mt-1 text-p-sm text-ink-gray-6">
+          <p v-if="showWeights" class="mt-1 text-p-sm text-ink-gray-6">
             {{
               activeReport.weight
                 ? `Weight ${activeReport.weight}`
@@ -370,7 +368,7 @@ const reportOptions = computed(
     details.value?.reports.map((report) => ({
       label: `${report.reason} · ${
         report.automatic_rule ? 'Watched word' : useUser(report.owner).full_name
-      }${report.weight ? ` · weight ${report.weight}` : ''}`,
+      }${showWeights.value && report.weight ? ` · weight ${report.weight}` : ''}`,
       value: report.name,
     })) || [],
 )
@@ -394,6 +392,10 @@ type AutoHideSettings = {
   can_edit: boolean
 }
 const autoHide = ref<AutoHideSettings | null>(null)
+// Weights show while auto-hide runs, and on any post it already hid.
+const showWeights = computed(() =>
+  Boolean(details.value?.auto_hide.active || details.value?.review.auto_hidden),
+)
 async function loadAutoHide() {
   const community = props.communityId
   autoHide.value = null
