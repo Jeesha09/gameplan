@@ -79,8 +79,7 @@ def refresh_reply_counts(doc, method=None):
 
 
 def backfill_activity_counts():
-	frappe.db.add_index("GP Discussion", ["owner"])
-	frappe.db.add_index("GP Reaction", ["user"])
+	"""Recount every profile. Its patch adds the indexes, because adding an index commits."""
 	Profile = frappe.qb.DocType("GP User Profile")
 	query = frappe.qb.update(Profile)
 	for field in ACTIVITY_COUNT_FIELDS:
