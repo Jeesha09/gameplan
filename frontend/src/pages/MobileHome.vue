@@ -17,6 +17,20 @@
   </PageHeaderMobile>
 
   <div class="pb-24 pt-5">
+    <MobileListRow
+      v-if="currentShowAllDiscussions && !editMode && visibleCommunities.length"
+      class="mb-5"
+      height="fixed"
+      @click="router.push({ name: 'AllDiscussions' })"
+    >
+      <template #icon>
+        <span class="grid size-7 place-content-center rounded-[7px] bg-surface-gray-2">
+          <span class="lucide-message-square-text size-4 text-ink-gray-7" aria-hidden="true" />
+        </span>
+      </template>
+      All Discussions
+    </MobileListRow>
+
     <nav v-if="visibleCommunities.length">
       <MobileListRow
         v-for="(community, index) in visibleCommunities"
@@ -71,6 +85,7 @@ import { activeCommunities, availableCommunities, communities } from '@/data/com
 import { communityState } from '@/data/communityState'
 import { getSpaceUnreadCount, spaces } from '@/data/spaces'
 import { isMemberAccess } from '@/utils/visibility'
+import { currentShowAllDiscussions } from '@/data/sidebarPreferences'
 
 const router = useRouter()
 const editMode = ref(false)

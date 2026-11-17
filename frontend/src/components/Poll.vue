@@ -7,7 +7,13 @@
         icon-left="lucide-minus-circle"
         @click="stopPoll"
       >
-        Stop Poll
+        End poll
+      </Button>
+      <Button v-if="!embedded && !_poll.anonymous" variant="ghost" @click="showDialog = true">
+        <template #prefix>
+          <span class="lucide-bar-chart-2 size-4 -rotate-90" aria-hidden="true" />
+        </template>
+        Results
       </Button>
       <Tooltip v-if="!embedded && !isAnonymousVisitor() && !_poll.anonymous" text="Show results">
         <Button variant="ghost" label="Show results" @click="showDialog = true">
@@ -25,7 +31,7 @@
         :button="{
           icon: 'lucide-more-horizontal',
           variant: 'ghost',
-          label: 'Poll Options',
+          label: 'Poll options',
         }"
         :options="dropdownOptions"
       />
@@ -52,9 +58,9 @@
           <span class="hidden md:inline">&nbsp;&middot;&nbsp;</span>
         </UserProfileLink>
         <div>
-          <Tooltip :text="dayjsLocal(_poll.creation).format('D MMM YYYY [at] h:mm A')">
+          <Tooltip :text="fullTimestamp(_poll.creation)">
             <time class="text-ink-gray-5" :datetime="_poll.creation">
-              {{ dayjsLocal(_poll.creation).fromNow() }}
+              {{ relativeTimestamp(_poll.creation) }}
             </time>
           </Tooltip>
         </div>
@@ -62,6 +68,7 @@
       <div class="ml-auto flex items-center space-x-2">
         <ReusePollActions />
       </div>
+      <StickyRowFade />
     </div>
     <div class="flex items-center gap-2">
       <div class="flex-1 text-base-semibold text-ink-gray-8">{{ _poll.title }}</div>
@@ -221,13 +228,15 @@ import type { RadioValue } from 'frappe-ui'
 import UserAvatar from './UserAvatar.vue'
 import UserAvatarWithHover from './UserAvatarWithHover.vue'
 import UserProfileLink from './UserProfileLink.vue'
-import { copyToClipboard } from '@/utils'
+import { copyToClipboard, errorText, fullTimestamp, relativeTimestamp } from '@/utils'
+import { confirmDelete } from '@/utils/confirmDelete'
 import Reactions from './Reactions.vue'
+import StickyRowFade from './StickyRowFade.vue'
 import { useUser, useSessionUser } from '@/data/users'
 import { canDeleteContent } from '@/utils/permissions'
 import type { GPPoll, GPPollOption } from '@/types/doctypes'
 import type { Space } from '@/data/spaces'
-import { subscribeToDoc, useSocket } from '@/socket'
+import { onDocEvent, subscribeToDoc, type DocRoomEvents } from '@/socket'
 import { isAnonymousVisitor, loginUrl } from '@/utils/publicAccess'
 
 interface Props {
@@ -256,7 +265,6 @@ const props = withDefaults(defineProps<Props>(), {
 const [DefinePollActions, ReusePollActions] = createReusableTemplate()
 const showDialog = ref(false)
 const sessionUser = useSessionUser()
-const socket = useSocket()
 const selectedAnswers = reactive<Record<string, boolean>>({})
 // An anonymous vote records the voter but not their choice, so the server can never tell
 // us which option to tick. Remember it for this mount so the poll doesn't look untouched
@@ -283,9 +291,12 @@ const participated = computed(
     Boolean(_poll.value.votes?.length) &&
     _poll.value.votes.some((vote) => vote.user === sessionUser.name),
 )
-const voteError = computed(
-  () => pollResource.submitVote.error?.message || pollResource.retractVote.error?.message || null,
-)
+const voteError = computed(() => {
+  const { submitVote, retractVote } = pollResource
+  if (submitVote.error) return errorText(submitVote.error, 'Could not save your vote.')
+  if (retractVote.error) return errorText(retractVote.error, 'Could not retract your vote.')
+  return undefined
+})
 // An anonymous poll records that you voted but not what you chose, so there is no answer
 // to replace or retract: that vote is final. Every other poll lets you change your mind.
 const voteIsFinal = computed(() => Boolean(_poll.value.anonymous) && participated.value)
@@ -359,7 +370,7 @@ const pollResults = computed(() => {
 })
 const dropdownOptions = computed(() => [
   {
-    label: 'Stop poll',
+    label: 'End poll…',
     icon: 'lucide-minus-circle',
     condition: () => props.embedded && canStopPoll.value,
     onClick: stopPoll,
@@ -374,9 +385,9 @@ const dropdownOptions = computed(() => [
       participated.value &&
       (!_poll.value.stopped_at || dayjsLocal().isBefore(dayjsLocal(_poll.value.stopped_at))),
     onClick: () => {
-      dialog.danger({
-        title: 'Retract vote',
-        message: 'Are you sure you want to retract your vote?',
+      dialog.confirm({
+        title: 'Retract your vote?',
+        message: 'Your vote will be removed. You can vote again while the poll is open.',
         confirmLabel: 'Retract vote',
         onConfirm: () => retractVote(),
       })
@@ -389,16 +400,15 @@ const dropdownOptions = computed(() => [
     onClick: copyLink,
   },
   {
-    label: 'Delete',
+    label: 'Delete…',
     icon: 'lucide-trash',
+    theme: 'red' as const,
     condition: () => !props.embedded && !props.readOnlyMode && canDeletePoll.value,
     onClick: () => {
-      dialog.danger({
-        title: 'Delete poll',
-        message: 'Are you sure you want to delete this poll?',
-        onConfirm: async () => {
-          await pollResource.delete.submit()
-        },
+      confirmDelete({
+        title: 'Delete this poll?',
+        message: "The poll and all its votes will be deleted. This can't be undone.",
+        onDelete: () => pollResource.delete.submit(),
       })
     },
   },
@@ -411,16 +421,17 @@ watch(
 )
 
 let unsubscribeFromPoll: (() => void) | null = null
+let stopPollUpdates: (() => void) | null = null
 onMounted(() => {
   unsubscribeFromPoll = subscribeToDoc('GP Poll', String(props.poll.name))
-  socket?.on('doc_update', handlePollUpdate)
+  stopPollUpdates = onDocEvent('doc_update', handlePollUpdate)
 })
 onUnmounted(() => {
-  socket?.off('doc_update', handlePollUpdate)
+  stopPollUpdates?.()
   unsubscribeFromPoll?.()
 })
 
-async function handlePollUpdate(data: { doctype?: string; name?: string | number }) {
+async function handlePollUpdate(data: DocRoomEvents['doc_update']) {
   if (data.doctype === 'GP Poll' && String(data.name) === String(props.poll.name)) {
     await reloadPoll()
   }
@@ -488,9 +499,9 @@ function queueVote(action: () => Promise<void>) {
 function confirmAnonymousVote(option: GPPollOption) {
   return new Promise<void>((resolve) => {
     dialog.confirm({
-      title: 'Anonymous poll',
-      message: `This poll is anonymous. Once you vote, you cannot retract your vote. You are voting for "${option.title}". Continue?`,
-      confirmLabel: `Vote for "${option.title}"`,
+      title: `Vote for "${option.title}"?`,
+      message: "This poll is anonymous, so your vote can't be changed or retracted.",
+      confirmLabel: 'Vote',
       onConfirm: async () => {
         anonymousChoice.value = option.title
         await castVote(option.title)
@@ -512,10 +523,10 @@ async function retractVote(option?: string) {
 }
 
 function stopPoll() {
-  dialog.danger({
-    title: 'Stop poll',
-    message: 'After the poll is stopped, no one will be able to vote on it. Continue?',
-    confirmLabel: 'Stop',
+  dialog.confirm({
+    title: 'End this poll?',
+    message: 'No one will be able to vote after it ends.',
+    confirmLabel: 'End poll',
     onConfirm: async () => {
       await pollResource.stopPoll.submit()
       await reloadPoll()

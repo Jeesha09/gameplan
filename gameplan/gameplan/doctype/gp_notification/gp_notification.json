@@ -7,6 +7,7 @@
  "engine": "InnoDB",
  "field_order": [
   "from_user",
+  "reacted_by",
   "to_user",
   "type",
   "message",
@@ -30,6 +31,13 @@
    "fieldtype": "Link",
    "label": "From User",
    "options": "User"
+  },
+  {
+   "description": "The people who reacted, most recent first. Only set on Reaction notifications.",
+   "fieldname": "reacted_by",
+   "fieldtype": "JSON",
+   "label": "Reacted By",
+   "read_only": 1
   },
   {
    "fieldname": "to_user",

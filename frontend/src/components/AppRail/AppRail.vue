@@ -74,9 +74,9 @@
       <template #trigger="{ open }">
         <button
           type="button"
-          class="flex size-7 items-center justify-center rounded-full transition focus-visible:ring-0 focus-visible:focus-ring"
+          class="relative flex size-7 items-center justify-center rounded-full transition focus-visible:ring-0 focus-visible:focus-ring"
           :class="open ? '' : 'hover:opacity-90'"
-          aria-label="Account menu"
+          :aria-label="hasUnseenEntries ? 'Account menu, new updates to see' : 'Account menu'"
         >
           <UserAvatar
             v-if="sessionUser.name && !isAnonymousVisitor()"
@@ -90,6 +90,13 @@
           >
             <span class="lucide-user size-4" />
           </div>
+          <!-- The rail-coloured padding cuts the dot out of the avatar. -->
+          <span
+            v-if="hasUnseenEntries && !isAnonymousVisitor()"
+            class="absolute -right-1 -top-1 rounded-full bg-surface-sidebar p-0.5"
+          >
+            <UnseenDot />
+          </span>
         </button>
       </template>
     </UserDropdown>
@@ -100,18 +107,21 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useEventListener, useResizeObserver } from '@vueuse/core'
 import { SidebarRail, SidebarRailItem } from 'frappe-ui'
 import type { RouteLocationRaw } from 'vue-router'
 import { communityState } from '@/data/communityState'
+import { useActiveNavRoute } from '@/utils/navigationTarget'
+import { hasUnseenEntries } from '@/data/changelog'
+import UnseenDot from '../Changelog/UnseenDot.vue'
 import { activeCommunities, communities } from '@/data/communities'
 import { canModerateCommunity } from '@/utils/permissions'
 import type { Community } from '@/data/communities'
 import { draftCount } from '@/data/drafts'
 import { messagesEnabled, unreadConversations } from '@/data/messages'
 import { unreadNotifications } from '@/data/notifications'
-import { currentSidebarBadgeStyle } from '@/data/sidebarPreferences'
+import { currentShowAllDiscussions, currentSidebarBadgeStyle } from '@/data/sidebarPreferences'
 import { getSpaceUnreadCount, spaces } from '@/data/spaces'
 import { loadMemberCount, memberCount, useSessionUser } from '@/data/users'
 import AppDropdown from '../AppDropdown.vue'
@@ -132,8 +142,8 @@ interface RailShortcut {
   unreadCount?: number
 }
 
-const route = useRoute()
 const router = useRouter()
+const activeRoute = useActiveNavRoute()
 const sessionUser = useSessionUser()
 if (!isAnonymousVisitor()) loadMemberCount()
 
@@ -150,6 +160,14 @@ const props = defineProps<{
 const badgeStyle = computed<'count' | 'dot'>(() =>
   currentSidebarBadgeStyle.value === 'Dot' ? 'dot' : 'count',
 )
+
+const allDiscussionsShortcut = computed<RailShortcut>(() => ({
+  label: 'All Discussions',
+  icon: 'lucide-message-square-text',
+  isActive: isRoute('AllDiscussions', 'AllDiscussionsTab'),
+  route: { name: 'AllDiscussions' },
+  description: 'From every community you have joined',
+}))
 
 const shortcuts = computed<RailShortcut[]>(() => [
   {
@@ -168,6 +186,7 @@ const shortcuts = computed<RailShortcut[]>(() => [
         },
       ]
     : []),
+  ...(currentShowAllDiscussions.value ? [allDiscussionsShortcut.value] : []),
   {
     label: 'People',
     icon: 'lucide-users-2',
@@ -248,7 +267,7 @@ function getCommunityUnreadCount(communityId: string) {
 }
 
 function isRoute(...names: string[]) {
-  return names.includes(route.name?.toString() || '')
+  return names.includes(activeRoute.value.name?.toString() || '')
 }
 
 // Fade the community list under whichever edge still has content to scroll.

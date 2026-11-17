@@ -1,25 +1,28 @@
 <template>
   <FrappeUIProvider>
     <div class="relative isolate h-full overflow-hidden">
-      <router-view v-if="['Onboarding', 'Login'].includes($route.name)" />
+      <!-- A signed-out visitor reads public pages inside the layout. The invalid-invitation page
+           stands alone, whoever opens it. -->
+      <router-view v-if="['Onboarding', 'Login', 'InvitationInvalid'].includes($route.name)" />
       <Layout v-else-if="$session.isLoggedIn || isPublicVisitor()">
         <!-- While on a /settings/* URL, keep rendering the page the dialog was
              opened over (displayedRoute) so it stays visible behind the overlay. -->
         <router-view :route="displayedRoute" />
       </Layout>
     </div>
-    <NewTaskDialog />
+    <NewTaskDialog v-if="taskDialogOpened" />
     <!-- usersReady, not users.isFinished: a mid-session reload of the session user would
          flip isFinished back to false and unmount the open settings dialog.
          Phones have no dialog: a /settings/* URL is an ordinary page there
          (pages/SettingsPage.vue). -->
     <SettingsDialog v-if="$session.isLoggedIn && usersReady && !isMobileViewport" />
     <OfflineIndicator />
+    <ChangelogDialog v-if="$session.isLoggedIn" />
   </FrappeUIProvider>
 </template>
 
 <script setup>
-import { computed, defineAsyncComponent, nextTick, shallowRef, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, ref, shallowRef, watch } from 'vue'
 import { loadRouteLocation, useRoute, useRouter } from 'vue-router'
 import { FrappeUIProvider } from 'frappe-ui'
 import { settleUsersWithoutFetching, users, usersReady } from '@/data/users'
@@ -27,10 +30,12 @@ import { session } from '@/data/session'
 import { useIsMobile } from '@/utils/useIsMobile'
 import { useTheme } from '@/utils/useTheme'
 import { useCursorStyle } from '@/utils/useCursorStyle'
-import NewTaskDialog from './components/NewTaskDialog/NewTaskDialog.vue'
+import { showDialog as showNewTaskDialog } from './components/NewTaskDialog/state'
 import SettingsDialog from './components/Settings/SettingsDialog.vue'
 import OfflineIndicator from './components/OfflineIndicator.vue'
+import ChangelogDialog from './components/Changelog/ChangelogDialog.vue'
 import { settingsBackgroundPath } from './components/Settings'
+import { isSettingsRoute } from './components/Settings/overlayHistory'
 import { getHomeRoute } from '@/router'
 import { isPublicVisitor } from '@/utils/publicAccess'
 
@@ -39,6 +44,16 @@ const route = useRoute()
 const router = useRouter()
 useTheme()
 useCursorStyle()
+// The task dialog loads the first time it opens. Its date picker and combobox are
+// large, and most sessions never open it. It stays mounted after that, so it can
+// animate closed.
+const NewTaskDialog = defineAsyncComponent(
+  () => import('./components/NewTaskDialog/NewTaskDialog.vue'),
+)
+const taskDialogOpened = ref(false)
+watch(showNewTaskDialog, (open) => {
+  if (open) taskDialogOpened.value = true
+})
 const MobileLayout = defineAsyncComponent(() => import('./components/MobileLayout.vue'))
 const DesktopLayout = defineAsyncComponent(() => import('./components/DesktopLayout.vue'))
 const Layout = computed(() => {
@@ -59,8 +74,7 @@ if (session.isLoggedIn) {
 
 // Only desktop layers settings over a background page. On a phone the settings
 // route renders its own page, so it is treated like any other route here.
-const isSettingsOverlay = (r) =>
-  !isMobileViewport.value && r.matched.some((record) => record.meta?.settingsOverlay)
+const isSettingsOverlay = (r) => !isMobileViewport.value && isSettingsRoute(r)
 
 // A resolved-but-never-navigated route still holds its lazy `() => import()`
 // components unresolved, which <router-view :route> renders as "[object Promise]"

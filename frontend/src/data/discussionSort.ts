@@ -1,17 +1,19 @@
 import { computed } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
-import type { OrderBy } from 'frappe-ui'
+import type { DropdownOptions, OrderBy } from 'frappe-ui'
 
 const defaultDiscussionOrderBy: OrderBy = 'last_post_at desc'
 
 export const discussionSortChoices: { label: string; value: OrderBy }[] = [
-  { label: 'Newest first', value: 'last_post_at desc' },
-  { label: 'Oldest first', value: 'last_post_at asc' },
-  { label: 'Creation date', value: 'creation desc' },
+  { label: 'Latest activity', value: 'last_post_at desc' },
+  { label: 'Oldest activity', value: 'last_post_at asc' },
+  { label: 'Newest created', value: 'creation desc' },
   { label: 'Most discussed', value: 'comments_count desc' },
 ]
 
 const storedOrderBy = useLocalStorage<OrderBy>('gameplan:discussionSort', defaultDiscussionOrderBy)
+
+const sortChoices = discussionSortChoices
 
 export const discussionSortOptions = [
   { label: 'Sort by', value: '' as const, disabled: true },
@@ -24,6 +26,21 @@ export const discussionOrderBy = computed<OrderBy>({
     storedOrderBy.value = normalizeDiscussionOrderBy(value)
   },
 })
+
+export const discussionSortLabel = computed(
+  () => sortChoices.find((choice) => choice.value === discussionOrderBy.value)!.label,
+)
+
+export const discussionSortMenuOptions = computed<DropdownOptions>(() => [
+  {
+    group: 'Sort by',
+    options: sortChoices.map((choice) => ({
+      label: choice.label,
+      icon: discussionOrderBy.value === choice.value ? 'lucide-check' : null,
+      onClick: () => (discussionOrderBy.value = choice.value),
+    })),
+  },
+])
 
 function normalizeDiscussionOrderBy(value: unknown): OrderBy {
   const match = discussionSortChoices.find((choice) => choice.value === value)

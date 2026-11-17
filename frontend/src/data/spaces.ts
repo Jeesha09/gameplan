@@ -1,5 +1,5 @@
-import { computed, MaybeRefOrGetter, toValue, watch } from 'vue'
-import { call, dialog, useCall, useDoctype, useList } from 'frappe-ui'
+import { computed, MaybeRefOrGetter, ref, toValue, watch } from 'vue'
+import { call, dialog, toast, useCall, useDoctype, useList } from 'frappe-ui'
 import { GPProject, GPMember } from '@/types/doctypes'
 import { getProjectUnreadCount, markSpacesAsRead } from './unreadCount'
 import { useSessionUser } from './users'
@@ -12,6 +12,7 @@ import {
 import { readOnlyMode } from './readOnlyMode'
 import { isMemberAccess } from '@/utils/visibility'
 import { isAnonymousVisitor, publicListUrl } from '@/utils/publicAccess'
+import { errorText } from '@/utils'
 
 interface Member extends Pick<GPMember, 'user'> {}
 
@@ -72,6 +73,16 @@ if (isAnonymousVisitor()) {
     },
   )
 }
+/**
+ * A failed request leaves the list empty, which reads the same as a community with no
+ * spaces. Callers check this before saying a space is missing or that there are none.
+ * Cached rows still count as loaded when only a refresh fails.
+ */
+export const spacesStatus = computed<'loading' | 'ready' | 'failed'>(() => {
+  if (spaces.data?.length) return 'ready'
+  if (spaces.error) return 'failed'
+  return spaces.isFinished ? 'ready' : 'loading'
+})
 
 export function useSpace(name: MaybeRefOrGetter<string | undefined>) {
   return computed(() => {
@@ -199,6 +210,27 @@ export const joinedSpaces = useCall<string[]>({
   immediate: !isAnonymousVisitor(),
 })
 
+export function getSpaceUnreadCount(spaceId: string) {
+  return getProjectUnreadCount(spaceId)
+}
+
+export function trackSpaceVisit(spaceId: string) {
+  return spaceVisitApi.runMethod.submit({
+    method: 'track_visits',
+    params: { spaces: [spaceId] },
+  })
+}
+
+const spaceDoctype = useDoctype<GPProject>('GP Project')
+// Mount-time visit tracking can overlap a menu action. Keep it off spaceDoctype's single
+// shared runMethod request so the two calls cannot cross-resolve each other's state.
+const spaceVisitApi = useDoctype<GPProject>('GP Project')
+
+/**
+ * The space just archived from its own page. The sidebar drops archived spaces, so it keeps
+ * this one, dimmed, until the person leaves the page; otherwise the page they are on has no
+ * row in the sidebar. Space.vue clears it when that page goes away.
+ */
 export function hasJoined(spaceId: MaybeRefOrGetter<string>) {
   return joinedSpaces.data?.includes(toValue(spaceId))
 }
@@ -258,13 +290,29 @@ export function confirmLeaveSpace(space: Space) {
   })
 }
 
-export function archiveSpace(space: Space) {
+const lingeringArchivedSpaceId = ref<string | null>(null)
+
+export function isLingeringArchivedSpace(spaceId: string) {
+  return lingeringArchivedSpaceId.value === spaceId
+}
+
+export function forgetArchivedSpace(spaceId: string) {
+  if (isLingeringArchivedSpace(spaceId)) lingeringArchivedSpaceId.value = null
+}
+
+// Pass `fromSpacePage` only from the space's own page, which is what clears the dimmed row.
+export function archiveSpace(space: Space, { fromSpacePage = false } = {}) {
   dialog.confirm({
-    title: 'Archive space',
-    message:
-      'You cannot create new discussions, pages or tasks in an archived space. It will remain read-only. You can unarchive it again at any time.',
+    title: `Archive ${space.title}?`,
+    message: 'The space becomes read-only, and its discussions no longer show in feeds.',
     confirmLabel: 'Archive',
-    onConfirm: () => spaceDoctype.runDocMethod.submit({ method: 'archive', name: space.name }),
+    onConfirm: async () => {
+      await spaceDoctype.runDocMethod.submit({ method: 'archive', name: space.name })
+      if (fromSpacePage) lingeringArchivedSpaceId.value = space.name
+      toast.success('Space archived', {
+        action: { label: 'Undo', onClick: () => undoArchiveSpace(space) },
+      })
+    },
   })
 }
 
@@ -277,13 +325,19 @@ export function unarchiveSpace(space: Space) {
 
 export function markAllAsRead(spaceIds: string[], groupTitle: string) {
   dialog.confirm({
-    title: 'Mark all as read',
-    message: `Are you sure you want to mark all discussions in ${groupTitle} as read? This action cannot be undone.`,
+    title: `Mark all discussions in ${groupTitle} as read?`,
+    message: 'Their unread counts will be cleared.',
     confirmLabel: 'Mark all as read',
     onConfirm: async () => {
       await markSpacesAsRead(spaceIds)
     },
   })
+}
+
+function undoArchiveSpace(space: Space) {
+  unarchiveSpace(space).catch((error: unknown) =>
+    toast.error(errorText(error, `Could not unarchive ${space.title}.`)),
+  )
 }
 
 export function isDocMethodLoading(docname: string, method: string) {

@@ -19,6 +19,7 @@
       "
     />
   </div>
+  <SpaceUnavailable v-else :communityId="communityId" />
 </template>
 
 <script setup lang="ts">
@@ -26,10 +27,12 @@ import { computed } from 'vue'
 import { isCommunityBanned } from '@/utils/permissions'
 import { useSessionUser } from '@/data/users'
 import DiscussionView from '@/components/DiscussionView.vue'
+import SpaceUnavailable from '@/components/SpaceUnavailable.vue'
 import { useSpace } from '@/data/spaces'
 import { isPublicVisitor } from '@/utils/publicAccess'
 
 interface Props {
+  communityId: string
   spaceId: string
   postId: string
   slug?: string

@@ -45,7 +45,7 @@ export interface GPTask extends DocType {
   comments_count?: number
 }
 
-// Last updated: 2026-10-30 12:00:00.000000
+// Last updated: 2026-11-13 12:00:00.000000
 export interface GPUserProfile extends DocType {
   /** First Day Discussions: Int */
   first_day_discussions?: number
@@ -95,8 +95,14 @@ export interface GPUserProfile extends DocType {
   sidebar_badge_style?: 'Unread count' | 'Dot'
   /** Direct Messages Enabled: Check */
   direct_messages_enabled?: 0 | 1
+  /** Show All Discussions: Check */
+  show_all_discussions: 0 | 1
+  /** Space Sidebar Sort: Select */
+  space_sidebar_sort?: 'Recent activity' | 'Alphabetical'
+  /** Hide Inactive Spaces: Check */
+  hide_inactive_spaces: 0 | 1
   /** Email Digest Frequency: Select */
-  email_digest_frequency?: 'Off' | 'Weekly' | 'Fortnightly' | 'Monthly'
+  email_digest_frequency?: 'Off' | 'Weekly'
   /** Email Digest Day of Week: Select */
   email_digest_day_of_week?:
     | 'Monday'
@@ -154,10 +160,12 @@ export interface GPMember extends ChildDocType {
   is_moderator?: 0 | 1
 }
 
-// Last updated: 2026-09-17 12:00:00.000000
+// Last updated: 2026-11-12 12:00:00.000000
 export interface GPNotification extends DocType {
   /** From User: Link (User) */
   from_user?: string
+  /** Reacted By: JSON */
+  reacted_by?: any
   /** To User: Link (User) */
   to_user: string
   /** Type: Select */

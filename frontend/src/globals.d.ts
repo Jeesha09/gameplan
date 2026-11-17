@@ -15,7 +15,6 @@ declare module '@vue/runtime-core' {
     ErrorMessage: (typeof import('frappe-ui'))['ErrorMessage']
     Dialog: (typeof import('frappe-ui'))['Dialog']
     FeatherIcon: (typeof import('frappe-ui'))['FeatherIcon']
-    Alert: (typeof import('frappe-ui'))['Alert']
     Badge: (typeof import('frappe-ui'))['Badge']
     UserAvatar: typeof import('./components/UserAvatar.vue')
   }
@@ -41,6 +40,10 @@ declare global {
     public_access_enabled?: boolean
     /** Boot data: whether the site lets people create their own account. */
     signup_enabled?: boolean
+    /** Present only while Cypress drives the app. */
+    Cypress?: unknown
+    /** The realtime socket, exposed only under Cypress so specs can fake server events. */
+    gameplanSocket?: import('socket.io-client').Socket
   }
 }
 

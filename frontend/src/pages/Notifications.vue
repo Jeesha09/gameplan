@@ -48,6 +48,13 @@
       />
     </template>
 
+    <LoadError
+      v-else-if="activeList.error && !notifications?.length"
+      class="mx-4 sm:mx-3"
+      :message="errorText(activeList.error, 'Could not load notifications.')"
+      @retry="activeList.reload()"
+    />
+
     <List
       v-else-if="notifications?.length"
       class="max-sm:list-gap-3 sm:list-gap-4 max-sm:list-row-px-4"
@@ -144,6 +151,7 @@ const sessionUser = useSessionUser()
 const notificationFields: (keyof NotificationRow)[] = [
   'name',
   'from_user',
+  'reacted_by',
   'message',
   'read',
   'type',
@@ -354,12 +362,17 @@ function useLinkedTitles(doctype: 'GP Discussion' | 'GP Poll' | 'GP Task', ids: 
 }
 
 function confirmMarkAllAsRead() {
-  dialog.danger({
-    title: 'Mark all as read',
-    message:
-      'This clears every unread notification at once, so nothing is left flagged for you to come back to. You cannot undo this.',
+  // The badge count, not the list: the list stops at 100 rows.
+  const count = Math.max(unreadNotifications.data ?? 0, unreadNotificationList.data?.length ?? 0)
+  dialog.confirm({
+    title: 'Mark all as read?',
+    message: `${
+      count === 1 ? 'The unread notification' : `All ${count} unread notifications`
+    } will move to Read.`,
     confirmLabel: 'Mark all as read',
-    onConfirm: () => markAllAsRead.submit(),
+    onConfirm: async () => {
+      await markAllAsRead.submit()
+    },
   })
 }
 

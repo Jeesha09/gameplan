@@ -1,20 +1,5 @@
 <template>
   <div class="h-full touch-pan-y">
-    <div class="mb-5" v-if="pinnedDiscussions.data?.length">
-      <div class="px-3 flex items-center space-x-1 mb-2">
-        <Pin class="h-4 w-4 text-ink-gray-4" />
-        <span class="text-ink-gray-8 text-base"> Pinned </span>
-      </div>
-      <List :selectable="selectable" v-model:selection="selectedDiscussions" :class="listClass">
-        <DiscussionRow
-          v-for="discussion of pinnedDiscussions.data"
-          :key="discussion.name"
-          :discussion="discussion"
-          :showSpaceName="!filters || !filters.project"
-        />
-      </List>
-    </div>
-
     <template v-if="isInitialLoading">
       <ListRowSkeleton
         v-for="index in skeletonRowCount"
@@ -24,19 +9,25 @@
       />
     </template>
 
-    <OfflineContentFallback
-      v-if="loadFailure"
-      class="mx-auto mt-6 max-w-2xl px-6"
-      v-bind="loadFailure"
-      @retry="discussions.reload()"
-    />
-
+    <!-- Pinned rows lead the list, marked by a pin icon rather than a heading. -->
     <List :selectable="selectable" v-model:selection="selectedDiscussions" :class="listClass">
       <DiscussionRow
-        v-for="discussion of discussions.data"
-        :key="discussion.bookmark || discussion.name"
+        v-for="discussion of visiblePinnedDiscussions"
+        :key="'pinned-' + discussion.name"
         :discussion="discussion"
         :showSpaceName="!filters || !filters.project"
+        :showCommunityName="showCommunity"
+        pinned
+      />
+      <DiscussionRow
+        v-for="discussion of visibleDiscussions"
+        :key="rowKey(discussion)"
+        :discussion="discussion"
+        :showSpaceName="!filters || !filters.project"
+        :showCommunityName="showCommunity"
+        :showCreatedAt="isSortedByCreation"
+        :removable="removableBookmarks"
+        @remove="removeBookmarkRow(discussion)"
       />
     </List>
     <div class="px-2 sm:px-0">
@@ -46,39 +37,58 @@
         class="underline"
         >Previous page</a
       >
-      <EmptyStateBox class="mx-3" v-if="!discussions.loading && discussions.data?.length === 0">
-        <span class="lucide-coffee h-7 w-7 text-ink-gray-4" />
-        No discussions
-      </EmptyStateBox>
+      <OfflineContentFallback
+        v-if="loadFailure"
+        class="mx-auto mt-6 max-w-2xl px-6"
+        v-bind="loadFailure"
+        @retry="retryLoad"
+      />
+      <LoadError
+        v-else-if="discussions.error && !discussions.data"
+        class="mx-3"
+        :message="errorText(discussions.error, 'Could not load discussions.')"
+        @retry="retryLoad"
+      />
+      <EmptyStateBox
+        class="mx-3"
+        v-else-if="!discussions.loading && discussions.data && isEmpty"
+        v-bind="emptyState"
+      />
       <div class="flex items-center justify-center p-3" v-if="showLoadMoreButton">
+        <!-- Signed-out readers page through links, so each page has its own address. -->
         <Button
-          icon-left="lucide-refresh-cw"
+          :label="isAnonymousVisitor() ? 'Next page' : 'Load more'"
           :href="isAnonymousVisitor() ? publicPageLink(1) : undefined"
           target="_self"
-          @click="!isAnonymousVisitor() && discussions.next()"
           :loading="discussions.loading"
-        >
-          {{
-            discussions.loading ? 'Loading...' : isAnonymousVisitor() ? 'Next page' : 'Load more'
-          }}
-        </Button>
+          @click="!isAnonymousVisitor() && discussions.next()"
+        />
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, toValue } from 'vue'
+import { computed, ref, toValue } from 'vue'
+import { toast, type OrderBy } from 'frappe-ui'
 import { isAnonymousVisitor, publicPageStart, publicPageLink } from '@/utils/publicAccess'
-import type { OrderBy } from 'frappe-ui'
 import { List } from 'frappe-ui/list'
-import { UseDiscussionOptions, useDiscussions, pinScopes, pinnedFeedKey } from '@/data/discussions'
+import {
+  type Discussion,
+  UseDiscussionOptions,
+  useDiscussions,
+  pinScopes,
+  pinnedFeedKey,
+} from '@/data/discussions'
+import { removeBookmark, restoreBookmark } from '@/data/bookmarks'
+import { errorText } from '@/utils'
+import LoadError from './LoadError.vue'
 import DiscussionRow from './DiscussionRow.vue'
 import ListRowSkeleton from './ListRowSkeleton.vue'
-import EmptyStateBox from './EmptyStateBox.vue'
+import EmptyStateBox, { type EmptyState } from './EmptyStateBox.vue'
 import OfflineContentFallback from './OfflineContentFallback.vue'
 import { useLoadFailure } from '@/data/loadFailure'
-import Pin from './icons/Pin.vue'
+import { feedEmptyStates } from '@/data/discussionFeeds'
 
 interface Props {
   filters: UseDiscussionOptions['filters']
@@ -86,11 +96,20 @@ interface Props {
   cacheKey?: string
   showPinned?: boolean
   selectable?: boolean
+  // Name each row's community too, for lists that mix communities. A space name
+  // alone is ambiguous there.
+  showCommunity?: boolean
+  emptyState?: EmptyState
+  // Bookmark rows get a hover button that removes the bookmark, with Undo.
+  removableBookmarks?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showPinned: true,
   selectable: false,
+  showCommunity: false,
+  removableBookmarks: false,
+  emptyState: () => feedEmptyStates.recent,
 })
 
 const selectedDiscussions = defineModel<string[]>('selectedDiscussions', { default: () => [] })
@@ -127,8 +146,70 @@ const skeletonRowCount = 3
 const isInitialLoading = computed(() => discussions.loading && !discussions.data?.length)
 const loadFailure = useLoadFailure(discussions, 'discussions')
 const showLoadMoreButton = computed(
-  () => discussions.hasNextPage && !isInitialLoading.value && !loadFailure.value,
+  () => discussions.hasNextPage && !isEmpty.value && !loadFailure.value,
 )
+const isSortedByCreation = computed(() => toValue(props.orderBy) === 'creation desc')
+
+// Held back until the first page arrives, so they do not sit above the skeleton rows.
+const visiblePinnedDiscussions = computed(() =>
+  isInitialLoading.value ? [] : pinnedDiscussions.data || [],
+)
+const pinnedNames = computed(() => new Set(visiblePinnedDiscussions.value.map((d) => d.name)))
+const isEmpty = computed(
+  () => visiblePinnedDiscussions.value.length === 0 && visibleDiscussions.value.length === 0,
+)
+
+// Rows removed here hide at once; the list reloads once the server agrees. A pinned
+// discussion already leads the list, so it is not shown again in its date position.
+const removedRowKeys = ref(new Set<string>())
+const visibleDiscussions = computed(() =>
+  (discussions.data || []).filter(
+    (discussion) =>
+      !removedRowKeys.value.has(rowKey(discussion)) && !pinnedNames.value.has(discussion.name),
+  ),
+)
+
+// The pinned list fails with the main one on a failed first load, so retry both.
+function retryLoad() {
+  discussions.reload()
+  if (props.showPinned) pinnedDiscussions.reload()
+}
+
+function rowKey(discussion: Discussion) {
+  return discussion.bookmark || discussion.name
+}
+
+function removeBookmarkRow(discussion: Discussion) {
+  const key = rowKey(discussion)
+  setRowRemoved(key, true)
+  removeBookmark(discussion)
+    .then(() => {
+      discussions.reload()
+      toast.success('Bookmark removed', {
+        action: { label: 'Undo', onClick: () => undoRemoveBookmark(discussion, key) },
+      })
+    })
+    .catch((error: unknown) => {
+      setRowRemoved(key, false)
+      toast.error(errorText(error, 'Could not remove the bookmark.'))
+    })
+}
+
+function undoRemoveBookmark(discussion: Discussion, key: string) {
+  restoreBookmark(discussion)
+    .then(() => {
+      setRowRemoved(key, false)
+      discussions.reload()
+    })
+    .catch((error: unknown) => toast.error(errorText(error, 'Could not restore the bookmark.')))
+}
+
+function setRowRemoved(key: string, removed: boolean) {
+  const keys = new Set(removedRowKeys.value)
+  if (removed) keys.add(key)
+  else keys.delete(key)
+  removedRowKeys.value = keys
+}
 
 defineExpose({ discussions, pinnedDiscussions })
 </script>

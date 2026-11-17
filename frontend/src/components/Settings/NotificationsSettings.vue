@@ -116,14 +116,6 @@
 
           <SettingsRow
             v-if="emailDigestEnabled"
-            title="Digest frequency"
-            description="Choose how often you receive your digest"
-          >
-            <Select :options="emailDigestFrequencyOptions" v-model="selectedDigestFrequency" />
-          </SettingsRow>
-
-          <SettingsRow
-            v-if="emailDigestEnabled"
             title="Send on"
             description="Choose the weekday for your digest"
           >
@@ -251,15 +243,6 @@ const DEFAULT_ENABLED_FREQUENCY: EmailDigestFrequency = 'Weekly'
 const DIGEST_PREFERENCE_SAVE_DEBOUNCE_MS = 700
 const digestPreferenceToastId = 'email-digest-preference-save'
 
-const emailDigestFrequencyOptions: Array<{
-  label: EmailDigestFrequency
-  value: EmailDigestFrequency
-}> = [
-  { label: 'Weekly', value: 'Weekly' },
-  { label: 'Fortnightly', value: 'Fortnightly' },
-  { label: 'Monthly', value: 'Monthly' },
-]
-
 const emailDigestDayOptions: Array<{
   label: EmailDigestDayOfWeek
   value: EmailDigestDayOfWeek
@@ -289,12 +272,8 @@ const emailDigestEnabled = computed({
     saveDigestFrequency(enabled ? DEFAULT_ENABLED_FREQUENCY : 'Off')
   },
 })
-// Writable computeds keep the Select's wide `SelectOptionValue | undefined` emit
-// from leaking into our narrow handlers — v-model narrows it to the typed union.
-const selectedDigestFrequency = computed({
-  get: () => emailDigestFrequency.value,
-  set: saveDigestFrequency,
-})
+// A writable computed keeps the Select's wide `SelectOptionValue | undefined` emit
+// from leaking into our narrow handler — v-model narrows it to the typed union.
 const selectedDigestDayOfWeek = computed({
   get: () => emailDigestDayOfWeek.value,
   set: saveDigestDayOfWeek,

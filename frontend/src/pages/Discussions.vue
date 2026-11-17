@@ -33,10 +33,9 @@
         v-if="!publicVisitor && !isCommunityBanned(communityId, useSessionUser())"
         variant="solid"
         icon-left="lucide-plus"
+        label="New discussion"
         :route="{ name: 'NewDiscussion', params: { communityId } }"
-      >
-        Add new
-      </Button>
+      />
     </div>
   </PageHeader>
   <div class="body-container pt-5 pb-40">
@@ -48,24 +47,11 @@
     </p>
     <LastPostReminder v-if="!publicVisitor" class="mb-3" />
 
-    <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <TabButtons v-if="!publicVisitor" :options="feedTabs" v-model="currentFeed" size="sm">
-        <template #suffix="{ button }">
-          <span
-            v-if="feedUnreadCount(String(button.value)) > 0"
-            class="ml-1 text-xs text-ink-gray-5"
-          >
-            {{ feedUnreadCount(String(button.value)) }}
-          </span>
-        </template>
-      </TabButtons>
-      <Select
-        v-if="!publicVisitor"
-        class="shrink-0 !w-fit"
-        :options="discussionSortOptions"
-        v-model="discussionOrderBy"
-      />
-    </div>
+    <DiscussionFeedBar
+      v-if="!publicVisitor"
+      v-model="currentFeed"
+      :counts="{ unread: communityUnreadCount, participating: participatingUnreadCount }"
+    />
 
     <KeepAlive>
       <DiscussionList
@@ -74,6 +60,7 @@
         :orderBy="() => discussionOrderBy"
         :cacheKey="communityFeedKey(communityId, feedType)"
         :key="JSON.stringify(filters)"
+        :empty-state="feedEmptyStates[feedType]"
       />
     </KeepAlive>
   </div>
@@ -90,19 +77,19 @@ import {
   PageHeaderMobile,
   PageHeaderMobileTitle,
   Button,
-  Select,
-  TabButtons,
   usePageMeta,
 } from 'frappe-ui'
 import { useRouter } from 'vue-router'
 import CommunityMenu from '@/components/CommunityMenu.vue'
+import DiscussionFeedBar from '@/components/DiscussionFeedBar.vue'
 import DiscussionList from '@/components/DiscussionList.vue'
 import LastPostReminder from '@/components/LastPostReminder.vue'
 import PublicLoginButtons from '@/components/Public/PublicLoginButtons.vue'
-import { communityFeedKey, type FeedType } from '@/data/discussions'
+import { communityFeedKey } from '@/data/discussions'
 import { communityState } from '@/data/communityState'
 import { useCommunity } from '@/data/communities'
-import { discussionOrderBy, discussionSortOptions } from '@/data/discussionSort'
+import { feedEmptyStates, feedTitles, type FeedType } from '@/data/discussionFeeds'
+import { discussionOrderBy } from '@/data/discussionSort'
 import { getSpaceUnreadCount, spaces } from '@/data/spaces'
 import { fetchParticipatingUnreadCount, getParticipatingUnreadCount } from '@/data/unreadCount'
 import { isPublicVisitor } from '@/utils/publicAccess'
@@ -125,12 +112,6 @@ const filters = computed(() => ({
   feed_type: props.feedType,
 }))
 
-const feedTitles: Record<FeedType, string> = {
-  recent: 'All Discussions',
-  unread: 'Unread',
-  participating: 'Participating',
-}
-
 const feedTitle = computed(() => feedTitles[props.feedType])
 
 const community = useCommunity(() => props.communityId)
@@ -145,27 +126,10 @@ const communityUnreadCount = computed(() => {
 const participatingUnreadCount = computed(() => {
   return getParticipatingUnreadCount(props.communityId)
 })
-const feedTabs = computed(() => [
-  {
-    label: 'All Discussions',
-    value: 'recent',
-  },
-  {
-    label: 'Participating',
-    value: 'participating',
-  },
-  {
-    label: 'Unread',
-    value: 'unread',
-  },
-])
 const currentFeed = computed({
-  get() {
-    return props.feedType
-  },
-  set(feedType) {
-    if (!feedType || feedType === props.feedType) return
-    router.push(feedRoute(String(feedType) as FeedType))
+  get: () => props.feedType,
+  set(feedType: FeedType) {
+    if (feedType !== props.feedType) router.push(feedRoute(feedType))
   },
 })
 watch(
@@ -185,12 +149,6 @@ function feedRoute(feedType: FeedType) {
     name: 'DiscussionsTab',
     params: { communityId: props.communityId, feedType },
   }
-}
-
-function feedUnreadCount(feedType: string) {
-  if (feedType === 'unread') return communityUnreadCount.value
-  if (feedType === 'participating') return participatingUnreadCount.value
-  return 0
 }
 
 usePageMeta(() => ({ title: feedTitle.value }))

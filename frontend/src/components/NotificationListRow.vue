@@ -6,11 +6,13 @@
     @click="open"
   >
     <ListCell>
-      <UserAvatarWithHover size="2xl" :user="notification.from_user!" v-if="showAvatar" />
+      <ReactorAvatars v-if="reactors.length" :users="reactors" />
+      <UserAvatarWithHover size="2xl" :user="notification.from_user!" v-else-if="showAvatar" />
       <div
         class="grid size-10 place-items-center rounded-[8px] bg-surface-gray-2 group-hover:bg-surface-base"
         v-else
       >
+        <!-- Reaction rows written before `reacted_by` existed carry only a count. -->
         <ReactionFaceIcon class="size-5 text-ink-gray-6" v-if="notification.type === 'Reaction'" />
         <span
           :class="[notificationIcon(notification), 'size-5 text-ink-gray-6']"
@@ -79,6 +81,7 @@ import { isOnline } from '@/data/online'
 import { Button, dayjsLocal, Tooltip } from 'frappe-ui'
 import { ListRow, ListCell } from 'frappe-ui/list'
 import ReactionFaceIcon from '@/components/ReactionFaceIcon.vue'
+import ReactorAvatars from '@/components/ReactorAvatars.vue'
 import UserAvatarWithHover from '@/components/UserAvatarWithHover.vue'
 import {
   notificationIcon,
@@ -98,9 +101,17 @@ const location = computed(() => notificationLocation(props.notification))
 const showAvatar = computed(() =>
   Boolean(
     props.notification.from_user &&
-      !['Reaction', 'Trust Level', 'Moderation'].includes(props.notification.type),
+    !['Reaction', 'Trust Level', 'Moderation'].includes(props.notification.type),
   ),
 )
+
+/** The people who reacted, newest first. The list API returns the JSON field as text. */
+const reactors = computed((): string[] => {
+  const stored: unknown = props.notification.reacted_by
+  const value: unknown = typeof stored === 'string' && stored ? JSON.parse(stored) : stored
+  if (!Array.isArray(value)) return []
+  return value.filter((user): user is string => typeof user === 'string')
+})
 
 function open() {
   if (isOnline.value && !props.notification.read && route.value)

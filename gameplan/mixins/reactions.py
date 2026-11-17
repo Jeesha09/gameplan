@@ -5,6 +5,7 @@
 import frappe
 from frappe import _
 from frappe.query_builder import Criterion
+from frappe.utils import get_fullname
 
 from gameplan.activity_counts import queue_activity_counts
 from gameplan.notifications import records
@@ -12,6 +13,7 @@ from gameplan.notifications.preferences import wants_content_feedback
 from gameplan.utils.document import with_stored_document
 
 REACTION_FIELDS = ["name", "reference_doctype", "reference_name", "emoji", "user"]
+REACTION_TARGET_NOUNS = {"GP Discussion": "post", "GP Comment": "reply", "GP Poll": "poll"}
 
 
 class HasReactions:
@@ -124,27 +126,23 @@ class HasReactions:
 		# Only a reaction that was ADDED is news. A withdrawal is not: it would re-raise a
 		# bell the owner already cleared, about a reaction that no longer exists.
 		# Your own reaction never notifies you and is never counted: the row would
-		# otherwise read "1 person reacted to your post" about yourself.
+		# otherwise name you among the people who reacted to your post.
 		if not any(user != self.owner for user, _emoji in added):
 			return
 		if not wants_content_feedback(self.owner):
 			return
 		if not can_view_content(self.owner, self):
 			return
-		self._relight_reaction_row(self._reaction_message(reactions))
+		people = reactors_latest_first(reactions, exclude=self.owner)
+		if not people:
+			return
+		self._relight_reaction_row(people)
 
-	def _reaction_message(self, reactions) -> str:
-		"""How the post stands now, not what this call changed: several reactions can land
-		in one call (the frontend debounces a quick tap-tap into one batch), and the row is
-		rewritten each time."""
-		people = {reaction.user for reaction in reactions if reaction.user != self.owner}
-		if len(people) == 1:
-			return "1 person reacted to your post"
-		return f"{len(people)} people reacted to your post"
-
-	def _relight_reaction_row(self, message: str) -> None:
+	def _relight_reaction_row(self, people) -> None:
 		"""One row per piece of content, reused every time: a reaction that arrives after
-		the row was read, emailed or skipped has to surface as the news it is."""
+		the row was read, emailed or skipped has to surface as the news it is. The message
+		describes the post as it now stands, so it stays true however many reactions moved."""
+		message = reaction_message(people, REACTION_TARGET_NOUNS.get(self.doctype, "post"))
 		owned = frappe._dict(to_user=self.owner, type="Reaction")
 		lookup = frappe._dict(owned, **records.content_key(self))
 
@@ -160,8 +158,30 @@ class HasReactions:
 
 		doc.message = message
 		records.relight(doc, self.owner)
+		# The bell draws these as stacked avatars. `from_user` is the latest of them.
+		doc.reacted_by = people
+		doc.from_user = people[0]
 		doc.flags.ignore_permissions = True
 		doc.save()
+
+
+def reactors_latest_first(reactions, exclude):
+	"""The users holding `reactions`, newest reaction first, each once. GP Reaction names autoincrement."""
+	newest_first = sorted(reactions, key=lambda r: int(r.name), reverse=True)
+	return list(dict.fromkeys(r.user for r in newest_first if r.user != exclude))
+
+
+def reaction_message(people, noun):
+	"""'Grace reacted…', 'Grace and Sam reacted…', 'Grace and 2 others reacted…'."""
+	first = get_fullname(people[0])
+	match len(people):
+		case 1:
+			who = first
+		case 2:
+			who = f"{first} and {get_fullname(people[1])}"
+		case _:
+			who = f"{first} and {len(people) - 1} others"
+	return f"{who} reacted to your {noun}"
 
 
 def get_reactions_on(posts):

@@ -124,10 +124,14 @@ export type NotificationRow = Pick<
   | 'team'
   | 'read'
   | 'event_count'
+  | 'reacted_by'
 > & { last_event_at: string }
 
 export function notificationRoute(
-  notification: Omit<NotificationRow, 'read' | 'last_event_at' | 'message' | 'event_count'>,
+  notification: Omit<
+    NotificationRow,
+    'read' | 'last_event_at' | 'message' | 'event_count' | 'reacted_by'
+  >,
 ): RouteLocationRaw | null {
   if (notification.conversation) {
     return { name: 'Conversation', params: { conversationId: notification.conversation } }

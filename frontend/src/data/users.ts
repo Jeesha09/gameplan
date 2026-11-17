@@ -9,13 +9,17 @@ import {
 } from './notificationPreferences'
 import { loadPinnedSpaces } from './pinnedSpaces'
 import { loadQuickReactionSlots } from './reactionPreferences'
-import { setSidebarBadgeStyle, type SidebarBadgeStyle } from './sidebarPreferences'
+import {
+  loadSidebarPreferences,
+  type SidebarBadgeStyle,
+  type SpaceSidebarSort,
+} from './sidebarPreferences'
 import { session } from './session'
 import { onSocketEvent } from '@/socket'
 import { isAnonymousVisitor } from '@/utils/publicAccess'
-import { getSessionUserFromCookie } from '@/utils/sessionCookie'
+import { sessionUserFromCookie } from '@/utils/sessionCookie'
 
-export type EmailDigestFrequency = 'Off' | 'Weekly' | 'Fortnightly' | 'Monthly'
+export type EmailDigestFrequency = 'Off' | 'Weekly'
 export type EmailDigestDayOfWeek =
   | 'Monday'
   | 'Tuesday'
@@ -52,6 +56,9 @@ export interface UserInfo {
   sidebar_badge_style?: SidebarBadgeStyle
   direct_messages_enabled?: 0 | 1
   blocked?: 0 | 1
+  show_all_discussions?: 0 | 1
+  space_sidebar_sort?: SpaceSidebarSort
+  hide_inactive_spaces?: 0 | 1
   email_digest_frequency?: EmailDigestFrequency
   email_digest_day_of_week?: EmailDigestDayOfWeek
   email_digest_last_sent_on?: string
@@ -105,12 +112,13 @@ function mergeUserInfo(user: UserInfo) {
     loadQuickReactionSlots(user.quick_reaction_emojis, user.user_profile)
     setSidebarBadgeStyle(user.sidebar_badge_style)
     loadNotificationPreferences(user)
+    loadSidebarPreferences(user)
   }
 }
 
 export let users = useCall<UserInfo[], { user: string | null }>({
   url: '/api/v2/method/gameplan.api.get_user_info',
-  params: () => ({ user: getSessionUserFromCookie() }),
+  params: () => ({ user: sessionUserFromCookie() }),
   cacheKey: 'SessionUser',
   initialData: [],
   transform(data) {

@@ -442,6 +442,7 @@ class GameplanSearch(SQLiteSearch):
 				from gameplan.watched_word_payload import clean
 
 				response["results"] = clean(response["results"])
+			self._add_reference_titles(response["results"])
 			return response
 		finally:
 			del self._requested_projects
@@ -598,6 +599,26 @@ class GameplanSearch(SQLiteSearch):
 				params.extend(values)
 
 		return conditions, params
+
+	def _add_reference_titles(self, results):
+		"""Set `reference_title` on comment results: the title of the post the comment is on."""
+		names_by_doctype = {}
+		for row in results:
+			if row.get("doctype") == "GP Comment" and row.get("reference_doctype"):
+				names_by_doctype.setdefault(row["reference_doctype"], set()).add(row["reference_name"])
+
+		titles = {}
+		for doctype, names in names_by_doctype.items():
+			# Results are already limited to spaces the user can see, so their parents are too.
+			for name, title in frappe.get_all(
+				doctype, filters={"name": ("in", list(names))}, fields=["name", "title"], as_list=True
+			):
+				titles[(doctype, cstr(name))] = title
+
+		for row in results:
+			key = (row.get("reference_doctype"), cstr(row.get("reference_name")))
+			if key in titles:
+				row["reference_title"] = titles[key]
 
 	def get_filter_options(self):
 		"""

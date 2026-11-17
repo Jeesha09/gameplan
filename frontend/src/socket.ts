@@ -1,4 +1,4 @@
-import { io, type Socket } from 'socket.io-client'
+import type { Socket } from 'socket.io-client'
 import { watch } from 'vue'
 import { isOnline, onReconnect } from '@/data/online'
 import { socketio_port } from '../../../../sites/common_site_config.json'
@@ -19,6 +19,12 @@ export type NotificationChange = {
   last_event_at: string | null
 }
 
+/** Frappe's events for one document, received after `subscribeToDoc` joins its room. */
+export type DocRoomEvents = {
+  new_activity: NewActivityEvent
+  doc_update: { doctype?: string; name?: string | number }
+}
+
 /**
  * Every realtime event Gameplan's own backend publishes, and what each one carries.
  *
@@ -27,8 +33,8 @@ export type NotificationChange = {
  * client knows how it stores the data.
  *
  * Frappe's own events (`new_activity`, `doc_update`, ...) are not listed here. Components
- * that want those still reach for `useSocket()` directly, since they are scoped to a
- * document room the component subscribes to for its own lifetime.
+ * listen for those with `onDocEvent()`, since they are scoped to a document room the
+ * component subscribes to for its own lifetime.
  */
 export type GameplanSocketEvents = {
   'gameplan:unread_counts_changed': void
@@ -78,52 +84,20 @@ interface SocketDirectMessage {
 
 type SocketEventName = keyof GameplanSocketEvents
 
-// The runtime twin of GameplanSocketEvents: `satisfies` makes TypeScript reject a name that
-// isn't in the type, and every key in the type must appear here or nothing dispatches it.
-const GAMEPLAN_SOCKET_EVENTS = [
-  'gameplan:unread_counts_changed',
-  'gameplan:unread_counts_stale',
-  'gameplan:notification_count_changed',
-  'gameplan:notification_changed',
-  'gameplan:users_changed',
-  'gameplan:restrictions_changed',
-  'gameplan:message_received',
-  'gameplan:messages_read',
-  'gameplan:messages_seen',
-  'gameplan:message_updated',
-  'gameplan:conversation_muted',
-  'gameplan:conversation_cleared',
-] as const satisfies readonly SocketEventName[]
-
 let socket: Socket | null = null
 
-const listeners = new Map<SocketEventName, Set<(payload: any) => void>>()
+// Every socket event handler, by event name. See `onSocket` for why they live here.
+const listeners = new Map<string, Set<(payload: never) => void>>()
 const reconnectListeners = new Set<() => void>()
 
 const HANDSHAKE_RETRY_DELAY = 5000
 
-/**
- * Listen for a backend event. Returns an unsubscribe function.
- *
- * Handlers live in this module's own registry rather than on the socket, which buys two
- * things. Registration order does not matter: `initSocket()` runs inside `setupApp()`, long
- * after module-level code in `data/*.ts` has run, so a bare `socket.on()` there would attach
- * to nothing. And unsubscribing removes exactly one handler — `socket.off(event)` drops every
- * listener for that event, so two components listening to the same one clobber each other.
- */
+/** Listen for a Gameplan backend event. Returns an unsubscribe function. */
 export function onSocketEvent<K extends SocketEventName>(
   event: K,
   handler: (payload: GameplanSocketEvents[K]) => void,
 ) {
-  let handlers = listeners.get(event)
-  if (!handlers) {
-    handlers = new Set()
-    listeners.set(event, handlers)
-  }
-  handlers.add(handler)
-  return () => {
-    handlers.delete(handler)
-  }
+  return onSocket(event, handler)
 }
 
 /**
@@ -139,7 +113,56 @@ export function onSocketReconnect(handler: () => void) {
   }
 }
 
-export function initSocket() {
+/**
+ * Run `handler` for every `event` the socket receives. Returns an unsubscribe function.
+ *
+ * Handlers live in this module's own registry rather than on the socket, which buys three
+ * things. Registration order does not matter: `initSocket()` runs after the first page draws,
+ * long after module-level code in `data/*.ts` has run, so a bare `socket.on()` there would attach
+ * to nothing. Unsubscribing removes exactly one handler — `socket.off(event)` drops every
+ * listener for that event, so two components listening to the same one clobber each other.
+ * And one dispatcher per event runs its handlers through `runEach`, so a handler that throws
+ * cannot stop the others.
+ */
+function onSocket(event: string, handler: (payload: never) => void) {
+  let handlers = listeners.get(event)
+  if (!handlers) {
+    handlers = new Set()
+    listeners.set(event, handlers)
+    if (socket) attachDispatcher(socket, event, handlers)
+  }
+  handlers.add(handler)
+  return () => {
+    handlers.delete(handler)
+  }
+}
+
+// socket.io keeps listeners across reconnects, so a dispatcher is attached once per event.
+function attachDispatcher(
+  appSocket: Socket,
+  event: string,
+  handlers: Set<(payload: never) => void>,
+) {
+  appSocket.on(event, (payload: never) => {
+    runEach(handlers, `Listener for "${event}"`, payload)
+  })
+}
+
+/**
+ * Listen for a Frappe event in a document room joined with `subscribeToDoc`. Returns an
+ * unsubscribe function. Safe to call before the socket exists.
+ */
+export function onDocEvent<K extends keyof DocRoomEvents>(
+  event: K,
+  handler: (payload: DocRoomEvents[K]) => void,
+) {
+  return onSocket(event, handler)
+}
+
+/** Connect to the realtime server. socket.io's code downloads here, not with the app. */
+export async function initSocket() {
+  const { io } = await import('socket.io-client')
+
   let host = window.location.hostname
   let siteName = window.site_name
   let port = window.location.port ? `:${socketio_port}` : ''
@@ -150,6 +173,9 @@ export function initSocket() {
   // and a socket that stops retrying leaves every live count frozen until a page reload.
   const appSocket = io(url, { withCredentials: true })
   socket = appSocket
+  for (const [event, handlers] of listeners) attachDispatcher(appSocket, event, handlers)
+  // Cypress feeds fake server events through the real socket (see poll-lifecycle.cy.ts).
+  if (window.Cypress) window.gameplanSocket = appSocket
 
   // `connect`, not the Manager's `reconnect`: the server joins this user's room during the
   // handshake, so refetching any earlier could miss a push sent before the room was joined.
@@ -158,13 +184,17 @@ export function initSocket() {
     if (hasConnected) runEach(reconnectListeners, 'Socket reconnect listener')
     hasConnected = true
   })
+
   // Pause while offline; the network callback resumes connection attempts.
   watch(isOnline, (online) => {
     if (!online) appSocket.disconnect()
   })
   onReconnect(() => appSocket.connect())
 
-  // A rejected handshake needs an explicit retry, but never while the browser is offline.
+  // Frappe rejects the handshake when its auth call to the web server fails, which happens
+  // while a deploy restarts the web server. socket.io never retries a rejected handshake.
+  // Retrying is safe: a logged-out session passes auth as Guest instead of failing. Never
+  // while the browser is offline.
   appSocket.on('connect_error', () => {
     if (!appSocket.active) {
       setTimeout(() => {
@@ -172,15 +202,6 @@ export function initSocket() {
       }, HANDSHAKE_RETRY_DELAY)
     }
   })
-
-  // Attach one dispatcher per known event. socket.io keeps these across reconnects, so unlike
-  // document rooms (see subscribeToDoc) they never need re-attaching.
-  for (const event of GAMEPLAN_SOCKET_EVENTS) {
-    appSocket.on(event, (payload: never) => {
-      runEach(listeners.get(event) ?? [], `Listener for "${event}"`, payload)
-    })
-  }
-  return appSocket
 }
 
 /**
@@ -201,10 +222,6 @@ export function runEach<A extends unknown[]>(
   }
 }
 
-export function useSocket() {
-  return socket
-}
-
 /**
  * Join a document's realtime room so this tab receives events published for it
  * (see `frappe.publish_realtime(..., doctype=, docname=)`).
@@ -216,10 +233,10 @@ export function useSocket() {
 export function subscribeToDoc(doctype: string, name: string) {
   const subscribe = () => socket?.emit('doc_subscribe', doctype, name)
   subscribe()
-  socket?.on('connect', subscribe)
+  const stopResubscribing = onSocket('connect', subscribe)
 
   return () => {
-    socket?.off('connect', subscribe)
+    stopResubscribing()
     socket?.emit('doc_unsubscribe', doctype, name)
   }
 }

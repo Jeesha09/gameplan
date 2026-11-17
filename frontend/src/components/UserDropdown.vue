@@ -15,6 +15,8 @@
 import { h, computed, ref, shallowRef } from 'vue'
 import { Dialog, Dropdown } from 'frappe-ui'
 import { settingsShortcutLabel, showSettingsDialog } from '@/components/Settings'
+import UnseenDot from '@/components/Changelog/UnseenDot.vue'
+import { hasUnseenEntries, openChangelog } from '@/data/changelog'
 import { useUser } from '@/data/users'
 import { session } from '@/data/session'
 import { useTheme } from '@/utils/useTheme'
@@ -61,6 +63,14 @@ const dropdownItems = computed(() => [
     label: 'My submissions',
     condition: () => !isAnonymousVisitor(),
     route: { name: 'MySubmissions' },
+  },
+  {
+    icon: 'lucide-sparkles',
+    label: "What's new",
+    onClick: openChangelog,
+    slots: {
+      suffix: () => (hasUnseenEntries.value ? h(UnseenDot) : null),
+    },
   },
   {
     icon: 'lucide-settings',
