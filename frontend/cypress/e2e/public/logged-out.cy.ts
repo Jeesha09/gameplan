@@ -119,7 +119,7 @@ describe('Public spaces, logged out', () => {
     cy.viewport(390, 844)
     cy.visit(`/g/community/${ids.community}/discussions`)
     cy.get('header:visible').contains('a', 'Log in').should('have.attr', 'target', '_self')
-    cy.get('header:visible button').contains('Discussions').click()
+    cy.get('header:visible button').contains('All discussions').click()
     cy.get('[role="dialog"]').within(() => {
       cy.contains('Announcements').should('be.visible')
       cy.contains('Unread').should('not.exist')

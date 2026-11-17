@@ -871,7 +871,9 @@ router.beforeEach(async (to, from) => {
   loadRouteLocation(to).catch(() => {})
   saveAndRestoreScrollPosition(to, from)
 
-  if (to.meta.public) return true
+  // `meta.public` marks a page anonymous visitors may read, which still needs the guards
+  // below. Only the invitation error page stands outside the app and skips them.
+  if (to.name === 'InvitationInvalid') return true
 
   if (to.name === 'Login' && session.isLoggedIn) {
     return { name: 'Home' }
@@ -938,15 +940,6 @@ async function resolveRoute(
       console.error('Error loading users', error)
     }
   }
-  // The first request can settle before its rows reach the user store. Until they do, the
-  // signed-in user is a placeholder with no role, so a guest would look like a member who
-  // joined nothing and be sent to NoCommunities.
-  if (session.isLoggedIn) {
-    await until(() => !useSessionUser().isPlaceholder || Boolean(users.error)).toBe(true, {
-      timeout: 5000,
-    })
-  }
-
   await ensureCommunityDataLoaded()
 
   if (isLeavingOverlay(to, from)) {
@@ -1093,6 +1086,14 @@ export function prefetchPages() {
 
 async function ensureCommunityDataLoaded() {
   await Promise.all([waitForResource(communities), waitForResource(spaces)])
+  // The first user request can settle before its rows reach the user store. Until they do,
+  // the signed-in user is a placeholder with no role, so a guest would look like a member
+  // who joined nothing and be sent to NoCommunities.
+  if (session.isLoggedIn) {
+    await until(() => !useSessionUser().isPlaceholder || Boolean(users.error)).toBe(true, {
+      timeout: 5000,
+    })
+  }
   if (isAnonymousVisitor()) {
     await until(() => !communities.hasNextPage || Boolean(communities.error)).toBe(true)
   }

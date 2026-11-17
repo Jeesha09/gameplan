@@ -39,7 +39,10 @@ describe('Task comment draft', () => {
     cy.intercept('POST', '/api/v2/document/GP%20Draft').as('draftInsert')
     openTask('Discard retry task')
     cy.button('Add a comment').click()
-    cy.get('[contenteditable=true]').last().click().type('Reply to discard')
+    // The composer is the last editor, and it stays read-only while its draft loads. Wait
+    // for it, or the typing lands in the always-editable task description above it.
+    cy.get('[contenteditable]').last().should('have.attr', 'contenteditable', 'true')
+    cy.get('[contenteditable]').last().click().type('Reply to discard')
     cy.wait('@draftInsert')
     cy.get('[contenteditable=true]').last().type('{selectall}{backspace}')
     cy.intercept(

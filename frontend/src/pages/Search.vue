@@ -179,6 +179,21 @@
                 </template>
               </MultiSelect>
 
+              <!-- Document Type Filter -->
+              <MultiSelect
+                variant="outline"
+                :options="doctypesFilterOptions"
+                :model-value="activeFilters.doctype || []"
+                @update:model-value="(values) => updateFilter('doctype', values)"
+                placeholder="Type"
+              >
+                <template #item-suffix="{ item }">
+                  <span v-if="(item.count ?? 0) > 0" class="text-xs text-ink-gray-5">{{
+                    item.count
+                  }}</span>
+                </template>
+              </MultiSelect>
+
               <!-- Tags Filter -->
               <MultiSelect
                 v-if="!publicVisitor"
@@ -243,10 +258,9 @@
                     {{ visibleSearchResults.length === 1 ? 'match' : 'matches' }} ({{
                       searchResponse.summary.duration
                     }}s)
-                    <span v-if="hasActiveFilters()">
+                    <span v-if="activeFilterCount">
                       •
-                      {{ Object.keys(searchResponse.summary.applied_filters || {}).length }}
-                      filter(s) applied
+                      {{ activeFilterCount === 1 ? '1 filter' : `${activeFilterCount} filters` }}
                     </span>
                   </p>
                   <p v-if="searchResponse.summary.corrected_query" class="text-ink-gray-6">

@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import { StorageSerializers, useLocalStorage } from '@vueuse/core'
+import { isAnonymousVisitor } from '@/utils/publicAccess'
 
 /**
  * What's new in Gameplan, read from the Markdown files in `src/changelog/`.
@@ -61,6 +62,8 @@ const seenEntryIds = useLocalStorage<string[] | null>('gameplan:changelogSeen', 
 })
 
 export const unseenEntries = computed(() => {
+  // A visitor who is not signed in has no account menu to open the dialog from.
+  if (isAnonymousVisitor()) return []
   const seen = seenEntryIds.value
   // Anything but an array (absent, or edited by hand) counts as "never opened".
   if (Array.isArray(seen)) return changelogEntries.filter((entry) => !seen.includes(entry.id))

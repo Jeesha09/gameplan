@@ -226,11 +226,6 @@ const spaceDoctype = useDoctype<GPProject>('GP Project')
 // shared runMethod request so the two calls cannot cross-resolve each other's state.
 const spaceVisitApi = useDoctype<GPProject>('GP Project')
 
-/**
- * The space just archived from its own page. The sidebar drops archived spaces, so it keeps
- * this one, dimmed, until the person leaves the page; otherwise the page they are on has no
- * row in the sidebar. Space.vue clears it when that page goes away.
- */
 export function hasJoined(spaceId: MaybeRefOrGetter<string>) {
   return joinedSpaces.data?.includes(toValue(spaceId))
 }
@@ -274,6 +269,11 @@ export function confirmLeaveSpace(space: Space) {
   })
 }
 
+/**
+ * The space just archived from its own page. The sidebar drops archived spaces, so it keeps
+ * this one, dimmed, until the person leaves the page; otherwise the page they are on has no
+ * row in the sidebar. Space.vue clears it when that page goes away.
+ */
 const lingeringArchivedSpaceId = ref<string | null>(null)
 
 export function isLingeringArchivedSpace(spaceId: string) {

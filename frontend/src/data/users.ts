@@ -19,7 +19,7 @@ import { onSocketEvent } from '@/socket'
 import { isAnonymousVisitor } from '@/utils/publicAccess'
 import { sessionUserFromCookie } from '@/utils/sessionCookie'
 
-export type EmailDigestFrequency = 'Off' | 'Weekly'
+export type EmailDigestFrequency = 'Off' | 'Weekly' | 'Fortnightly' | 'Monthly'
 export type EmailDigestDayOfWeek =
   | 'Monday'
   | 'Tuesday'
