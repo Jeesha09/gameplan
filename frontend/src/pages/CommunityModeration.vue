@@ -2,7 +2,7 @@
   <div class="flex min-h-0 flex-1 flex-col text-ink-gray-9">
     <template v-if="canModerate || siteWide">
       <div class="flex min-h-0 flex-1 flex-col sm:flex-row">
-        <Teleport v-if="!isMobileViewport" to="#moderation-sidebar">
+        <Teleport v-if="!isMobileViewport && sidebarTargetReady" to="#moderation-sidebar">
           <Sidebar
             :collapsible="false"
             width="14rem"
@@ -468,6 +468,18 @@ function loadMoreBanCandidatesOnScroll(event: Event) {
 }
 
 onMounted(() => document.addEventListener('scroll', loadMoreBanCandidatesOnScroll, true))
+
+// The sidebar lives in the desktop shell, which can mount after this page when the page's data
+// is already loaded. A Teleport whose target is missing renders nothing and never retries, so it
+// waits for the target.
+const sidebarTargetReady = ref(false)
+let targetFrame = 0
+function waitForSidebarTarget() {
+  if (document.getElementById('moderation-sidebar')) sidebarTargetReady.value = true
+  else targetFrame = requestAnimationFrame(waitForSidebarTarget)
+}
+onMounted(waitForSidebarTarget)
+onBeforeUnmount(() => cancelAnimationFrame(targetFrame))
 onBeforeUnmount(() => document.removeEventListener('scroll', loadMoreBanCandidatesOnScroll, true))
 
 let request = 0

@@ -9,7 +9,7 @@ import {
 import { until } from '@vueuse/core'
 import { call } from 'frappe-ui'
 import { session } from './data/session'
-import { users, usersReady } from './data/users'
+import { useSessionUser, users, usersReady } from './data/users'
 import { communities, getCommunity } from './data/communities'
 import { spaces, getSpace, fetchSpace } from './data/spaces'
 import type { Space } from './data/spaces'
@@ -937,6 +937,14 @@ async function resolveRoute(
     } catch (error) {
       console.error('Error loading users', error)
     }
+  }
+  // The first request can settle before its rows reach the user store. Until they do, the
+  // signed-in user is a placeholder with no role, so a guest would look like a member who
+  // joined nothing and be sent to NoCommunities.
+  if (session.isLoggedIn) {
+    await until(() => !useSessionUser().isPlaceholder || Boolean(users.error)).toBe(true, {
+      timeout: 5000,
+    })
   }
 
   await ensureCommunityDataLoaded()
