@@ -37,3 +37,19 @@ Cypress.on('window:load', (win) => {
   style.textContent = 'flow-launcher { display: none !important; }'
   win.document.head.appendChild(style)
 })
+
+// Cypress clears cookies and localStorage between tests, but not IndexedDB, where
+// frappe-ui caches every resource. Each test wipes the site, so a cached feed from the
+// test before would show rows that no longer exist until the refresh lands, and a quick
+// click opens one of them.
+beforeEach(() => {
+  cy.then(() =>
+    Cypress.automation('remote:debugger:protocol', {
+      command: 'Storage.clearDataForOrigin',
+      params: {
+        origin: new URL(Cypress.config('baseUrl') as string).origin,
+        storageTypes: 'indexeddb',
+      },
+    }),
+  )
+})
