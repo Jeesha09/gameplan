@@ -7,7 +7,7 @@ describe('Discussion slow mode', () => {
   it('retains drafts while waiting, rejects direct posts, and refreshes settings on focus', () => {
     resetData('space_with_discussion').then((ids) => {
       cy.visit(path(ids))
-      cy.selectDropdownOption('Discussion Options', 'Slow mode')
+      cy.selectDropdownOption('Discussion options', 'Slow mode')
       cy.get('[role="dialog"] [role="combobox"]').click()
       cy.contains('[role="option"]', '30 seconds').click()
       cy.get('[role="dialog"]').contains('button', 'Save slow mode').should('be.disabled')
@@ -97,7 +97,7 @@ describe('Discussion slow mode', () => {
       cy.contains('No pending submissions').should('be.visible')
       cy.switchUser('member')
       cy.visit(path(ids))
-      cy.get('button[aria-label="Discussion Options"]').click()
+      cy.get('button[aria-label="Discussion options"]').click()
       cy.contains('[role="menuitem"]', /^Slow mode$/).should('not.exist')
     })
   })

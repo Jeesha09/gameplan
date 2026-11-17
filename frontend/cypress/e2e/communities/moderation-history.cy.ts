@@ -26,7 +26,7 @@ describe('Community moderation history', () => {
       cy.visit(
         `/g/community/${ids.community}/space/${ids.space}/discussion/${ids.discussion}/${ids.discussion_slug}`,
       )
-      cy.selectDropdownOption('Discussion Options', 'Moderation history')
+      cy.selectDropdownOption('Discussion options', 'Moderation history')
       cy.url().should('include', 'kind=discussion')
       cy.contains('No moderation history').should('be.visible')
       const endpoint = `/api/v2/document/GP Discussion/${ids.discussion}/method/`
@@ -60,7 +60,7 @@ describe('Community moderation history', () => {
         cy.visit(
           `/g/community/${ids.community}/space/${ids.space}/discussion/${ids.discussion}/${ids.discussion_slug}`,
         )
-        cy.get(`div[data-id="${name}"] button[aria-label="Comment Options"]`).click()
+        cy.get(`div[data-id="${name}"] button[aria-label="Comment options"]`).click()
         cy.contains('[role="menuitem"]', 'Moderation history').click()
         cy.url().should('include', 'kind=reply')
         rows().should('have.length', 2).and('contain.text', 'Reply history reason')

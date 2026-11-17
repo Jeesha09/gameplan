@@ -130,7 +130,7 @@ describe('Reply moderation', () => {
 
     cy.then(() => {
       reply().should('contain.text', 'Reply moderation browser sentinel')
-      reply().find('button[aria-label="Comment Options"]').click()
+      reply().find('button[aria-label="Comment options"]').click()
       cy.contains('[role="menuitem"]', 'Hide reply').click()
       cy.get('[role="menu"]').should('not.exist')
       cy.get('[role="dialog"] textarea').type('Spam')
@@ -148,7 +148,7 @@ describe('Reply moderation', () => {
 
       cy.switchUser('secondMember')
       cy.then(() => cy.visit(path))
-      reply().find('button[aria-label="Comment Options"]').click()
+      reply().find('button[aria-label="Comment options"]').click()
       cy.contains('[role="menuitem"]', 'Restore reply').click()
       cy.get('[role="menu"]').should('not.exist')
       cy.get('[role="dialog"]').contains('button', 'Restore reply').click()

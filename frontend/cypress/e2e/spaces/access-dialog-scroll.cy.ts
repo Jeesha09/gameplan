@@ -81,7 +81,7 @@ describe('Space access dialog with a long member list', () => {
       } else {
         cy.visit(`/g/community/${ids.community}/space/${ids.private_space}/discussions`)
         cy.get('button[aria-label="Space actions"]:visible').click()
-        cy.contains('[role="menuitem"]', 'Visibility').click()
+        cy.contains('[role="menuitem"]', 'Manage access').click()
       }
       cy.contains('[role="dialog"]', 'Space access').as('access')
       cy.get('@access').contains('Aarav Shah').should('exist')

@@ -59,8 +59,8 @@ describe('Community moderation core', () => {
       cy.switchUser('member')
       cy.visit(path)
       cy.get('button[aria-label="Space actions"]').click()
-      cy.contains('[role="menuitem"]', /^Visibility$/).should('be.visible')
-      cy.contains('[role="menuitem"]', /^Archive$/).should('be.visible')
+      cy.contains('[role="menuitem"]', /^Manage access…$/).should('be.visible')
+      cy.contains('[role="menuitem"]', /^Archive…$/).should('be.visible')
       cy.get('body').type('{esc}')
       cy.switchUser('admin')
       cy.request('POST', '/api/method/gameplan.community_bans.set_ban', {
@@ -74,8 +74,8 @@ describe('Community moderation core', () => {
       cy.contains('Secret thread').should('be.visible')
       cy.get('button[aria-label="Space actions"]').click()
       cy.contains('[role="menuitem"]', /^Copy link$/).should('be.visible')
-      cy.contains('[role="menuitem"]', /^Visibility$/).should('not.exist')
-      cy.contains('[role="menuitem"]', /^Archive$/).should('not.exist')
+      cy.contains('[role="menuitem"]', /^Manage access…$/).should('not.exist')
+      cy.contains('[role="menuitem"]', /^Archive…$/).should('not.exist')
       cy.location('pathname').should('eq', path)
     })
   })
@@ -125,7 +125,7 @@ describe('Community moderation core', () => {
       const path = `/g/community/${ids.community}/space/${ids.space}/discussion/${ids.discussion}/${ids.discussion_slug}`
       cy.switchUser('secondMember')
       cy.visit(path)
-      cy.selectDropdownOption('Discussion Options', 'Hide discussion')
+      cy.selectDropdownOption('Discussion options', 'Hide discussion')
       confirmRemoval('Hide discussion')
       cy.get('#moderation-sidebar').contains('Moderation').should('be.visible')
       cy.contains('Spam review').should('be.visible')
@@ -161,7 +161,7 @@ describe('Community moderation core', () => {
         cy.visit(
           `/g/community/${ids.community}/space/${ids.space}/discussion/${ids.discussion}/${ids.discussion_slug}`,
         )
-        reply().find('button[aria-label="Comment Options"]').click()
+        reply().find('button[aria-label="Comment options"]').click()
         cy.contains('[role="menuitem"]', 'Delete spam').click()
         confirmRemoval('Delete spam')
         reply().should('not.exist')
@@ -202,7 +202,7 @@ describe('Community moderation core', () => {
       cy.visit(`/g/community/${community}/new-discussion?spaceId=${ids.spaces![0]}`)
       cy.get('textarea[placeholder="Title"]').type('Draft in a banned Community')
       cy.contains('button', 'Publish').should('be.disabled')
-      cy.contains('button[aria-haspopup="listbox"]', 'Select Space').filter(':visible').click()
+      cy.contains('button[aria-haspopup="listbox"]', 'Select space').filter(':visible').click()
       cy.contains('[role="option"]', 'Alpha Space').should('not.exist')
       cy.contains('[role="option"]', 'Beta Space').click()
       cy.contains('button', 'Publish').should('not.be.disabled')

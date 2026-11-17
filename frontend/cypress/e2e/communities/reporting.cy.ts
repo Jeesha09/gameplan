@@ -117,7 +117,7 @@ describe('Content reports', () => {
       cy.visit(
         `/g/community/${ids.community}/space/${ids.private_space}/discussion/${ids.discussion}`,
       )
-      cy.selectDropdownOption('Discussion Options', 'Report')
+      cy.selectDropdownOption('Discussion options', 'Report')
       submitReport('Spam', 'Invited Guest report')
     })
   })
@@ -126,12 +126,12 @@ describe('Content reports', () => {
     resetData('space_with_discussion').then((ids) => {
       cy.switchUser('member')
       cy.visit(thread(ids))
-      cy.get('button[aria-label="Discussion Options"]').click()
+      cy.get('button[aria-label="Discussion options"]').click()
       cy.contains('[role="menuitem"]', /^Report$/).should('not.exist')
       cy.get('body').type('{esc}')
       cy.switchUser('secondMember')
       cy.visit(thread(ids))
-      cy.selectDropdownOption('Discussion Options', 'Report')
+      cy.selectDropdownOption('Discussion options', 'Report')
       submitReport('Other', 'Needs moderator review')
       cy.switchUser('member')
       cy.visit(`/g/community/${ids.community}/moderation`)
@@ -163,7 +163,7 @@ describe('Content reports', () => {
         const name = body.data.name
         cy.switchUser('secondMember')
         cy.visit(thread(ids))
-        cy.get(`div[data-id="${name}"] button[aria-label="Comment Options"]`).click()
+        cy.get(`div[data-id="${name}"] button[aria-label="Comment options"]`).click()
         cy.contains('[role="menuitem"]', /^Report$/).click()
         submitReport('Off-topic', 'Reply report')
         cy.switchUser('admin')

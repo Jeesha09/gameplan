@@ -1,6 +1,5 @@
 import { createApp } from 'vue'
 import {
-  FrappeUI,
   Button,
   TextInput,
   ErrorMessage,
@@ -65,8 +64,6 @@ if (import.meta.env.DEV) {
 // Runs once boot values are on `window` (inline script in prod, the dev
 // context call above in dev) so frappe-ui gets its full config in one place.
 function setupApp() {
-  // UnsplashImageBrowser.vue still uses the v1 resources Options API.
-  app.use(FrappeUI, { resources: true })
   setConfig('resourceFetcher', retryOnConflict(frappeRequest))
   setConfig('defaultListUrl', 'gameplan.extends.client.get_list')
   setConfig('systemTimezone', window.system_timezone || null)

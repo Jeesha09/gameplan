@@ -16,7 +16,7 @@ function thread(ids: SeedIds) {
   cy.contains('h1', 'Welcome thread').should('be.visible')
 }
 function editPost(text: string) {
-  cy.selectDropdownOption('Discussion Options', 'Edit')
+  cy.selectDropdownOption('Discussion options', 'Edit')
   cy.get('[contenteditable=true]').should('have.length', 1).click().type(`{selectall}${text}`)
   cy.contains('button', /^\s*Save\s*$/).click()
 }
@@ -173,7 +173,7 @@ it('queues a reply edit and preserves its published original', () => {
       })
       cy.switchUser('member')
       cy.visit(`/g/community/${ids.community}/space/${ids.space}/discussion/${ids.discussion}`)
-      cy.get(`[data-id="${comment}"] button[aria-label="Comment Options"]`).click()
+      cy.get(`[data-id="${comment}"] button[aria-label="Comment options"]`).click()
       cy.contains('[role="menuitem"]', /^Edit$/).click()
       cy.get('[contenteditable=true]').click().type('{selectall}reviewreply proposed edit')
       cy.contains('button', /^\s*Submit\s*$/).click()

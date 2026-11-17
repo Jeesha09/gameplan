@@ -5,7 +5,7 @@
     :button="{
       icon: 'lucide-more-horizontal',
       variant: 'ghost',
-      label: 'Discussion Options',
+      label: 'Discussion options',
     }"
     :options="actions"
   />
