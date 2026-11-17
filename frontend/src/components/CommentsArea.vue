@@ -471,7 +471,8 @@ const comments = useList<GPComment>({
         return
       }
       scrollToItem(linkedComment)
-    } else if (!route.query.fromSearch && comments.data?.length > 0) {
+    } else if (!route.query.fromSearch && !isAnonymousVisitor() && comments.data?.length > 0) {
+      // A member picks up at the latest reply. A public reader starts at the post.
       scrollToEnd()
     }
   },

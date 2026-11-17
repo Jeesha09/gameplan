@@ -1,4 +1,5 @@
 import { resetData } from '../../support/seed'
+import { appSocket } from '../../support/realtime'
 
 // One happy path: member2 mentions member in a reply, member's bell badge picks it up,
 // and "Mark all as read" clears both the list and the badge. Who gets notified (and
@@ -111,11 +112,8 @@ describe('Notifications', () => {
           body: action === 'hide' ? { reason: 'Reviewed elsewhere' } : {},
         }),
       )
-      cy.window().then((win) => {
-        const app = (win.document.querySelector('#app') as any).__vue_app__
-        const handlers = app.config.globalProperties.$socket.listeners(
-          'gameplan:notification_count_changed',
-        )
+      appSocket().then((socket) => {
+        const handlers = socket.listeners('gameplan:notification_count_changed')
         expect(handlers, 'notification event listeners').not.to.be.empty
         handlers.forEach((handler: (payload: unknown) => void) => {
           handler({ count: 0, force_refresh: true })

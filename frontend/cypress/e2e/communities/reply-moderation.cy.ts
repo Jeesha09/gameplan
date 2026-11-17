@@ -1,4 +1,5 @@
 import { resetData } from '../../support/seed'
+import { appSocket } from '../../support/realtime'
 
 describe('Reply moderation', () => {
   it('refreshes an open reader thread when another session hides or restores a reply', () => {
@@ -37,9 +38,7 @@ describe('Reply moderation', () => {
             body: method === 'hide' ? { reason: 'Spam' } : {},
           })
           // Dispatch to mounted listeners; this regression does not need a Socket.IO server.
-          cy.window().then((win) => {
-            const app = (win.document.querySelector('#app') as any).__vue_app__
-            const socket = app.config.globalProperties.$socket
+          appSocket().then((socket) => {
             const listeners = socket.listeners('new_activity')
             expect(listeners, 'mounted activity listeners').not.to.be.empty
             listeners.forEach((listener: (data: unknown) => void) =>

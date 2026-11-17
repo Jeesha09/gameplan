@@ -1,4 +1,5 @@
 import { resetData, type SeedIds } from '../../support/seed'
+import { appSocket } from '../../support/realtime'
 
 // Requires gameplan_public_access_enabled: 1 on the disposable test site.
 
@@ -167,11 +168,8 @@ describe('Public spaces, logged out', () => {
     cy.contains('Core Team').should('not.exist')
 
     // Profile changes are broadcast to the website room, including logged-out visitors.
-    cy.document().then((doc) => {
-      const app = (doc.querySelector('#app') as { __vue_app__?: any } | null)?.__vue_app__
-      const socket = app?.config?.globalProperties?.$socket
-      expect(socket, 'app socket').to.exist
-      socket.listeners('gameplan:users_changed').forEach((listener: () => void) => listener())
+    appSocket().then((socket) => {
+      socket.listeners('gameplan:users_changed').forEach((listener) => listener())
     })
 
     cy.contains('a', 'Welcome to Open Source').click()
