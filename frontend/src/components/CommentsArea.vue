@@ -87,9 +87,7 @@
       />
     </div>
     <div v-if="readOnlyMode && isAnonymousVisitor()" class="mb-20">
-      <PublicJoinPrompt
-        :title="disableNewComment ? 'Follow this community' : 'Join the conversation'"
-      />
+      <PublicJoinPrompt :title="closed ? 'Follow this community' : 'Join the conversation'" />
     </div>
 
     <!-- In an installed PWA the collapsed button clears the home indicator: the 1rem

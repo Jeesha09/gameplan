@@ -274,7 +274,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import {
   PageHeaderBackButton,
   PageHeaderMobile,

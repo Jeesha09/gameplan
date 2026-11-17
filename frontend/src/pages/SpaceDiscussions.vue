@@ -217,7 +217,9 @@ const spaceActions = computed(() => [
         icon: isJoined.value ? 'lucide-log-out' : 'lucide-log-in',
         onClick: () => {
           if (!currentSpace.value) return
-          return isJoined.value ? confirmLeaveSpace(currentSpace.value) : joinSpace(currentSpace.value)
+          return isJoined.value
+            ? confirmLeaveSpace(currentSpace.value)
+            : joinSpace(currentSpace.value)
         },
         condition: () => canChangeMembership.value,
       },

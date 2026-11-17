@@ -160,7 +160,6 @@ const roleChangeEffects: Record<string, string> = {
   'Gameplan Guest': 'They will only see the spaces they are added to.',
 }
 
-
 const search = ref('')
 const sortField = ref<SortField>('name')
 const sortDirection = ref<SortDirection>('asc')

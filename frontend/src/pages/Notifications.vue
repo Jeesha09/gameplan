@@ -49,7 +49,7 @@
     </template>
 
     <LoadError
-      v-else-if="activeList.error && !notifications?.length"
+      v-else-if="activeList.error && !notifications?.length && !loadFailure"
       class="mx-4 sm:mx-3"
       :message="errorText(activeList.error, 'Could not load notifications.')"
       @retry="activeList.reload()"
@@ -119,12 +119,13 @@ import {
 } from 'frappe-ui'
 import { List, ListGroup } from 'frappe-ui/list'
 import ListRowSkeleton from '@/components/ListRowSkeleton.vue'
+import LoadError from '@/components/LoadError.vue'
 import OfflineContentFallback from '@/components/OfflineContentFallback.vue'
 import { useLoadFailure } from '@/data/loadFailure'
 import { refuseOffline } from '@/data/offline/requests'
 import NotificationFilters from '@/components/NotificationFilters.vue'
 import NotificationListRow from '@/components/NotificationListRow.vue'
-import { dayLabel } from '@/utils'
+import { dayLabel, errorText } from '@/utils'
 import {
   hasActiveNotificationFilters,
   notificationDateBounds,

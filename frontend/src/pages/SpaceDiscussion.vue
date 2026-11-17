@@ -13,7 +13,7 @@
       :postId="postId"
       :read-only-mode="
         Boolean(space?.archived_at) ||
-        $readOnlyMode ||
+        readOnlyMode ||
         publicVisitor ||
         isCommunityBanned(space?.team, useSessionUser())
       "
@@ -26,6 +26,7 @@
 import { computed } from 'vue'
 import { isCommunityBanned } from '@/utils/permissions'
 import { useSessionUser } from '@/data/users'
+import { readOnlyMode } from '@/data/readOnlyMode'
 import DiscussionView from '@/components/DiscussionView.vue'
 import SpaceUnavailable from '@/components/SpaceUnavailable.vue'
 import { useSpace } from '@/data/spaces'

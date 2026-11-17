@@ -934,11 +934,6 @@ function updateFilter(type: keyof SearchFilters, values: string[]) {
   submit()
 }
 
-function clearFilters() {
-  activeFilters.value = {}
-  submit()
-}
-
 function addFilter(type: keyof SearchFilters, value: string) {
   if (!activeFilters.value[type]) {
     activeFilters.value[type] = []

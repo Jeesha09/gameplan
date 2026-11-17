@@ -170,6 +170,38 @@ function asSentence(line: string): string {
   return /[.!?]$/.test(capitalized) ? capitalized : `${capitalized}.`
 }
 
+/**
+ * Pull the human-readable text out of a frappe-ui request error.
+ *
+ * `frappeRequest`/`call` put the clean `frappe.throw()` text on the error's
+ * `messages` array (parsed out of `_server_messages`) and leave the noisy
+ * "<method> <ExcType>" string on `message`, so prefer `messages`.
+ */
+export function extractServerMessage(error: unknown): string {
+  if (!(error instanceof Error)) return typeof error === 'string' ? error : ''
+
+  let serverMessages = (error as Error & { messages?: unknown }).messages
+  if (Array.isArray(serverMessages)) {
+    let messages = serverMessages.filter(
+      (message): message is string => typeof message === 'string',
+    )
+    if (messages.length) return stripHtml(messages.join('\n'))
+  }
+  return error.message ? stripHtml(withoutErrorType(error)) : ''
+}
+
+/**
+ * frappe-ui words every /api/v2 error as "<exception type>: <message>". The type is for
+ * code (it is on `error.type`); the person only needs the message.
+ */
+function withoutErrorType(error: Error) {
+  const type = (error as Error & { type?: unknown }).type
+  const prefix = typeof type === 'string' && type ? `${type}: ` : ''
+  return prefix && error.message.startsWith(prefix)
+    ? error.message.slice(prefix.length)
+    : error.message
+}
+
 function stripHtml(value: string) {
   return value.replace(/<[^>]*>/g, '').trim()
 }

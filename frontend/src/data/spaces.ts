@@ -235,22 +235,6 @@ export function hasJoined(spaceId: MaybeRefOrGetter<string>) {
   return joinedSpaces.data?.includes(toValue(spaceId))
 }
 
-export function getSpaceUnreadCount(spaceId: string) {
-  return getProjectUnreadCount(spaceId)
-}
-
-export function trackSpaceVisit(spaceId: string) {
-  return spaceVisitApi.runMethod.submit({
-    method: 'track_visits',
-    params: { spaces: [spaceId] },
-  })
-}
-
-const spaceDoctype = useDoctype<GPProject>('GP Project')
-// Mount-time visit tracking can overlap a menu action. Keep it off spaceDoctype's single
-// shared runMethod request so the two calls cannot cross-resolve each other's state.
-const spaceVisitApi = useDoctype<GPProject>('GP Project')
-
 export function joinSpace(space: Space) {
   return spaceDoctype.runMethod
     .submit({

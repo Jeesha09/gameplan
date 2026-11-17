@@ -160,17 +160,15 @@ import { canReport } from '@/data/reporting'
 import { ref, computed, defineAsyncComponent, useTemplateRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useIntersectionObserver } from '@vueuse/core'
-import {
-  Button,
-  Dropdown,
-  Tooltip,
-  shellScrollContainer,
-  useDoctype,
-  call,
-  toast,
-} from 'frappe-ui'
+import { Button, Dropdown, Tooltip, shellScrollContainer, useDoctype, call, toast } from 'frappe-ui'
 import { useList } from 'frappe-ui'
-import { copyToClipboard, errorText, fullTimestamp, relativeTimestamp } from '@/utils'
+import {
+  copyToClipboard,
+  errorText,
+  extractServerMessage,
+  fullTimestamp,
+  relativeTimestamp,
+} from '@/utils'
 import UserProfileLink from './UserProfileLink.vue'
 import CommentEditor from './editor/CommentEditor.vue'
 import Reactions from './Reactions.vue'
