@@ -25,17 +25,6 @@
         <template #item-prefix="{ item }"
           ><Avatar :image="item.image" :label="item.label" size="sm"
         /></template>
-        <template #footer>
-          <Button
-            v-if="candidateCursor"
-            variant="ghost"
-            class="w-full"
-            :loading="searching"
-            @click="search(candidateCursor)"
-          >
-            Load more users
-          </Button>
-        </template>
       </Combobox>
       <template v-if="chosen">
         <Button variant="solid" icon-left="lucide-shield-ban" @click="edit({ user: chosen })"
