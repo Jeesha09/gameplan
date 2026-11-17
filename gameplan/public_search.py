@@ -86,6 +86,12 @@ class PublicGameplanSearch(GameplanSearch):
 	def get_author_counts(self, authors):
 		return {}
 
+	def _add_reference_titles(self, results):
+		"""Public results carry no parent titles, and the raw candidates may include posts the
+		visitor cannot read, so the parent lookup is skipped. It would also add queries to a
+		search whose cost is fixed."""
+		return
+
 	def _public_results(self, results):
 		live_rows = self._live_rows(results)
 		authors = handles_for({row.owner for row in live_rows.values()})
