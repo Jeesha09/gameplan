@@ -160,9 +160,11 @@ class TestPrivacy(DirectMessagesTestCase):
 			self.assertEqual(call.kwargs["message"]["conversation"], conversation)
 
 	def test_messages_stay_out_of_search(self):
-		self.assertFalse(
-			frappe.db.get_value("DocType", "GP Message", "index_web_pages_for_search"),
-		)
+		# Newer Frappe has no such column, and SQLite would answer with its name.
+		if frappe.db.has_column("DocType", "index_web_pages_for_search"):
+			self.assertFalse(
+				frappe.db.get_value("DocType", "GP Message", "index_web_pages_for_search"),
+			)
 		self.assertNotIn("GP Message", frappe.get_hooks("sqlite_search"))
 
 
@@ -300,11 +302,15 @@ class TestScale(DirectMessagesTestCase):
 	def test_sending_does_not_grow_with_conversation_length_or_other_chats(self):
 		conversation = self.start()
 		with self.as_user(self.member):
+			# Frappe remembers the links it has checked, and the setup below clears that. Send
+			# once before each count, so both counts start with the same warm state.
+			dm.send_message("Hi", conversation=conversation)
 			small = self.count_queries(lambda: dm.send_message("Hi", conversation=conversation))
 		for index in range(5):
 			self.send(self.member, conversation=conversation)
 			self.start(self.member, self.person(f"busy{index}@example.com", f"Busy {index}"))
 		with self.as_user(self.member):
+			dm.send_message("Hi", conversation=conversation)
 			large = self.count_queries(lambda: dm.send_message("Hi", conversation=conversation))
 		self.assertEqual(small, large)
 
