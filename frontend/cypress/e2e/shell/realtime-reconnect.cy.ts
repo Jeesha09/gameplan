@@ -9,8 +9,9 @@ describe('Realtime reconnect', () => {
 
   beforeEach(function () {
     skipUnlessRealtime(this)
-    // Seeds "Welcome thread" by `member`, so it starts unread for `member2`.
-    resetData('space_with_discussion').then((ids) => {
+    // Seeds "Welcome thread" by `member` in a Space `member2` has joined, so it starts
+    // unread for `member2`.
+    resetData('joined_space_with_discussion').then((ids) => {
       community = ids.community as string
       space = ids.space as string
     })

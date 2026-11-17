@@ -239,6 +239,18 @@ def _space_with_discussion():
 	}
 
 
+def _joined_space_with_discussion():
+	"""The member's post in a Space member2 has joined, so it starts unread for member2.
+
+	An open Space marks a post unread only for its members and the discussion's
+	participants, so member2 must be a member for new posts to count for them.
+	"""
+	community = _create_community("Acme")
+	space = _create_space("Engineering", community, members=[SECOND_MEMBER])
+	discussion = _create_discussion("Welcome thread", space.name)
+	return {"community": community.name, "space": space.name, "discussion": discussion.name}
+
+
 def _private_space_with_guest():
 	community = _create_community("Acme")
 	general = _general_space(community)
@@ -415,6 +427,7 @@ def _public_space():
 SCENARIOS = {
 	"onboarded": _onboarded,
 	"space_with_discussion": _space_with_discussion,
+	"joined_space_with_discussion": _joined_space_with_discussion,
 	"private_space_with_guest": _private_space_with_guest,
 	"search_page": _search_page,
 	"two_communities": _two_communities,

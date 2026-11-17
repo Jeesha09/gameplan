@@ -96,7 +96,7 @@ describe('A shared browser', () => {
     cy.intercept('GET', '/g', (request) => {
       started = true
       request.continue((response) => response.setDelay(2000))
-    }).as('oldShell')
+    })
     cy.clearCookies()
     cy.window().then(async (win) => {
       for (const name of await win.caches.keys()) {
@@ -108,8 +108,11 @@ describe('A shared browser', () => {
     })
     cy.wrap(null).should(() => expect(started, 'Guest shell request started').to.be.true)
 
+    // `switchUser` stops the workers, so the delayed request is normally aborted and never
+    // answers. Wait out the delay instead of for a response: if one does land, it must not
+    // change the account.
     cy.switchUser('secondMember')
-    cy.wait('@oldShell')
+    cy.wait(2500) // eslint-disable-line cypress/no-unnecessary-waiting
     cy.request('/api/method/frappe.auth.get_logged_user').then((response) => {
       expect(response.status).to.eq(200)
       expect(response.body.message).to.eq(personas.secondMember.email)

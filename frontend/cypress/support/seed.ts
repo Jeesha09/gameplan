@@ -6,6 +6,7 @@ import { unloadApp } from './personas'
 export type Scenario =
   | 'onboarded'
   | 'space_with_discussion'
+  | 'joined_space_with_discussion'
   | 'private_space_with_guest'
   | 'search_page'
   | 'two_communities'
