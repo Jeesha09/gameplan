@@ -203,6 +203,7 @@ doc_events = {
 			"gameplan.new_user_limits.check_new_user_limits",
 			"gameplan.slow_mode.protect_settings",
 			"gameplan.watched_word_actions.validate",
+			"gameplan.site_settings.check_post",
 		],
 		"after_insert": [
 			"gameplan.new_user_limits.record_first_day_post",
@@ -230,6 +231,7 @@ doc_events = {
 			"gameplan.new_user_limits.check_new_user_limits",
 			"gameplan.reporting.protect_pending_reviews",
 			"gameplan.watched_word_actions.validate",
+			"gameplan.site_settings.check_post",
 		],
 		"after_insert": [
 			"gameplan.new_user_limits.record_first_day_post",
@@ -239,10 +241,11 @@ doc_events = {
 		"after_delete": "gameplan.activity_counts.refresh_owner_counts",
 	},
 	"GP Poll": {
-		"validate": "gameplan.new_user_limits.check_new_user_limits",
+		"validate": ["gameplan.new_user_limits.check_new_user_limits", "gameplan.site_settings.check_poll"],
 		"after_insert": "gameplan.new_user_limits.record_first_day_post",
 	},
 	"User": {
+		"before_insert": "gameplan.site_settings.check_email_domain",
 		"after_insert": "gameplan.gameplan.doctype.gp_user_profile.gp_user_profile.create_user_profile",
 		"on_trash": [
 			"gameplan.gameplan.doctype.gp_user_profile.gp_user_profile.delete_user_profile",
@@ -253,7 +256,10 @@ doc_events = {
 			"gameplan.restrictions.clear_state",
 			"gameplan.trust_levels.delete_user_rows",
 		],
-		"on_update": "gameplan.gameplan.doctype.gp_user_profile.gp_user_profile.on_user_update",
+		"on_update": [
+			"gameplan.gameplan.doctype.gp_user_profile.gp_user_profile.on_user_update",
+			"gameplan.site_settings.join_default_communities",
+		],
 	},
 }
 

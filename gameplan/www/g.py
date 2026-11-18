@@ -14,6 +14,7 @@ from gameplan import __version__, is_new_site
 from gameplan.public_access import public_access_enabled
 from gameplan.public_seo import get_public_page
 from gameplan.roles import has_app_access
+from gameplan.site_settings import boot_settings
 
 no_cache = 1
 
@@ -58,6 +59,7 @@ def get_boot():
 			# show; the server enforces each on its own.
 			"public_access_enabled": public_access_enabled(),
 			"signup_enabled": not cint(frappe.get_website_settings("disable_signup")),
+			"site_settings": boot_settings(),
 		}
 	)
 

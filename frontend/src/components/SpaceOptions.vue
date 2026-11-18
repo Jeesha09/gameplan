@@ -18,7 +18,8 @@
   <SpaceAccessDialog v-model="showSpaceAccessDialog" :spaceId="props.spaceId" />
 </template>
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, inject } from 'vue'
+import { panelAsPage } from '@/components/Settings'
 import { useDoctype, dialog } from 'frappe-ui'
 import DropdownMoreOptions from './DropdownMoreOptions.vue'
 import MergeSpaceDialog from './MergeSpaceDialog.vue'
@@ -45,13 +46,14 @@ const spaces = useDoctype<GPProject>('GP Project')
 const showSpaceMergeDialog = ref(false)
 const showSpaceCategoryDialog = ref(false)
 const showSpaceAccessDialog = ref(false)
+const asPage = inject(panelAsPage, false)
 
 const options = computed(() => [
   {
     label: 'Visibility',
     icon: 'lucide-eye',
     onClick: () => (showSpaceAccessDialog.value = true),
-    condition: () => canManageAccess.value,
+    condition: () => !asPage && canManageAccess.value,
   },
   {
     label: 'Change Community',

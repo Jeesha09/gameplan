@@ -59,6 +59,7 @@ export const IMAGE_UPLOAD_KINDS = {
     optimize: false,
     extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'],
   },
+  siteLogo: { private: false, optimize: false, extensions: ['png', 'jpg', 'jpeg', 'webp'] },
 } as const satisfies Record<string, ImageUploadSpec>
 
 interface ImageUploadSpec {

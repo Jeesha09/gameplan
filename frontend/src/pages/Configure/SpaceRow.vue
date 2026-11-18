@@ -1,7 +1,7 @@
 <template>
   <!-- Phones draw a second line of details under the name, so the row grows to fit;
        desktop keeps its one-line 40px. -->
-  <ListRow class="max-md:h-auto max-md:py-3 md:h-10">
+  <ListRow class="max-md:h-auto max-md:py-3" :class="asPage ? 'md:h-12' : 'md:h-10'">
     <ListCell>
       <IconPicker :modelValue="space.icon || ''" @update:modelValue="updateIcon">
         <template #default="{ togglePopover }">
@@ -37,7 +37,7 @@
         </div>
         <div class="mt-0.5 truncate text-sm text-ink-gray-5 md:hidden">
           {{
-            [visibilityTier(space.visibility), contentLabel, guestsLabel]
+            [visibilityTier(space.visibility), !asPage && contentLabel, guestsLabel]
               .filter(Boolean)
               .join(' · ')
           }}
@@ -45,7 +45,25 @@
       </div>
     </ListCell>
 
-    <ListCell class="max-md:hidden">
+    <ListCell v-if="asPage" class="max-md:hidden">
+      <Button
+        v-if="canChangeVisibility"
+        size="xs"
+        variant="ghost"
+        :label="visibilityTier(space.visibility)"
+        icon-right="lucide-arrow-up-right text-ink-gray-5"
+        @click="showAccessDialog = true"
+      />
+      <div v-else class="w-full truncate px-1.5 text-sm text-ink-gray-5">
+        {{ visibilityTier(space.visibility) }}
+      </div>
+      <SpaceAccessDialog
+        v-if="canChangeVisibility"
+        v-model="showAccessDialog"
+        :spaceId="space.name"
+      />
+    </ListCell>
+    <ListCell v-else class="max-md:hidden">
       <div class="w-full truncate text-sm text-ink-gray-5">{{ contentLabel }}</div>
     </ListCell>
 
@@ -55,7 +73,7 @@
 
     <ListCell class="justify-end gap-1">
       <Button
-        v-if="!space.archived_at"
+        v-if="!space.archived_at && !asPage"
         variant="ghost"
         :icon="isSpaceNotifying(space.name) ? 'lucide-bell' : 'lucide-bell-off'"
         :tooltip="isSpaceNotifying(space.name) ? 'Notifications on' : 'Notifications off'"
@@ -75,14 +93,22 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, inject } from 'vue'
+import { panelAsPage } from '@/components/Settings'
 import { Button, useDoctype } from 'frappe-ui'
 import { ListCell, ListRow } from 'frappe-ui/list'
 import IconPicker from '@/components/IconPicker.vue'
+import SpaceAccessDialog from '@/components/SpaceAccessDialog.vue'
 import SpaceIcon from '@/components/SpaceIcon.vue'
 import SpaceOptions from '@/components/SpaceOptions.vue'
 import { isSpaceNotifying, toggleSpaceNotifications } from '@/data/spaceNotifications'
-import { isDocMethodLoading, spaces, type Space, unarchiveSpace } from '@/data/spaces'
+import {
+  isDocMethodLoading,
+  spaces,
+  type Space,
+  unarchiveSpace,
+  useSpacePermissions,
+} from '@/data/spaces'
 import { readOnlyMode } from '@/data/readOnlyMode'
 import { useSessionUser } from '@/data/users'
 import type { GPProject } from '@/types/doctypes'
@@ -172,4 +198,9 @@ function formatCount(count: number, label: string) {
 function formatNonZeroCount(count: number, label: string) {
   return count > 0 ? formatCount(count, label) : null
 }
+
+const asPage = inject(panelAsPage, false)
+const showAccessDialog = ref(false)
+const { canManageAccess } = useSpacePermissions(() => props.space.name)
+const canChangeVisibility = computed(() => !props.space.archived_at && canManageAccess.value)
 </script>

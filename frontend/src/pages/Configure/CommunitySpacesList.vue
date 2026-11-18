@@ -10,17 +10,24 @@
     v-if="filteredSpaces.length"
     :columns="{
       base: ['minmax(0,1fr)', 'auto'],
-      md: hasGuests
-        ? ['minmax(12rem,1fr)', '10rem', '4rem', '4rem']
-        : ['minmax(12rem,1fr)', '10rem', '4rem'],
+      md: [
+        'minmax(12rem,1fr)',
+        ...(asPage ? ['8rem'] : ['10rem']),
+        ...(hasGuests ? ['4rem'] : []),
+        '4rem',
+      ],
     }"
     class="list-gap-12 max-md:list-gap-1"
   >
     <!-- Sticky at the settings scroll-viewport top — it rests exactly where it
          pins, so it never visibly moves. -->
-    <ListHeader class="sticky top-0 z-10 bg-surface-elevation-1 max-md:hidden">
+    <ListHeader
+      class="max-md:hidden"
+      :class="{ 'sticky top-0 z-10 bg-surface-elevation-1': !asPage }"
+    >
       <ListHeaderCell>Space</ListHeaderCell>
-      <ListHeaderCell>Content</ListHeaderCell>
+      <ListHeaderCell v-if="asPage" class="px-1.5">Visibility</ListHeaderCell>
+      <ListHeaderCell v-else>Content</ListHeaderCell>
       <ListHeaderCell v-if="hasGuests">Guests</ListHeaderCell>
       <ListHeaderCell />
     </ListHeader>
@@ -71,7 +78,8 @@ import ConfigureEmptyState from './ConfigureEmptyState.vue'
 import SpaceRow from './SpaceRow.vue'
 import CommunitySpacesListControls from './CommunitySpacesListControls.vue'
 import { useCommunitySpaceData } from './useCommunitySpaceData'
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
+import { panelAsPage } from '@/components/Settings'
 import { matchesVisibility, type VisibilityFilter } from '@/utils/visibility'
 
 const props = withDefaults(
@@ -111,4 +119,6 @@ function clearFilters() {
   visibilityFilter.value = 'All'
   search.value = ''
 }
+
+const asPage = inject(panelAsPage, false)
 </script>

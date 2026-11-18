@@ -13,7 +13,7 @@
               size="md"
               icon="lucide-user-plus-2"
               label="Invite"
-              @click="showSettingsDialog('Users')"
+              @click="$router.push({ name: 'AdminSettings', query: { tab: 'users' } })"
             />
           </template>
         </PageHeaderMobile>
@@ -47,7 +47,7 @@
                 class="hidden sm:inline-flex"
                 variant="solid"
                 icon-left="lucide-user-plus-2"
-                @click="showSettingsDialog('Users')"
+                @click="$router.push({ name: 'AdminSettings', query: { tab: 'users' } })"
               >
                 Invite
               </Button>
@@ -265,7 +265,6 @@ import {
   usePageMeta,
 } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCellSort, ListRow } from 'frappe-ui/list'
-import { showSettingsDialog } from '@/components/Settings'
 import { isGameplanAdmin, loadMemberCount, memberCount, useUser } from '@/data/users'
 import {
   people,

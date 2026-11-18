@@ -31,17 +31,27 @@
     v-else-if="filteredCommunities.length"
     :columns="{
       base: ['minmax(0,1fr)', 'auto'],
-      md: ['minmax(12rem,6fr)', 'minmax(6rem,1.2fr)', 'minmax(6rem,1.2fr)', '5.75rem'],
+      md: [
+        'minmax(12rem,6fr)',
+        'minmax(6rem,1.2fr)',
+        'minmax(6rem,1.2fr)',
+        ...(asPage ? ['8rem'] : []),
+        '5.75rem',
+      ],
     }"
     class="list-gap-12 max-md:list-gap-2"
   >
     <!-- Sticky at the settings scroll-viewport top — it rests exactly where it
          pins, so it never visibly moves. px-1.5 aligns the labels with the
          ghost-button text in the rows below. -->
-    <ListHeader class="sticky top-0 z-10 bg-surface-elevation-1 max-md:hidden">
+    <ListHeader
+      class="max-md:hidden"
+      :class="{ 'sticky top-0 z-10 bg-surface-elevation-1': !asPage }"
+    >
       <ListHeaderCell>Community</ListHeaderCell>
       <ListHeaderCell class="px-1.5">Spaces</ListHeaderCell>
       <ListHeaderCell class="px-1.5">Members</ListHeaderCell>
+      <ListHeaderCell v-if="asPage" class="px-1.5">Visibility</ListHeaderCell>
       <!-- Join/Leave and the options button share the last column so both hug
            the right edge. It is 5.75rem: the 4rem membership button, the gap,
            and the 1.5rem options button. Anything narrower spills left over the
@@ -73,7 +83,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, watch, inject } from 'vue'
+import { panelAsPage } from '@/components/Settings'
 import { Button } from 'frappe-ui'
 import { List, ListHeader, ListHeaderCell } from 'frappe-ui/list'
 import { communities } from '@/data/communities'
@@ -141,4 +152,6 @@ function clearFilters() {
   visibilityFilter.value = 'All'
   search.value = ''
 }
+
+const asPage = inject(panelAsPage, false)
 </script>

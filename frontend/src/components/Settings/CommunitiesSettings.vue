@@ -2,7 +2,7 @@
   <!-- No `title` prop: the header carries controls, so the panel keeps its own
        heading and hides it on phones, where the page header names the tab. -->
   <PanelHeader>
-    <div class="w-full max-w-[800px]">
+    <div class="w-full" :class="{ 'max-w-[800px]': !asPage }">
       <!-- Selected community: back button, title, and the Spaces/Members switcher.
            On a phone this is the page's own header (see below), so there is one
            header, not two. -->
@@ -14,10 +14,7 @@
           <template #prefix>
             <!-- Walks history like every other page's back button, and falls back to
                  the communities list when there is none (a cold deep link). -->
-            <PageHeaderBackButton
-              label="Back to communities"
-              :fallback-route="{ name: 'SettingsTab', params: { tab: 'communities' } }"
-            />
+            <PageHeaderBackButton label="Back to communities" :fallback-route="listRoute" />
           </template>
           <template #default>{{ selectedCommunity?.title || 'Community' }}</template>
           <template #suffix>
@@ -29,7 +26,8 @@
             />
           </template>
         </PageHeaderMobile>
-        <div class="flex items-center gap-2 max-sm:hidden">
+        <div :class="{ 'flex items-center gap-4 pb-3': asPage }">
+        <div v-if="!asPage" class="flex shrink-0 items-center gap-2 max-sm:hidden">
           <Button
             variant="subtle"
             size="xs"
@@ -47,7 +45,7 @@
              which lives at the top of the scroll viewport in each list. -->
         <CommunitySpacesListControls
           v-if="selectedCommunity && view === 'spaces'"
-          class="mt-4 pb-3"
+          :class="asPage ? 'min-w-0 flex-1' : 'mt-4 pb-3'"
           :community-id="selectedCommunityId"
           v-model:search="spaceSearch"
           v-model:visibility-filter="spaceFilter"
@@ -56,7 +54,7 @@
             <!-- Icon alone on phones, where the search needs the width. -->
             <div class="flex shrink-0 items-center gap-2">
               <Button
-                v-if="liveSpaces.length"
+                v-if="liveSpaces.length && !asPage"
                 :icon="isPhone ? notifyAllIcon : undefined"
                 :icon-left="isPhone ? undefined : notifyAllIcon"
                 :label="allSpacesNotifying ? 'Disable all' : 'Notify all'"
@@ -80,7 +78,7 @@
 
         <CommunityMembersListControls
           v-if="selectedCommunity && view === 'members'"
-          class="mt-4 pb-3"
+          :class="asPage ? 'min-w-0 flex-1' : 'mt-4 pb-3'"
           v-model:search="memberSearch"
         >
           <template #action>
@@ -94,18 +92,19 @@
             />
           </template>
         </CommunityMembersListControls>
+        </div>
       </template>
 
       <!-- Communities list -->
       <template v-else>
-        <h2 class="text-md-semibold text-ink-gray-8 max-sm:hidden">Communities</h2>
+        <h2 v-if="!asPage" class="text-md-semibold text-ink-gray-8 max-sm:hidden">Communities</h2>
 
         <!-- pb-3 keeps the gap to the column header, which lives at the top
              of the scroll viewport (a sticky ListHeader in CommunitiesList)
              instead of being duplicated here. -->
         <!-- One line on every width: on phones the search box gives up its width and the
              two actions are icons. -->
-        <div class="mt-4 flex items-center justify-between gap-3 pb-3">
+        <div class="flex items-center justify-between gap-3 pb-3" :class="{ 'mt-4': !asPage }">
           <CommunitiesListFilters
             class="min-w-0 flex-1 sm:flex-none"
             v-model:search="search"
@@ -117,6 +116,7 @@
             <!-- Beside "New community" the header has no room to spare, so a
                  manager gets the icon alone and the label in a tooltip. -->
             <Button
+              v-if="!asPage"
               :icon="showNewCommunityButton || isPhone ? 'lucide-settings-2' : undefined"
               :icon-left="showNewCommunityButton || isPhone ? undefined : 'lucide-settings-2'"
               :tooltip="showNewCommunityButton || isPhone ? 'Customize sidebar' : undefined"
@@ -144,7 +144,7 @@
   <NewSpaceDialog v-model="newSpaceDialog" :locked-community-id="selectedCommunityId || ''" />
 
   <PanelBody>
-    <div class="w-full max-w-[800px] pt-0">
+    <div class="w-full pt-0" :class="{ 'max-w-[800px]': !asPage }">
       <template v-if="selectedCommunityId">
         <ConfigureEmptyState
           v-if="!selectedCommunity"
@@ -196,7 +196,7 @@
 // Declared so the parent's @close-dialog isn't treated as a failed attribute
 // fallthrough (this component renders a fragment); it simply isn't emitted here.
 defineEmits<{ (e: 'close-dialog'): void }>()
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, inject, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Button, PageHeaderBackButton, PageHeaderMobile, Select } from 'frappe-ui'
 import NewSpaceDialog from '@/components/NewSpaceDialog.vue'
@@ -205,7 +205,7 @@ import {
   openCustomizeSidebarDialog,
   showCustomizeSidebarDialog,
 } from '@/components/AppRail/customizeSidebar'
-import { panelOwnsPageHeader } from './index'
+import { panelAsPage, panelOwnsPageHeader } from './index'
 import PanelHeader from './PanelHeader.vue'
 import PanelBody from './PanelBody.vue'
 import { communities } from '@/data/communities'
@@ -234,21 +234,30 @@ const sessionUser = useSessionUser()
 // entering a community, switching views, and going "back" are all real router
 // navigations (browser/OS back button included). The list is shown when no
 // community is in the URL (the plain /settings/communities tab).
-const selectedCommunityId = computed(() =>
-  route.name === 'SettingsCommunity' ? String(route.params.communityId) : null,
-)
+const asPage = inject(panelAsPage, false)
+const listRoute = asPage
+  ? { name: 'AdminSettings', query: { tab: 'communities' } }
+  : { name: 'SettingsTab', params: { tab: 'communities' } }
+
+function communityRoute(communityId: string, view: CommunityView) {
+  return asPage
+    ? { name: 'AdminSettings', query: { tab: 'communities', community: communityId, view } }
+    : { name: 'SettingsCommunity', params: { communityId, view } }
+}
+
+const selectedCommunityId = computed(() => {
+  if (asPage) return route.query.community ? String(route.query.community) : null
+  return route.name === 'SettingsCommunity' ? String(route.params.communityId) : null
+})
 const view = computed<CommunityView>({
-  get: () => (route.params.view === 'members' ? 'members' : 'spaces'),
+  get: () => ((asPage ? route.query.view : route.params.view) === 'members' ? 'members' : 'spaces'),
   set: (nextView) => {
     if (!selectedCommunityId.value) return
     // replace, not push: the URL carries the view so it can be linked to, but
     // switching Spaces/Members inside one community is not navigation. Pushing it
     // stacked a history entry per toggle, so going back walked through the toggles
     // instead of leaving the community.
-    router.replace({
-      name: 'SettingsCommunity',
-      params: { communityId: selectedCommunityId.value, view: nextView },
-    })
+    router.replace(communityRoute(selectedCommunityId.value, nextView))
   },
 })
 // Filter state; controls live in the fixed header for each view.
@@ -306,15 +315,15 @@ const allSpacesNotifying = computed(() =>
 const notifyAllIcon = computed(() => (allSpacesNotifying.value ? 'lucide-bell-off' : 'lucide-bell'))
 
 function openCommunitySpaces(communityId: string) {
-  router.push({ name: 'SettingsCommunity', params: { communityId, view: 'spaces' } })
+  router.push(communityRoute(communityId, 'spaces'))
 }
 
 function openCommunityMembers(communityId: string) {
-  router.push({ name: 'SettingsCommunity', params: { communityId, view: 'members' } })
+  router.push(communityRoute(communityId, 'members'))
 }
 
 function showCommunities() {
-  router.push({ name: 'SettingsTab', params: { tab: 'communities' } })
+  router.push(listRoute)
 }
 
 // Clear a community's search/filter state when entering, leaving, or switching

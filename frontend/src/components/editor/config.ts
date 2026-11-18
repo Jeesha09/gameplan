@@ -14,6 +14,7 @@ import TextEditorMentionComponent from '@/components/TextEditorMentionComponent.
 import MentionList, { type MentionItem } from '@/components/editor/MentionList.vue'
 import { searchUsers } from '@/data/users'
 import { tags as tagList } from '@/data/tags'
+import { siteSettings } from '@/data/siteSettings'
 import { loadDiscussionPreview } from '@/data/discussionPreviews'
 import { discussionHref, parseDiscussionUrl } from '@/utils/discussionLinks'
 
@@ -226,7 +227,7 @@ export function suggestionConfig(suggestions = true) {
       items: null,
       nodeView: TextEditorMentionComponent as Component,
     },
-    tag: { items: suggestions ? tagItems : null },
+    tag: { items: suggestions && siteSettings.tags_enabled ? tagItems : null },
   }
 }
 

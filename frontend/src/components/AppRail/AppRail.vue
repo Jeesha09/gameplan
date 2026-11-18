@@ -106,10 +106,11 @@ import { SidebarRail, SidebarRailItem } from 'frappe-ui'
 import type { RouteLocationRaw } from 'vue-router'
 import { communityState } from '@/data/communityState'
 import { activeCommunities, communities } from '@/data/communities'
-import { canModerateCommunity } from '@/utils/permissions'
+import { canModerateCommunity, isGlobalAdmin } from '@/utils/permissions'
 import type { Community } from '@/data/communities'
 import { draftCount } from '@/data/drafts'
 import { messagesEnabled, unreadConversations } from '@/data/messages'
+import { siteSettings } from '@/data/siteSettings'
 import { unreadNotifications } from '@/data/notifications'
 import { currentSidebarBadgeStyle } from '@/data/sidebarPreferences'
 import { getSpaceUnreadCount, spaces } from '@/data/spaces'
@@ -162,12 +163,26 @@ const shortcuts = computed<RailShortcut[]>(() => [
         },
       ]
     : []),
-  {
-    label: 'Search',
-    icon: 'lucide-search',
-    isActive: isRoute('Search'),
-    route: { name: 'Search' },
-  },
+  ...(isGlobalAdmin(sessionUser)
+    ? [
+        {
+          label: 'Admin settings',
+          icon: 'lucide-monitor-cog',
+          isActive: isRoute('AdminSettings'),
+          route: { name: 'AdminSettings' },
+        },
+      ]
+    : []),
+  ...(siteSettings.search_enabled
+    ? [
+        {
+          label: 'Search',
+          icon: 'lucide-search',
+          isActive: isRoute('Search'),
+          route: { name: 'Search' },
+        },
+      ]
+    : []),
   {
     label: 'People',
     icon: 'lucide-users-2',

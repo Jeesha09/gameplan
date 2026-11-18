@@ -23,7 +23,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, inject } from 'vue'
+import { panelAsPage } from '@/components/Settings'
 import { dialog, Dropdown, useDoctype } from 'frappe-ui'
 import { communities } from '@/data/communities'
 import { isGameplanAdmin } from '@/data/users'
@@ -47,21 +48,25 @@ const showMergeDialog = ref(false)
 const showVisibilityDialog = ref(false)
 
 const options = computed(() => [
-  {
-    label: 'View spaces',
-    icon: 'lucide-layout-grid',
-    onClick: () => emit('view-spaces', props.community.name),
-  },
-  {
-    label: 'View members',
-    icon: 'lucide-users-2',
-    onClick: () => emit('view-members', props.community.name),
-  },
+  ...(asPage
+    ? []
+    : [
+        {
+          label: 'View spaces',
+          icon: 'lucide-layout-grid',
+          onClick: () => emit('view-spaces', props.community.name),
+        },
+        {
+          label: 'View members',
+          icon: 'lucide-users-2',
+          onClick: () => emit('view-members', props.community.name),
+        },
+      ]),
   {
     label: 'Visibility',
     icon: 'lucide-eye',
     onClick: () => (showVisibilityDialog.value = true),
-    condition: () => !props.community.archived_at && isGameplanAdmin(),
+    condition: () => !asPage && !props.community.archived_at && isGameplanAdmin(),
   },
   {
     label: 'Merge into...',
@@ -106,4 +111,6 @@ async function updateArchiveState(method: 'archive' | 'unarchive') {
 function redirectAfterMerge(communityId: string) {
   emit('merged', communityId)
 }
+
+const asPage = inject(panelAsPage, false)
 </script>

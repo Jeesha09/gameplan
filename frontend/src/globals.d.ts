@@ -41,6 +41,7 @@ declare global {
     public_access_enabled?: boolean
     /** Boot data: whether the site lets people create their own account. */
     signup_enabled?: boolean
+    site_settings?: Partial<import('./data/siteSettings').SiteSettings>
   }
 }
 

@@ -19,6 +19,7 @@ import { getPlatform } from './utils'
 import { useUser, users } from './data/users'
 import { isSessionUser, session } from './data/session'
 import { initSocket } from './socket'
+import { loadSiteSettings } from './data/siteSettings'
 import { installErrorReporting } from './utils/errorReporting'
 import { retryOnConflict } from './utils/retryOnConflict'
 import { clearCachesOnUserSwitch, setupOfflineSupport } from './offline'
@@ -73,6 +74,7 @@ function setupApp() {
   setConfig('defaultListUrl', 'gameplan.extends.client.get_list')
   setConfig('systemTimezone', window.system_timezone || null)
   setConfig('maxFileSize', window.max_file_size ? Number(window.max_file_size) : null)
+  loadSiteSettings()
   socket = initSocket()
   app.config.globalProperties.$socket = socket
   // A switched user's data goes before the first component can read it. If it could not be

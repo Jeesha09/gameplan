@@ -112,6 +112,7 @@ import { h, ref, computed, onBeforeUnmount, watch, nextTick, markRaw, useTemplat
 import { useEventListener, useMediaQuery } from '@vueuse/core'
 import { useRouter } from 'vue-router'
 import { Dialog, ScrollArea, dayjs, debounce, useCall, useNewDoc } from 'frappe-ui'
+import { siteSettings } from '@/data/siteSettings'
 import { isGameplanAdmin, useSessionUser, useUser, useUserSearch } from '@/data/users'
 import ItemProject from './ItemProject.vue'
 import Item from './Item.vue'
@@ -135,6 +136,7 @@ import {
   type SearchResultItem,
 } from './registry'
 import { useCommandPaletteSearch } from './useCommandPaletteSearch'
+import { adminSections } from '@/components/AdminSettings/sections'
 
 const query = ref('')
 const inputRef = useTemplateRef<HTMLInputElement>('inputRef')
@@ -223,17 +225,53 @@ const transformedSearchResults = computed(() => {
     .filter((group) => group.items.length > 0)
 })
 
+const adminSettingItems: CommandPaletteItem[] = adminSections.flatMap((section) => [
+  {
+    title: section.label,
+    name: `admin-${section.id}`,
+    icon: section.icon,
+    search: [
+      'Admin settings',
+      section.label,
+      section.keywords,
+      ...section.groups.map((group) => group.heading),
+    ]
+      .filter(Boolean)
+      .join(' '),
+    suffix: 'Admin settings',
+    defaultScore: 0,
+    route: { name: 'AdminSettings', query: { tab: section.id } },
+  },
+  ...section.groups.flatMap((group) =>
+    group.settings.map((setting) => ({
+      title: setting.label,
+      name: `admin-setting-${setting.key}`,
+      icon: section.icon,
+      suffix: section.label,
+      search: [setting.label, group.heading, group.title, setting.description]
+        .filter(Boolean)
+        .join(' '),
+      defaultScore: 0,
+      route: { name: 'AdminSettings', query: { tab: section.id, setting: setting.key } },
+    })),
+  ),
+])
+
 const shortcuts = computed((): CommandPaletteGroup[] => [
   {
     title: 'Jump to',
     items: [
-      {
-        title: 'Advanced Search',
-        name: 'search',
-        icon: 'lucide-search',
-        aliases: ['full text search', 'find'],
-        route: { name: 'Search' },
-      },
+      ...(siteSettings.search_enabled
+        ? [
+            {
+              title: 'Advanced Search',
+              name: 'search',
+              icon: 'lucide-search',
+              aliases: ['full text search', 'find'],
+              route: { name: 'Search' },
+            },
+          ]
+        : []),
       {
         title: 'Home',
         name: 'home',
@@ -341,16 +379,11 @@ const shortcuts = computed((): CommandPaletteGroup[] => [
         // Matches the Communities settings tab: everyone browses it, to join or leave.
         condition: () => !sessionUser.isGuest,
       },
-      {
-        title: 'Users',
-        name: 'settings-users',
-        icon: 'lucide-users',
-        search: 'Settings Users members invite users administration',
-        aliases: ['members', 'invite users', 'administration'],
-        onClick: () => showSettingsDialog('Users'),
-        condition: () => isGameplanAdmin(sessionUser),
-      },
     ].filter((item) => (item.condition ? item.condition() : true)),
+  },
+  {
+    title: 'Admin settings',
+    items: isGameplanAdmin(sessionUser) ? adminSettingItems : [],
   },
   {
     title: (() => {

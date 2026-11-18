@@ -1,7 +1,6 @@
 import { computed, markRaw } from 'vue'
 import { isGameplanAdmin, useSessionUser } from '@/data/users'
 import type { Tab } from './index'
-import MembersSettings from './MembersSettings.vue'
 import CommunitiesSettings from './CommunitiesSettings.vue'
 import NotificationsSettings from './NotificationsSettings.vue'
 import ProfileSettings from './ProfileSettings.vue'
@@ -58,14 +57,6 @@ const allTabs: SettingsTab[] = [
     group: 'App settings',
     icon: 'lucide-smile-plus',
     component: markRaw(CustomEmojiSettings),
-    adminOnly: true,
-  },
-  {
-    label: 'Users',
-    slug: 'users',
-    group: 'Administration',
-    icon: 'lucide-users',
-    component: markRaw(MembersSettings),
     adminOnly: true,
   },
 ]

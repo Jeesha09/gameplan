@@ -3,7 +3,10 @@
        SettingsHeader. On a phone the panel is a page whose own header already names
        the tab (pages/SettingsPage.vue), so the title is dropped and only the
        controls — search, filters, actions — are drawn. -->
-  <SettingsHeader v-if="!isPhone">
+  <div v-if="asPage" class="body-container shrink-0 pt-5">
+    <slot />
+  </div>
+  <SettingsHeader v-else-if="!isPhone">
     <div v-if="title" class="flex flex-col gap-4">
       <h2 class="text-md-semibold text-ink-gray-8">{{ title }}</h2>
       <slot />
@@ -16,8 +19,10 @@
 </template>
 
 <script setup lang="ts">
+import { inject } from 'vue'
 import { SettingsHeader } from 'frappe-ui'
 import { useIsMobile } from '@/utils/useIsMobile'
+import { panelAsPage } from './index'
 
 defineProps<{
   /**
@@ -34,4 +39,5 @@ defineSlots<{
 }>()
 
 const isPhone = useIsMobile()
+const asPage = inject(panelAsPage, false)
 </script>

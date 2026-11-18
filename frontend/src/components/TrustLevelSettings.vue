@@ -1,5 +1,5 @@
 <template>
-  <Button variant="ghost" icon-left="lucide-settings-2" @click="show">Trust level settings</Button>
+  <Button icon-left="lucide-settings-2" @click="show">Trust level settings</Button>
   <Dialog v-model:open="open" title="Trust levels" :dismissible="!saving" size="2xl">
     <Checkbox
       v-model="enabled"

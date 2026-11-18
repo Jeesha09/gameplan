@@ -3,7 +3,11 @@
        isFinished back to false and unmount the entire shell — the app blanks out. -->
   <div class="relative flex h-full flex-col" v-if="usersReady">
     <DesktopShell
-      :scroll="!['Moderation', 'Messages', 'Conversation'].includes(String(effectiveRoute.name))"
+      :scroll="
+        !['Moderation', 'AdminSettings', 'Messages', 'Conversation'].includes(
+          String(effectiveRoute.name),
+        )
+      "
       class="gameplan-desktop-shell h-full flex-1 standalone:border-t"
     >
       <template #rail>
@@ -15,6 +19,11 @@
         <div
           v-show="effectiveRoute.name === 'Moderation'"
           id="moderation-sidebar"
+          class="h-full shrink-0"
+        />
+        <div
+          v-show="effectiveRoute.name === 'AdminSettings'"
+          id="admin-settings-sidebar"
           class="h-full shrink-0"
         />
       </template>

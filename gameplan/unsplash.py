@@ -74,7 +74,9 @@ def get_access_key() -> str | None:
 	as JSON `false`, or as the *string* "0" — all of which mean "not set up" and
 	only the first of which plain Python truth agrees about.
 	"""
-	key = frappe.conf.get(CONFIG_KEY)
+	from gameplan.site_settings import unsplash_access_key
+
+	key = unsplash_access_key() or frappe.conf.get(CONFIG_KEY)
 	if not isinstance(key, str):
 		return None
 

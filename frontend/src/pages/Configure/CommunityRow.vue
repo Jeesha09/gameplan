@@ -1,7 +1,7 @@
 <template>
   <!-- Phones draw a second line of details under the name, so the row grows to fit;
        desktop keeps its one-line 40px. -->
-  <ListRow class="max-md:h-auto max-md:py-3 md:h-10">
+  <ListRow class="max-md:h-auto max-md:py-3" :class="asPage ? 'md:h-12' : 'md:h-10'">
     <ListCell class="gap-2 max-md:gap-3">
       <CommunityImageUploader v-if="canManage" :community="community" class="shrink-0" />
       <CommunityImage
@@ -56,6 +56,28 @@
         @click="emit('view-members', community.name)"
       />
     </ListCell>
+    <ListCell v-if="asPage" class="max-md:hidden">
+      <Button
+        v-if="canChangeVisibility"
+        size="xs"
+        variant="ghost"
+        :label="visibilityTier(community.visibility)"
+        icon-right="lucide-arrow-up-right text-ink-gray-5"
+        @click="showVisibilityDialog = true"
+      />
+      <div v-else class="w-full truncate px-1.5 text-sm text-ink-gray-5">
+        {{ visibilityTier(community.visibility) }}
+      </div>
+      <VisibilityDialog
+        v-if="canChangeVisibility"
+        v-model="showVisibilityDialog"
+        doctype="GP Team"
+        :name="community.name"
+        :title="community.title"
+        :visibility="community.visibility"
+        @changed="communities.reload()"
+      />
+    </ListCell>
     <ListCell class="justify-end gap-1">
       <MembershipButton v-if="showMembershipButton" :community="community" size="sm" />
       <CommunityOptions
@@ -70,12 +92,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, inject, ref } from 'vue'
+import { panelAsPage } from '@/components/Settings'
 import { Button } from 'frappe-ui'
 import { ListCell, ListRow } from 'frappe-ui/list'
 import CommunityImage from '@/components/CommunityImage.vue'
-import { isCommunityJoined, type Community } from '@/data/communities'
-import { useSessionUser } from '@/data/users'
+import VisibilityDialog from '@/components/VisibilityDialog.vue'
+import { communities, isCommunityJoined, type Community } from '@/data/communities'
+import { isGameplanAdmin, useSessionUser } from '@/data/users'
 import { canManageCommunity } from '@/utils/permissions'
 import { isMemberAccess, visibilityTier } from '@/utils/visibility'
 import CommunityImageUploader from './CommunityImageUploader.vue'
@@ -109,4 +133,8 @@ const membersLabel = computed(() => formatCount(props.community.members?.length 
 function formatCount(count: number, label: string) {
   return `${count} ${count === 1 ? label : `${label}s`}`
 }
+
+const asPage = inject(panelAsPage, false)
+const showVisibilityDialog = ref(false)
+const canChangeVisibility = computed(() => !props.community.archived_at && isGameplanAdmin())
 </script>

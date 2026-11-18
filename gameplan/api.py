@@ -201,7 +201,7 @@ def user_info_rows(names):
 	return users
 
 
-USER_SEARCH_ORDER = ("relevance", "full_name", "creation", "role")
+USER_SEARCH_ORDER = ("relevance", "full_name", "creation", "role", "trust_level")
 
 
 @frappe.whitelist()
@@ -218,6 +218,7 @@ def search_users(
 	exclude_community: str | None = None,
 	exclude_space: str | int | None = None,
 	direct_messages: bool = False,
+	trust_level: str = "",
 ):
 	"""Page through Gameplan users whose name or email matches `query`, in get_user_info's shape."""
 	if not has_app_access():
@@ -239,8 +240,23 @@ def search_users(
 	)
 	if direct_messages:
 		q = q.where(accepts_direct_messages(User.name)).where(not_blocked_with(User.name))
+	if trust_level:
+		from gameplan.trust_levels import level_condition
+
+		require_admin()
+		q = q.where(level_condition(User.name, trust_level))
 	if order_by == "role":
 		q = order_by_role(q, order).orderby(User.full_name)
+	elif order_by == "trust_level":
+		require_admin()
+		Level = frappe.qb.DocType("GP Trust Level")
+		q = (
+			q.left_join(Level)
+			.on(Level.name == User.name)
+			.orderby(Case().when(Level.level.isnull(), 1).else_(0))
+			.orderby(Level.level, order=order)
+			.orderby(User.full_name)
+		)
 	elif order_by == "relevance":
 		if query.strip():
 			q = q.orderby(match_rank(User.full_name, query.strip()))
@@ -743,7 +759,9 @@ def onboarding(community, space, icon, emails, *, visibility: str = VISIBILITY_G
 def search_sqlite(query: str = "", filters: dict | str | None = None, sort_by: str | None = None):
 	"""Search and sort content within the current viewer's access."""
 	from gameplan.public_search import search_for_viewer, validate_search_filters
+	from gameplan.site_settings import require_search_enabled
 
+	require_search_enabled()
 	search = search_for_viewer()
 	if not (gameplan.is_anonymous() or gameplan.is_guest()):
 		filters = validate_search_filters(filters)

@@ -227,7 +227,7 @@ export interface UserSearchParams {
   query?: string
   start?: number
   limit?: number
-  order_by?: 'relevance' | 'full_name' | 'creation' | 'role'
+  order_by?: 'relevance' | 'full_name' | 'creation' | 'role' | 'trust_level'
   descending?: boolean
   include_guests?: boolean
   include_disabled?: boolean
