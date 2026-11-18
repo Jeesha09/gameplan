@@ -180,6 +180,7 @@ export interface GPNotification extends DocType {
     | 'Poll Vote'
     | 'Direct Message'
     | 'Trust Level'
+    | 'Badge'
     | 'Moderation'
   /** Message: Text Editor */
   message?: string

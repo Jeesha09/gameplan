@@ -22,14 +22,7 @@
 
     <div class="mx-auto w-full max-w-[860px] px-3 py-4 sm:px-5 sm:py-6">
       <div class="mb-4 flex items-center justify-between gap-3">
-        <TabButtons
-          :options="[
-            { value: 'Profile', label: 'Profile' },
-            { value: 'Posts', label: 'Posts' },
-            { value: 'Replies', label: 'Replies' },
-          ]"
-          v-model="activeTab"
-        />
+        <TabButtons :options="tabOptions" v-model="activeTab" />
         <!-- Hidden below `md`, where the customize page refuses to open anyway. -->
         <Button
           v-if="isOwnProfile && activeTab === 'Profile'"
@@ -78,6 +71,7 @@
 </template>
 <script setup lang="ts">
 import { computed, inject } from 'vue'
+import { badgesEnabled } from '@/data/badges'
 import { routerViewLocationKey, useRoute, useRouter } from 'vue-router'
 import { PageHeader, Breadcrumbs, Button, TabButtons, useDoc, usePageMeta } from 'frappe-ui'
 import NotFound from '@/pages/NotFound.vue'
@@ -231,6 +225,13 @@ const routeProps = computed(() => {
   }
 })
 
+const tabOptions = [
+  { value: 'Profile', label: 'Profile' },
+  { value: 'Posts', label: 'Posts' },
+  { value: 'Replies', label: 'Replies' },
+  ...(badgesEnabled() ? [{ value: 'Badges', label: 'Badges' }] : []),
+]
+
 const activeTab = computed({
   get() {
     return (
@@ -238,6 +239,7 @@ const activeTab = computed({
         PersonProfileProfile: 'Profile',
         PersonProfilePosts: 'Posts',
         PersonProfileReplies: 'Replies',
+        PersonProfileBadges: 'Badges',
       }[displayedRouteName.value as string] || 'Profile'
     )
   },
@@ -246,6 +248,7 @@ const activeTab = computed({
       Profile: { name: 'PersonProfileProfile' },
       Posts: { name: 'PersonProfilePosts' },
       Replies: { name: 'PersonProfileReplies' },
+      Badges: { name: 'PersonProfileBadges' },
     }[value]
     if (profileRoute) {
       router.push(profileRoute)

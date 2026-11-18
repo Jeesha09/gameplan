@@ -15,6 +15,19 @@
           </div>
         </div>
         <div class="mt-0.5 text-p-sm text-ink-gray-6">{{ userData.bio }}</div>
+        <div
+          v-if="userData.favorite_badge"
+          class="mt-2 flex items-center gap-1.5 text-p-sm text-ink-gray-7"
+        >
+          <BadgeMedallion
+            size="sm"
+            :family="userData.favorite_badge.family"
+            :tier="userData.favorite_badge.tier"
+            :title="userData.favorite_badge.title"
+            :description="userData.favorite_badge.description"
+          />
+          {{ userData.favorite_badge.title }}
+        </div>
         <div class="text-p-xs text-ink-gray-6 mt-2">
           {{ userData.discussions_count_3m }}
           {{ pluralize(userData.discussions_count_3m, 'post', 'posts') }},
@@ -28,6 +41,7 @@
 
 <script setup lang="ts">
 import { useUser } from '@/data/users'
+import BadgeMedallion from './Badges/BadgeMedallion.vue'
 import { HoverCard } from 'frappe-ui'
 import { computed, ref } from 'vue'
 import { isAnonymousVisitor } from '@/utils/publicAccess'

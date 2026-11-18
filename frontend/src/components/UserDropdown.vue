@@ -16,6 +16,7 @@ import { h, computed, ref, shallowRef } from 'vue'
 import { Dialog, Dropdown } from 'frappe-ui'
 import { settingsShortcutLabel, showSettingsDialog } from '@/components/Settings'
 import UnseenDot from '@/components/Changelog/UnseenDot.vue'
+import { badgesEnabled } from '@/data/badges'
 import { hasUnseenEntries, openChangelog } from '@/data/changelog'
 import { useUser } from '@/data/users'
 import { session } from '@/data/session'
@@ -45,6 +46,12 @@ const dropdownItems = computed(() => [
     label: 'Bookmarks',
     condition: () => !isAnonymousVisitor(),
     route: { name: 'Bookmarks' },
+  },
+  {
+    icon: 'lucide-medal',
+    label: 'Badges',
+    condition: () => !isAnonymousVisitor() && badgesEnabled(),
+    route: { name: 'Badges' },
   },
   {
     icon: 'lucide-list-todo',

@@ -115,7 +115,9 @@
           </p>
           <p class="mt-2 whitespace-pre-wrap text-base">{{ row.reason }}</p>
           <p class="mt-2 text-base text-ink-gray-6">
-            {{ row.level ? levelTransition(row) : restrictionTransition(row) }}
+            {{
+              row.title ? row.title : row.level ? levelTransition(row) : restrictionTransition(row)
+            }}
           </p>
         </div>
         <Button v-if="historyCursor" @click="loadHistory(historyCursor)">More history</Button>
@@ -174,6 +176,8 @@ type HistoryItem = {
   previous_expires_at?: string
   previous_level?: string
   level?: string
+  /** The badge, for Badge Granted and Badge Revoked. */
+  title?: string
 }
 const systemActions = ['Restriction Expired', 'Regular Promotion', 'Regular Demotion']
 function levelTransition(row: HistoryItem) {

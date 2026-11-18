@@ -424,6 +424,23 @@ def _public_space():
 	}
 
 
+def _badges():
+	"""Badges on, and one like that earns member2 First Like and the member Welcome."""
+	from gameplan.badges import catalog
+	from gameplan.badges.engine import check_user
+
+	ids = _space_with_discussion()
+	# The reset deleted the catalogue along with every other Gameplan table.
+	catalog.sync()
+	frappe.db.set_single_value("GP Badge Settings", "enabled", 1)
+	frappe.clear_cache(doctype="GP Badge Settings")
+	with _as_user(SECOND_MEMBER):
+		frappe.get_doc("GP Discussion", ids["discussion"]).react([{"emoji": "👍", "operation": "add"}])
+	check_user(MEMBER, notify=False)
+	check_user(SECOND_MEMBER, notify=False)
+	return {**ids, "member_profile": frappe.db.get_value("GP User Profile", {"user": MEMBER})}
+
+
 SCENARIOS = {
 	"onboarded": _onboarded,
 	"space_with_discussion": _space_with_discussion,
@@ -433,6 +450,7 @@ SCENARIOS = {
 	"two_communities": _two_communities,
 	"unread_discussion": _unread_discussion,
 	"public_space": _public_space,
+	"badges": _badges,
 }
 
 

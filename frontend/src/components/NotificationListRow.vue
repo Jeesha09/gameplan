@@ -101,7 +101,7 @@ const location = computed(() => notificationLocation(props.notification))
 const showAvatar = computed(() =>
   Boolean(
     props.notification.from_user &&
-    !['Reaction', 'Trust Level', 'Moderation'].includes(props.notification.type),
+    !['Reaction', 'Trust Level', 'Moderation', 'Badge'].includes(props.notification.type),
   ),
 )
 

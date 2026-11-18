@@ -80,6 +80,7 @@ import { computed, defineAsyncComponent, ref } from 'vue'
 import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { BottomSheet } from 'frappe-ui'
 import { isGameplanAdmin, useSessionUser } from '@/data/users'
+import { badgesEnabled } from '@/data/badges'
 import { hasUnseenEntries, openChangelog } from '@/data/changelog'
 import UnseenDot from '@/components/Changelog/UnseenDot.vue'
 import { session } from '@/data/session'
@@ -149,6 +150,9 @@ const itemGroups = computed<MoreItemGroup[]>(() => {
     { label: 'Drafts', icon: 'lucide-pencil-line', route: { name: 'Drafts' } },
     { label: 'My submissions', icon: 'lucide-clipboard-check', route: { name: 'MySubmissions' } },
     { label: 'Bookmarks', icon: 'lucide-bookmark', route: { name: 'Bookmarks' } },
+    ...(badgesEnabled()
+      ? [{ label: 'Badges', icon: 'lucide-medal', route: { name: 'Badges' } }]
+      : []),
     { label: 'Pages', icon: 'lucide-files', route: { name: 'MyPages' } },
     { label: 'Tasks', icon: 'lucide-list-todo', route: { name: 'MyTasks' } },
     { label: 'People', icon: 'lucide-users-2', route: { name: 'People' } },

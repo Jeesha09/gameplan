@@ -34,6 +34,8 @@ let restrictionExpiryTimer: ReturnType<typeof setTimeout> | undefined
 let usersByName = reactive<Record<string, UserInfo>>({})
 
 export interface UserInfo {
+  /** The person's first favourite badge, while badges are on. */
+  favorite_badge?: import('./badges').FavoriteBadge | null
   banned_communities?: string[]
   community_restrictions?: { community: string; reason: string; expires_at?: string }[]
   name: string

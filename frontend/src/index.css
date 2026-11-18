@@ -6,6 +6,30 @@
   cv01  — alternate '1' with serif foot: distinct from l and I
   cv11  — single-story lowercase 'a': cleaner, more contemporary feel
 */
+/* Badge medallions (prd/badges.md): Discourse's tier colours, the one exception to gray tokens. */
+:root {
+  --badge-bronze-fill: #f6e6d6;
+  --badge-bronze-ring: #cd7f32;
+  --badge-bronze-symbol: #7a3f12;
+  --badge-silver-fill: #eef0f2;
+  --badge-silver-ring: #a3abb4;
+  --badge-silver-symbol: #4b5563;
+  --badge-gold-fill: #fbf0c2;
+  --badge-gold-ring: #e7c300;
+  --badge-gold-symbol: #6e5400;
+}
+:root[data-theme='dark'] {
+  --badge-bronze-fill: #3b2818;
+  --badge-bronze-ring: #d38f42;
+  --badge-bronze-symbol: #f0c08e;
+  --badge-silver-fill: #2a2e33;
+  --badge-silver-ring: #c0c0c0;
+  --badge-silver-symbol: #e3e6ea;
+  --badge-gold-fill: #3a3210;
+  --badge-gold-ring: #e7c300;
+  --badge-gold-symbol: #f7dd62;
+}
+
 html {
   --mobile-header-height: 52px;
   --offline-banner-height: 28px;

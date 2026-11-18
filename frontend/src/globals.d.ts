@@ -40,6 +40,8 @@ declare global {
     public_access_enabled?: boolean
     /** Boot data: whether the site lets people create their own account. */
     signup_enabled?: boolean
+    /** Boot data: whether badges are on. */
+    badges_enabled?: boolean
     /** Present only while Cypress drives the app. */
     Cypress?: unknown
     /** The realtime socket, exposed only under Cypress so specs can fake server events. */

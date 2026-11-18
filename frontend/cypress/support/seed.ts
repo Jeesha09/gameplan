@@ -12,6 +12,7 @@ export type Scenario =
   | 'two_communities'
   | 'unread_discussion'
   | 'public_space'
+  | 'badges'
 
 export interface SeedIds {
   community?: string
@@ -25,6 +26,8 @@ export interface SeedIds {
   public_discussion?: string
   /** A discussion nobody signed out may read, in a space that is not public. */
   hidden_discussion?: string
+  /** The member's GP User Profile, which names their profile page. */
+  member_profile?: string
   communities?: string[]
   spaces?: string[]
 }

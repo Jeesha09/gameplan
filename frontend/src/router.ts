@@ -248,6 +248,17 @@ const routes: RouteRecordRaw[] = [
     meta: { prefetch: true },
   },
   {
+    name: 'Badges',
+    path: '/badges',
+    component: () => import('@/pages/Badges.vue'),
+  },
+  {
+    name: 'Badge',
+    path: '/badges/:badgeId',
+    component: () => import('@/pages/Badge.vue'),
+    props: true,
+  },
+  {
     name: 'MySubmissions',
     path: '/submissions',
     component: () => import('@/pages/MySubmissions.vue'),
@@ -442,6 +453,11 @@ const routes: RouteRecordRaw[] = [
         name: 'PersonProfileReplies',
         path: 'replies',
         component: () => import('@/pages/PersonProfileReplies.vue'),
+      },
+      {
+        name: 'PersonProfileBadges',
+        path: 'badges',
+        component: () => import('@/pages/PersonProfileBadges.vue'),
       },
       {
         name: 'PersonProfileBookmarks',

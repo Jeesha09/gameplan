@@ -39,10 +39,18 @@
           class="mt-0.5"
           @click="openTrustLevels"
         />
+        <SidebarItem
+          label="Badges"
+          icon="lucide-medal"
+          :active="siteWide && siteSection === 'badges'"
+          class="mt-0.5"
+          @click="openSiteSection('badges')"
+        />
       </template>
       <template #site-wide>
         <PostingLimits v-if="siteSection === 'posting-limits'" />
         <TrustLevels v-else-if="siteSection === 'trust-levels'" />
+        <BadgeSettings v-else-if="siteSection === 'badges'" />
         <AccountSuspensions v-else />
       </template>
     </CommunityModeration>
@@ -70,17 +78,19 @@ import CommunityModeration from './CommunityModeration.vue'
 import AccountSuspensions from '@/components/AccountSuspensions.vue'
 import PostingLimits from '@/components/PostingLimits.vue'
 import TrustLevels from '@/components/TrustLevels.vue'
+import BadgeSettings from '@/components/BadgeSettings.vue'
 const route = useRoute()
 const router = useRouter()
 const siteWide = computed(() => route.query.scope === 'site' && isGlobalAdmin(useSessionUser()))
 const siteSection = computed(() =>
-  ['posting-limits', 'trust-levels'].includes(String(route.query.tab))
+  ['posting-limits', 'trust-levels', 'badges'].includes(String(route.query.tab))
     ? String(route.query.tab)
     : 'suspensions',
 )
 const siteTitles: Record<string, string> = {
   'posting-limits': 'Posting limits',
   'trust-levels': 'Trust levels',
+  badges: 'Badges',
   suspensions: 'Account restrictions',
 }
 const sectionTitles: Record<string, string> = {
@@ -107,6 +117,9 @@ function openTrustLevels() {
     name: 'Moderation',
     query: { community: selected.value, scope: 'site', tab: 'trust-levels' },
   })
+}
+function openSiteSection(tab: string) {
+  router.replace({ name: 'Moderation', query: { community: selected.value, scope: 'site', tab } })
 }
 function openPostingLimits() {
   router.replace({
