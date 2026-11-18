@@ -616,7 +616,8 @@ const postErrorText = computed(() => {
   if (discardError.value) {
     return errorText(discardError.value, "Couldn't discard your draft. Try again.")
   }
-  const error = replyError.value || comments.insert.error
+  // A failed insert rejects, so its error is already in replyError, which Discard clears.
+  const error = replyError.value
   return error
     ? errorText(error, "Couldn't post your comment. Your text is kept, so try again.")
     : null
@@ -765,6 +766,9 @@ function highlightComment(id: string) {
 
 function resetCommentState() {
   discardError.value = null
+  // Discarding clears a failed submit too, such as a blocked word, or it would greet the
+  // next comment.
+  replyError.value = null
   showCommentBox.value = false
   composerMinimized.value = false
   mobileComposerFullscreen.value = false
