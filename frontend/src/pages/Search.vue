@@ -344,11 +344,12 @@
                          its discussion's title as plain text. -->
                     <div
                       v-if="item.title"
+                      v-censor-dust
                       class="min-w-0 truncate text-base-medium text-ink-gray-9"
-                      v-html="item.title"
+                      v-html="censorHtml(item.title)"
                     />
                     <div v-else class="min-w-0 truncate text-base-medium text-ink-gray-9">
-                      {{ item.reference_title || $user(item.author).full_name }}
+                      <CensoredText :text="item.reference_title || $user(item.author).full_name" />
                     </div>
                     <Tooltip :text="fullTimestamp(siteDatetime(item.modified))">
                       <div class="ml-auto shrink-0 whitespace-nowrap text-sm text-ink-gray-5">
@@ -361,8 +362,9 @@
                   </div>
                   <div
                     v-if="item.content"
+                    v-censor-dust
                     class="mt-1 text-p-base text-ink-gray-6 line-clamp-2"
-                    v-html="trimBeforeMatch(item.content)"
+                    v-html="censorHtml(trimBeforeMatch(item.content))"
                   ></div>
                 </div>
               </ListCell>
@@ -374,6 +376,8 @@
   </div>
 </template>
 <script setup lang="ts">
+import CensoredText from '@/components/CensoredText.vue'
+import { censorHtml, vCensorDust } from '@/utils/censorDust'
 import { computed, onMounted, onScopeDispose, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { createReusableTemplate } from '@vueuse/core'

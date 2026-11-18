@@ -166,7 +166,7 @@
                   <span class="lucide-lock mr-2 h-4 w-4 text-ink-gray-6" />
                 </Tooltip>
                 <span class="text-ink-gray-8">
-                  {{ discussion.doc.title }}
+                  <CensoredText :text="discussion.doc.title" />
                 </span>
               </h1>
             </div>
@@ -527,6 +527,7 @@ import { captureError } from '@/utils/errorReporting'
 import { useCommandPaletteCommands } from './CommandPalette/registry'
 import { useOwnedRouteWrites } from '@/composables/useOwnedRouteWrites'
 import { isAnonymousVisitor } from '@/utils/publicAccess'
+import CensoredText from '@/components/CensoredText.vue'
 
 const props = defineProps<{
   postId: string

@@ -15,7 +15,7 @@
               discussion.unread ? 'text-md-semibold sm:text-base-semibold' : 'text-md sm:text-base',
             ]"
           >
-            {{ discussion.title }}
+            <CensoredText :text="discussion.title" />
           </span>
         </div>
         <div class="mt-1.5 flex min-w-0 items-center text-md text-ink-gray-5 sm:text-base">
@@ -37,7 +37,7 @@
               v-if="showSpaceName && isSpacePrivate(discussion.project)"
               class="lucide-lock ml-0.5 inline-block h-3 w-3 align-[-1px] text-ink-gray-6"
             />
-            <span>:&nbsp;{{ post.content }}</span>
+            <span>:&nbsp;<CensoredText :text="post.content" /></span>
           </p>
         </div>
       </div>
@@ -113,6 +113,7 @@ import { getSpace, useSpace } from '@/data/spaces'
 import { Discussion } from '@/data/discussions'
 import { fullTimestamp, relativeTimestamp } from '@/utils'
 import { isMemberAccess } from '@/utils/visibility'
+import CensoredText from '@/components/CensoredText.vue'
 
 const props = defineProps<{
   discussion: Discussion

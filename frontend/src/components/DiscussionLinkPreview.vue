@@ -24,7 +24,7 @@
             {{ preview.title }}
           </div>
           <p v-if="preview.snippet" class="mt-3 line-clamp-2 text-p-sm text-ink-gray-6">
-            {{ preview.snippet }}
+            <CensoredText :text="preview.snippet" />
           </p>
         </div>
         <PopoverArrow class="fill-surface-elevation-2" />
@@ -34,6 +34,7 @@
 </template>
 
 <script setup lang="ts">
+import CensoredText from '@/components/CensoredText.vue'
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { PopoverAnchor, PopoverArrow, PopoverContent, PopoverPortal, PopoverRoot } from 'reka-ui'
