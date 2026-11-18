@@ -156,7 +156,7 @@ OPTIONS = {
 	"postgres": None,
 	"uploads_folder": None,
 	"log_folder": None,
-	"steps": ["users", "categories", "topics", "messages", "trust_levels", "links", "backlinks"],
+	"steps": ["users", "categories", "topics", "messages", "trust_levels", "badges", "links", "backlinks"],
 	"category_ids": None,
 	"topic_ids": None,
 	"user_ids": None,
@@ -245,12 +245,16 @@ def execute(**options):
 
 
 def get_steps():
+	# Imported here: the step module reads this package's helpers.
+	from .badges import migrate_badges
+
 	return {
 		"users": migrate_users,
 		"categories": migrate_categories,
 		"topics": migrate_posts,
 		"messages": migrate_messages,
 		"trust_levels": migrate_trust_levels,
+		"badges": migrate_badges,
 		"links": migrate_links,
 		"backlinks": migrate_backlinks,
 	}

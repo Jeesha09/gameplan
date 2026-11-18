@@ -94,7 +94,7 @@ def candidates(query: str = "", after: str = ""):
 
 @frappe.whitelist(methods=["GET", "POST"])
 def account_history(user: str, before: str = ""):
-	"""Read one user's site silence, suspension and trust level history; accessible only to global admins."""
+	"""Read one user's site restriction, trust level and badge history. Global admins only."""
 	require_scope()
 	Log = frappe.qb.DocType("GP Moderation Log")
 	query = (
@@ -109,6 +109,7 @@ def account_history(user: str, before: str = ""):
 			Log.expires_at,
 			Log.previous_level,
 			Log.level,
+			Log.title,
 		)
 		.where(
 			(Log.user == user)
@@ -123,6 +124,8 @@ def account_history(user: str, before: str = ""):
 					"Lift Silence",
 					"Restriction Expired",
 					*LEVEL_ACTIONS,
+					"Badge Granted",
+					"Badge Revoked",
 				]
 			)
 		)

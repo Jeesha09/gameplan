@@ -1,0 +1,133 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-11-18 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "key",
+  "title",
+  "description",
+  "badge_group",
+  "family",
+  "tier",
+  "symbol",
+  "position",
+  "enabled",
+  "per_post",
+  "multiple_grant",
+  "revocable",
+  "discourse_id",
+  "system"
+ ],
+ "fields": [
+  {
+   "fieldname": "key",
+   "fieldtype": "Data",
+   "label": "Key",
+   "reqd": 1,
+   "unique": 1,
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "badge_group",
+   "fieldtype": "Select",
+   "label": "Group",
+   "options": "Getting Started\nCommunity\nPosting",
+   "reqd": 1
+  },
+  {
+   "fieldname": "family",
+   "fieldtype": "Data",
+   "label": "Family",
+   "reqd": 1
+  },
+  {
+   "fieldname": "tier",
+   "fieldtype": "Select",
+   "label": "Tier",
+   "options": "Bronze\nSilver\nGold",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "symbol",
+   "fieldtype": "Data",
+   "label": "Symbol"
+  },
+  {
+   "fieldname": "position",
+   "fieldtype": "Int",
+   "label": "Position",
+   "default": "0"
+  },
+  {
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled",
+   "default": "1"
+  },
+  {
+   "fieldname": "per_post",
+   "fieldtype": "Check",
+   "label": "Earned once per post",
+   "default": "0",
+   "read_only": 1
+  },
+  {
+   "fieldname": "multiple_grant",
+   "fieldtype": "Check",
+   "label": "Earned more than once",
+   "default": "0",
+   "read_only": 1
+  },
+  {
+   "fieldname": "revocable",
+   "fieldtype": "Check",
+   "label": "Taken back when no longer met",
+   "default": "0",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discourse_id",
+   "fieldtype": "Int",
+   "label": "Discourse badge id",
+   "read_only": 1
+  },
+  {
+   "fieldname": "system",
+   "fieldtype": "Check",
+   "label": "Shipped with Gameplan",
+   "default": "0",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-11-18 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gameplan",
+ "name": "GP Badge",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "autoname": "field:key",
+ "naming_rule": "By fieldname",
+ "description": "A badge members can earn. Shipped badges are kept in step with gameplan.badges.catalog on migrate."
+}

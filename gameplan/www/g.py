@@ -11,6 +11,7 @@ from frappe.utils import cint, get_system_timezone
 from frappe.utils.telemetry import capture
 
 from gameplan import __version__, is_new_site
+from gameplan.badges import is_enabled as badges_enabled
 from gameplan.public_access import public_access_enabled
 from gameplan.public_seo import get_public_page
 from gameplan.roles import has_app_access
@@ -58,6 +59,8 @@ def get_boot():
 			# show; the server enforces each on its own.
 			"public_access_enabled": public_access_enabled(),
 			"signup_enabled": not cint(frappe.get_website_settings("disable_signup")),
+			# Shows the Badges pages and profile tab. Turning badges on or off takes a reload.
+			"badges_enabled": badges_enabled(),
 		}
 	)
 

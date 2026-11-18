@@ -139,9 +139,11 @@ def user_info_rows(names):
 		filters={"user": ["in", [u.name for u in users]]},
 	)
 	user_profile_map = {u.user: u for u in user_profiles}
+	from gameplan.badges.api import first_favorites
 	from gameplan.direct_messages import blocks_with
 
 	blocked, blocked_me = blocks_with(frappe.session.user, [u.name for u in users])
+	favorites = first_favorites([u.name for u in users])
 	for user in users:
 		if frappe.session.user == user.name:
 			user.session_user = True
@@ -191,6 +193,7 @@ def user_info_rows(names):
 		# Add discussion and comment counts
 		user.discussions_count_3m = discussion_count_map.get(user.name, 0)
 		user.comments_count_3m = comment_count_map.get(user.name, 0)
+		user.favorite_badge = favorites.get(user.name)
 
 	if names is not None:
 		position = {name: index for index, name in enumerate(names)}

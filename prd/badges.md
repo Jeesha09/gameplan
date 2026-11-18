@@ -49,12 +49,12 @@ Trust level badges, Editor, Emoji, Flag, Link, Onebox, Quote, Reply by Email, Wi
 | Reading a long discussion | `GP Discussion Visit.last_visit` later than the creation of the discussion's last reply. Gameplan does not record which replies someone read, so a visit after the last reply counts as having read them all. |
 | Membership age | The member's `creation`, and their posts |
 
-Removed posts, posts in spaces the member can no longer see, and likes on them do not count.
+Removed posts and likes on them do not count. A badge page links a per-post grant to its post only for readers who can open that post.
 
 ## Data model
 
 - **`GP Badge`**: title, description, family, group, tier, symbol, `rule`, enabled, `multiple_grant`, and `system` for the shipped badges. System badges cannot be deleted. Global admins can disable them.
-- **`GP User Badge`**: badge, user, `granted_at`, the reference doctype and name of the post, `seq` for repeat grants, `is_favorite`, and `granted_by` for manual grants. It is unique per badge and user, or per badge, user, and post for badges earned per post.
+- **`GP User Badge`**: badge, user, `granted_at`, the reference doctype and name of the post, `seq` for repeat grants, `is_favorite`, `granted_by` for manual grants, and `revoked`. It is unique per badge, user, post, and `seq`. Names are hashes, because grants are inserted in bulk.
 - **Rules are Python.** Each rule is a function that returns the grants for a list of users or posts. Gameplan never runs SQL that an admin writes.
 
 ## When badges are granted
@@ -83,7 +83,7 @@ A new "Badge" notification for each grant. Grants from the first full pass and f
 - **Badge page**: the badge's description, and who earned it, newest first. Per-post badges link to the post.
 - **Profile**: a Badges section with every badge the member holds, and up to 3 favourites the member picks.
 - **Hover card**: the member's first favourite.
-- **Site administration**: turn badges on and off, turn single badges on and off, and grant or revoke a badge by hand with a reason. Each manual change goes to the member's account history.
+- **Site administration**: turn badges on and off, turn single badges on and off, and grant or revoke a badge by hand with a reason. Each manual change goes to the member's account history. A revoked grant stays as a hidden row, so the next automatic check does not grant it again. Only badges earned once can be granted by hand.
 
 ## Medallions
 
@@ -97,6 +97,8 @@ A medallion is a circle filled with a tint of the tier colour, ringed in the tie
 | | Dark | `#2A2E33` | `#C0C0C0` | `#E3E6EA` |
 | Gold | Light | `#FBF0C2` | `#E7C300` | `#6E5400` |
 | | Dark | `#3A3210` | `#E7C300` | `#F7DD62` |
+
+Hovering or clicking a medallion flips it like a coin, and a tooltip names the badge and what it is for. A click never follows a link the medallion sits in. With reduced motion, the medallion pulses instead.
 
 Each symbol has a contrast ratio of at least 6:1 against its fill. The light-theme rings are faint on white, so the badge name and tier always show as text beside a medallion. The colours become tokens, and the colour trap in `AGENTS.md` names badge medallions as an exception in the same change.
 

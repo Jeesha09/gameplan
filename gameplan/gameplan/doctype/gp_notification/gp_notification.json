@@ -52,7 +52,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Type",
-   "options": "Mention\nReaction\nRich Quote\nComment\nNew Discussion\nAdded\nMoved\nPoll Vote\nDirect Message\nTrust Level\nModeration",
+   "options": "Mention\nReaction\nRich Quote\nComment\nNew Discussion\nAdded\nMoved\nPoll Vote\nDirect Message\nTrust Level\nModeration\nBadge",
    "reqd": 1
   },
   {

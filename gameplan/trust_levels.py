@@ -419,15 +419,19 @@ def record_visit():
 
 	A cache key answers every later request of the day, so this costs one cache read.
 	"""
+	from gameplan import badges
+	from gameplan.badges.engine import can_earn
+
 	user = frappe.session.user
-	if gameplan.is_anonymous(user) or not is_enabled():
+	# Badges need visit days too: Enthusiast counts days in a row.
+	if gameplan.is_anonymous(user) or not (is_enabled() or badges.is_enabled()):
 		return
 	day = utc_now().date().isoformat()
 	key = f"gameplan:trust:visit:{user}:{day}"
 	if frappe.cache.get_value(key):
 		return
 	frappe.cache.set_value(key, 1, expires_in_sec=VISIT_CACHE_SECONDS)
-	if has_level(user):
+	if (is_enabled() and has_level(user)) or (badges.is_enabled() and can_earn(user)):
 		# GET requests roll back their writes, so a job records the day.
 		frappe.enqueue(
 			record_visit_day,
@@ -445,6 +449,9 @@ def record_visit_day(user, day):
 		return
 	add_visit_days(user, [day])
 	check_user(user)
+	from gameplan import badges
+
+	badges.queue(user)
 
 
 def add_visit_days(user, days):

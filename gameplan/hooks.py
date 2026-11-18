@@ -101,7 +101,11 @@ after_install = "gameplan.install.after_install"
 # Creates any Gameplan role that went missing. A no-op on a healthy site — it never writes
 # to a Role that already exists, so migrate cannot trip Role.on_update. See gameplan/roles.py.
 # sync_agent_instructions keeps the MCP agent guide current. See gameplan/mcp.py.
-after_migrate = ["gameplan.roles.sync_roles", "gameplan.mcp.sync_agent_instructions"]
+after_migrate = [
+	"gameplan.roles.sync_roles",
+	"gameplan.mcp.sync_agent_instructions",
+	"gameplan.badges.catalog.sync",
+]
 
 # Uninstallation
 # ------------
@@ -196,8 +200,16 @@ doc_events = {
 	},
 	# Discourse-style limits on Gameplan Guests posting in a space only because it is public.
 	"GP Discussion": {
-		"on_update": ["gameplan.watched_word_actions.flag", "gameplan.auto_hide.recheck_moved"],
-		"on_trash": ["gameplan.reporting.protect_pending_reviews", "gameplan.slow_mode.clear_state"],
+		"on_update": [
+			"gameplan.watched_word_actions.flag",
+			"gameplan.auto_hide.recheck_moved",
+			"gameplan.badges.on_post_change",
+		],
+		"on_trash": [
+			"gameplan.reporting.protect_pending_reviews",
+			"gameplan.slow_mode.clear_state",
+			"gameplan.badges.on_post_trash",
+		],
 		"before_insert": ["gameplan.approval_policy.guard_publication", "gameplan.posting_limits.record"],
 		"validate": [
 			"gameplan.new_user_limits.check_new_user_limits",
@@ -216,10 +228,12 @@ doc_events = {
 		"on_update": [
 			"gameplan.watched_word_actions.flag",
 			"gameplan.activity_counts.refresh_reply_counts",
+			"gameplan.badges.on_post_change",
 		],
 		"on_trash": [
 			"gameplan.reporting.protect_pending_reviews",
 			"gameplan.slow_mode.preserve_deleted_reply",
+			"gameplan.badges.on_post_trash",
 		],
 		"before_insert": [
 			"gameplan.approval_policy.guard_publication",
@@ -238,6 +252,12 @@ doc_events = {
 		],
 		"after_delete": "gameplan.activity_counts.refresh_owner_counts",
 	},
+	"GP Reaction": {
+		"after_insert": "gameplan.badges.on_reaction_change",
+		"on_trash": "gameplan.badges.on_reaction_change",
+	},
+	"GP User Profile": {"on_update": "gameplan.badges.on_profile_change"},
+	"GP Discussion Visit": {"on_update": "gameplan.badges.on_discussion_visit"},
 	"GP Poll": {
 		"validate": "gameplan.new_user_limits.check_new_user_limits",
 		"after_insert": "gameplan.new_user_limits.record_first_day_post",
@@ -252,6 +272,7 @@ doc_events = {
 			"gameplan.posting_limits.clear_user",
 			"gameplan.restrictions.clear_state",
 			"gameplan.trust_levels.delete_user_rows",
+			"gameplan.badges.on_user_trash",
 		],
 		"on_update": "gameplan.gameplan.doctype.gp_user_profile.gp_user_profile.on_user_update",
 	},
@@ -286,12 +307,14 @@ scheduler_events = {
 		"gameplan.restrictions.expire_due",
 		"gameplan.slow_mode.expire_due",
 		"gameplan.posting_limits.prune",
+		"gameplan.badges.engine.process_queue",
 	],
 	"hourly": ["gameplan.gameplan.doctype.gp_invitation.gp_invitation.expire_invitations"],
 	"daily": [
 		"gameplan.demo.demo.generate_data_daily",
 		"gameplan.email_digest.send_due_email_digests",
 		"gameplan.trust_levels.nightly",
+		"gameplan.badges.engine.nightly",
 	],
 	# Every five minutes, not hourly: the mail is still hourly inside a user's active hours,
 	# but the closing mail has to go out as the hours end (notifications/delivery.py).

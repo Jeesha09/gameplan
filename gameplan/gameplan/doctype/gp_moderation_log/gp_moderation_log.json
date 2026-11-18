@@ -35,7 +35,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Action",
-   "options": "Hide\nRestore\nDelete Spam\nBan\nUnban\nSlow Mode Changed\nBan Changed\nSuspend\nSuspension Changed\nLift Suspension\nRestriction Expired\nSilence\nSilence Changed\nLift Silence\nAuthor Cleanup\nUndo Cleanup\nSlow Mode Expired\nLevel Changed\nLevel Locked\nLevel Unlocked\nRegular Promotion\nRegular Demotion\nAuto Hide",
+   "options": "Hide\nRestore\nDelete Spam\nBan\nUnban\nSlow Mode Changed\nBan Changed\nSuspend\nSuspension Changed\nLift Suspension\nRestriction Expired\nSilence\nSilence Changed\nLift Silence\nAuthor Cleanup\nUndo Cleanup\nSlow Mode Expired\nLevel Changed\nLevel Locked\nLevel Unlocked\nRegular Promotion\nRegular Demotion\nAuto Hide\nBadge Granted\nBadge Revoked",
    "reqd": 1
   },
   {
