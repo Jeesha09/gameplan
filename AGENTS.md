@@ -56,8 +56,8 @@ still carries the old names. Do not rename the doctypes.
   calls `gameplan.ui_test_helpers.reset`. Point it at a disposable site, nothing else.
 - **Colour shades**: in Gameplan code use gray tokens. Amber survives in
   `ReactionsDesktop.vue`, `ReactionsMobile.vue` and the `DiscussionRow.vue` unread
-  badge, the "What's new" dot (`UnseenDot.vue`) is orange, and badge medallions use the Bronze, Silver
-  and Gold tokens in `index.css` (`BadgeMedallion.vue`) — the exceptions, not a licence to add more. frappe-ui's own components do
+  badge, the "What's new" dot (`UnseenDot.vue`) is orange, and badges use frappe-ui's orange, gray
+  and yellow for Bronze, Silver and Gold (`.badge-tier--*` in `index.css`) — the exceptions, not a licence to add more. frappe-ui's own components do
   ship colour (the Rail unread badge is `theme="red"`); that is the library's call
   and not a precedent for new Gameplan markup. Unread is drawn amber, red and gray
   in three different places, so match the rule here, not the nearest neighbour.

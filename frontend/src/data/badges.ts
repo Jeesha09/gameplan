@@ -1,5 +1,6 @@
 // Badges that mirror Discourse (prd/badges.md). The server owns every rule; this file names the
 // shapes it returns and the symbol each badge family is drawn with.
+import type { InjectionKey, Ref } from 'vue'
 
 export type BadgeTier = 'Bronze' | 'Silver' | 'Gold'
 export type BadgeGroup = 'Getting Started' | 'Community' | 'Posting'
@@ -25,7 +26,7 @@ export type BadgeHolder = {
   post?: { doctype: string; name: string; discussion: string; space: string; title: string }
 }
 
-/** The first favourite, as the user directory carries it for the hover card. */
+/** A favourite, as the user directory carries it for the hover card. */
 export type FavoriteBadge = Pick<Badge, 'name' | 'title' | 'description' | 'family' | 'tier'>
 
 export const MAX_FAVORITES = 3
@@ -35,33 +36,37 @@ export function badgesEnabled() {
   return Boolean(window.badges_enabled)
 }
 
+/** The profile that `ProfileBadgeRibbons` shows favourites for. Provided by `PersonProfile`. */
+export const profileUserKey: InjectionKey<Readonly<Ref<string>>> = Symbol('profileUser')
+
 /**
- * One symbol per family, drawn on a 24px grid with a 1.5px round stroke. The tiers of a
- * family share it and differ by medallion colour. Constant markup, never user input.
+ * One symbol per family, drawn by hand as filled shapes on a 24px grid. The tiers of a family
+ * share it and differ by colour. `s` is the symbol, `d` a detail cut back to the background,
+ * and `sl` and `dl` are their stroked forms. Constant markup, never user input.
  */
 export const BADGE_SYMBOLS: Record<string, string> = {
   autobiographer:
-    '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10.5" r="2"/><path d="M5.5 16c.6-1.4 1.7-2.25 3-2.25s2.4.85 3 2.25"/><path d="M14.5 10h3.5M14.5 13.5h3.5"/>',
+    '<path class="s" d="M12 2.9c4.3 0 7.3 4 7.3 9.2 0 5.3-3.1 9-7.4 9-4.2 0-7.2-3.8-7.2-9.1C4.7 6.8 7.8 2.9 12 2.9z"/><path class="d" d="M12.1 6.6c1.7 0 2.9 1.4 2.9 3.2 0 1.9-1.3 3.3-3 3.3s-2.9-1.5-2.9-3.3c0-1.8 1.3-3.2 3-3.2z"/><path class="d" d="M6.9 17.6c.9-2.3 2.8-3.5 5.2-3.5 2.3 0 4.2 1.1 5.1 3.4-1.3 1.6-3.1 2.5-5.2 2.5-2.1 0-3.9-.9-5.1-2.4z"/>',
   'first-like':
-    '<path d="M12 19.5C7 16 3.5 12.8 3.5 9.25a4.25 4.25 0 0 1 8.5-.5 4.25 4.25 0 0 1 8.5.5c0 3.55-3.5 6.75-8.5 10.25z"/>',
+    '<path class="s" d="M12 20.4C6.4 16.7 3.5 13.5 3.7 9.7 3.9 6.6 6.2 4.6 8.8 4.7c1.5.1 2.6 1 3.2 2.3.7-1.4 1.9-2.4 3.6-2.4 2.8.1 4.8 2.3 4.6 5.3-.2 3.8-3.2 6.9-8.2 10.5z"/><path class="dl" stroke-width="1.4" d="M6.6 9.6c0-1.4.8-2.4 2.1-2.5"/>',
   'first-mention':
-    '<circle cx="12" cy="12" r="3.5"/><path d="M15.5 8.5v4.75a2.25 2.25 0 0 0 4.5 0V12a8 8 0 1 0-3.2 6.4"/>',
+    '<path class="sl" stroke-width="2.3" d="M15.7 8.3v4.2c0 1.8.9 2.9 2.2 2.9 1.6 0 2.4-1.6 2.3-3.8C20 7.1 16.6 3.8 12 3.8 7.3 3.8 3.7 7.5 3.7 12.2s3.6 8.1 8.3 8.1c1.6 0 3-.4 4.3-1.1"/><path class="sl" stroke-width="2.3" d="M12 8.5c2 0 3.6 1.6 3.6 3.6 0 2.1-1.6 3.7-3.6 3.7s-3.5-1.6-3.5-3.6c0-2.1 1.5-3.7 3.5-3.7z"/>',
   reader:
-    '<path d="M12 7c-1.8-1.3-4.3-2-8-2v12.5c3.7 0 6.2.7 8 2 1.8-1.3 4.3-2 8-2V5c-3.7 0-6.2.7-8 2z"/><path d="M12 7v12.5"/>',
+    '<path class="s" d="M12 7.1C9.8 5.4 6.8 5 3.4 5.7v12.2c3.4-.6 6.4-.2 8.6 1.4z"/><path class="s" d="M12 7.1c2.3-1.8 5.4-2.2 8.7-1.5v12.1c-3.3-.6-6.4-.1-8.7 1.6z"/><path class="dl" stroke-width="1" d="M5.9 9c1.6-.2 2.9 0 4.1.6M5.9 11.7c1.6-.2 2.9 0 4.1.6M5.9 14.4c1.4-.2 2.4-.1 3.2.3M14 9.6c1.2-.7 2.6-.9 4.1-.7M14 12.3c1.2-.7 2.6-.9 4.1-.7"/><path class="d" d="M16.2 5.3v5l1-1 1 1V5.1z"/>',
   welcome:
-    '<path d="M8 13V8a1.5 1.5 0 0 1 3 0v4M11 11.5V6a1.5 1.5 0 0 1 3 0v5.5M14 11.5V7.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-.5a5.5 5.5 0 0 1-4.5-2.35L3.6 15.2a1.5 1.5 0 0 1 2.4-1.8L8 15.5"/><path d="M19.5 4.5c1 .8 1.5 1.9 1.5 3M3.5 7.5c0-1.5.6-2.7 1.7-3.5"/>',
+    '<path class="sl" stroke-width="2.5" d="M8.5 12.6V6.9M10.7 11.6V4.7M12.9 11.6V5.4M15.1 12.6V7.6"/><path class="s" d="M7.1 11.3h9.2v3.6c0 3.2-2 5.5-4.7 5.5-2.2 0-3.8-1.2-4.8-3l-2.1-3.3c-.6-1 .6-2 1.5-1.3l.9.7z"/><path class="sl" stroke-width="1.4" d="M18.4 6.1c1.2 1 1.8 2.2 1.9 3.6M18 3.6c2.2 1 3.4 2.8 3.8 4.9"/>',
   appreciated:
-    '<path d="M12 3.5l2.6 5.3 5.9.85-4.25 4.15 1 5.85L12 16.9l-5.25 2.75 1-5.85L3.5 9.65l5.9-.85z"/>',
+    '<path class="s sw" stroke-width="1.6" d="M11.7 3.6l2.5 5.1 5.6.7-4.1 3.9 1.1 5.6-5-2.8-5 2.8 1-5.6-4.1-3.9 5.7-.8z"/><path class="s" d="M19.8 2.6c.2 1.4.6 1.8 2 2-1.4.2-1.8.6-2 2-.2-1.4-.6-1.8-2-2 1.4-.2 1.8-.6 2-2z"/>',
   'thank-you':
-    '<path d="M12 10.5c-2.4-1.5-4-2.9-4-4.6a2 2 0 0 1 4-.4 2 2 0 0 1 4 .4c0 1.7-1.6 3.1-4 4.6z"/><path d="M3 14.5h2.5l3.5 1.5h3.5a1.5 1.5 0 0 1 0 3H9"/><path d="M13.5 18.5l4.6-2.2a1.5 1.5 0 0 1 1.55 2.55L14 21.5H7l-4-1.5"/>',
+    '<path class="s" d="M12 12.6C9.2 10.8 7.8 9.2 7.9 7.2 8 5.7 9.2 4.7 10.4 4.8c.7 0 1.3.5 1.6 1.1.3-.7.9-1.1 1.7-1.1 1.3 0 2.4 1.1 2.3 2.6-.1 1.8-1.4 3.4-4 5.2z"/><path class="s" d="M3.4 15.3c2.2-.8 5-.9 7.4.1h2.8c1 0 1.3 1.4.2 1.7h-2.6 3c1 0 2.1-.5 3-1.2l1.8-1.5c.9-.7 2 .4 1.2 1.3l-2.8 2.9c-1.4 1.4-3.2 1.8-5.2 1.8H3.4z"/>',
   enthusiast:
-    '<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M9 15l2 2 4-4"/>',
+    '<path class="s" d="M12 21c-3.8 0-6.4-2.6-6.4-6 0-3.6 2.8-5.4 3.8-8.4.4-1.2.3-2.4-.1-3.6 3.3 1 5.7 3.8 5.9 7 .7-.6 1.1-1.6 1.1-2.6 1.5 1.8 2.1 4.2 2.1 7.2 0 3.8-2.8 6.4-6.4 6.4z"/><path class="d" d="M12 19.3c-1.7 0-2.8-1.2-2.8-2.8 0-1.8 1.4-2.8 2.2-4.4 2 1 3.4 2.7 3.4 4.5 0 1.6-1.2 2.7-2.8 2.7z"/>',
   anniversary:
-    '<rect x="4" y="11" width="16" height="9.5" rx="2"/><path d="M4 14.75c1.33 0 1.87-1.25 2.67-1.25s1.33 1.25 2.66 1.25 1.87-1.25 2.67-1.25 1.33 1.25 2.67 1.25 1.86-1.25 2.66-1.25 1.34 1.25 2.67 1.25"/><path d="M12 7.5V11"/><path d="M12 2.5c1 1.1 1.4 1.9 1.4 2.6a1.4 1.4 0 0 1-2.8 0c0-.7.4-1.5 1.4-2.6z"/>',
+    '<path class="s" d="M5 13.4c0-.8.6-1.4 1.4-1.4h11.2c.8 0 1.4.6 1.4 1.4v6.3H5z"/><path class="dl" stroke-width="1.3" d="M5 14.6c1 1.2 2 1.2 2.6.2.6 1.2 2 1.3 2.6 0 .7 1.4 2.2 1.4 2.8 0 .6 1.2 2.1 1.3 2.8 0 .6 1 2 1 3.2-.2"/><path class="sl" stroke-width="1.6" d="M3.4 20.5h17.2"/><path class="s" d="M11.1 8.2h1.9v3.8h-1.9z"/><path class="s" d="M12 3.1c1.3 1.4 1.6 2.4 1.1 3.2-.3.5-1.9.5-2.2 0-.4-.8.1-1.8 1.1-3.2z"/>',
   helper:
-    '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.5"/><path d="M14.5 9.5l3.5-3.5M9.5 9.5L6 6M9.5 14.5L6 18M14.5 14.5l3.5 3.5"/>',
+    '<path class="sl" stroke-width="4.2" d="M12 4.9c4 0 7.1 3.1 7.1 7.1S16 19.1 12 19.1 4.9 16 4.9 12 8 4.9 12 4.9z"/><path class="dl" stroke-width="2.4" stroke-linecap="butt" d="M15.6 8.4l2.6-2.6M8.4 8.4L5.8 5.8M8.4 15.6l-2.6 2.6M15.6 15.6l2.6 2.6"/>',
   reply:
-    '<path d="M6.5 4.5h11A2.5 2.5 0 0 1 20 7v7a2.5 2.5 0 0 1-2.5 2.5h-7L6.5 20v-3.5A2.5 2.5 0 0 1 4 14V7a2.5 2.5 0 0 1 2.5-2.5z"/><path d="M8 9h8M8 12h5"/>',
+    '<path class="s" d="M4 11c0-4 3.4-6.6 8-6.6 4.7 0 8 2.6 8 6.4 0 3.8-3.4 6.4-8 6.4-1 0-1.9-.1-2.7-.4-1.3 1.6-3.1 2.6-5.1 2.8 1.2-1.2 1.8-2.4 1.9-4C4.8 14.4 4 12.8 4 11z"/><circle class="d" cx="8.6" cy="10.9" r="1.2"/><circle class="d" cx="12" cy="10.9" r="1.2"/><circle class="d" cx="15.4" cy="10.9" r="1.2"/>',
   topic:
-    '<path d="M5.5 9h9a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-5L6 20.5V18h-.5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2z"/><path d="M8 9V6.5a2 2 0 0 1 2-2h8.5a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>',
+    '<path class="s" fill-opacity=".55" d="M8.6 6.6v-.8c0-1.2.9-2 2-2h7.8c1.2 0 2 .8 2 2v4.8c0 1.2-.8 2-1.8 2.1V15l-1-.8"/><path class="s" d="M3.6 10.4c0-1.2.9-2 2.1-2h8.7c1.2 0 2.1.8 2.1 2v5.2c0 1.2-.9 2-2.1 2H9l-3.4 2.8v-2.8c-1.1-.1-2-.9-2-2z"/><path class="dl" stroke-width="1.2" d="M6.6 11.8h6.8M6.6 14.4H11"/>',
 }

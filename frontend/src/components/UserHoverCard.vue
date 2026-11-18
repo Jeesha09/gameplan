@@ -15,18 +15,17 @@
           </div>
         </div>
         <div class="mt-0.5 text-p-sm text-ink-gray-6">{{ userData.bio }}</div>
-        <div
-          v-if="userData.favorite_badge"
-          class="mt-2 flex items-center gap-1.5 text-p-sm text-ink-gray-7"
-        >
+        <!-- Only the coins: the tooltip on each names the badge. -->
+        <div v-if="userData.favorite_badges?.length" class="mt-2 flex items-center gap-1.5">
           <BadgeMedallion
+            v-for="badge in userData.favorite_badges"
+            :key="badge.name"
             size="sm"
-            :family="userData.favorite_badge.family"
-            :tier="userData.favorite_badge.tier"
-            :title="userData.favorite_badge.title"
-            :description="userData.favorite_badge.description"
+            :family="badge.family"
+            :tier="badge.tier"
+            :title="badge.title"
+            :description="badge.description"
           />
-          {{ userData.favorite_badge.title }}
         </div>
         <div class="text-p-xs text-ink-gray-6 mt-2">
           {{ userData.discussions_count_3m }}

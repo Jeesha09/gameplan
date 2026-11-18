@@ -1,43 +1,53 @@
 <template>
-  <Tooltip :hover-delay="200">
+  <BadgeTooltip
+    :title="title"
+    :tier="tier"
+    :description="description"
+    :granted-at="grantedAt"
+    :count="count"
+  >
     <button
       type="button"
-      class="badge-medallion relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full focus-visible:focus-ring"
+      class="badge-medallion relative inline-flex shrink-0 overflow-hidden rounded-full focus-visible:focus-ring"
       :class="[
-        `badge-medallion--${tier.toLowerCase()}`,
-        sizes[size].frame,
+        `badge-tier--${tier.toLowerCase()}`,
+        sizes[size],
         { 'badge-medallion--playing': playing },
       ]"
       :aria-label="`${title}, ${tier} badge`"
       :aria-description="description || undefined"
       @mouseenter="play"
       @click.stop.prevent="play"
-      @animationend.self="playing = false"
+      @animationend.self="stop"
     >
-      <!-- eslint-disable-next-line vue/no-v-html -- constant symbol markup from data/badges.ts -->
-      <svg
-        :class="sizes[size].symbol"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.5"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-        v-html="BADGE_SYMBOLS[family] || ''"
-      />
+      <svg class="size-full" viewBox="0 0 40 40" aria-hidden="true">
+        <circle cx="20" cy="20" r="19" fill="var(--badge-ring)" />
+        <circle cx="20" cy="20" r="16.2" fill="var(--badge-face)" />
+        <!-- The engraved rim is lost at the smallest size, so it is left out there. -->
+        <circle
+          v-if="size !== 'sm'"
+          cx="20"
+          cy="20"
+          r="14.4"
+          fill="none"
+          stroke="var(--badge-symbol)"
+          stroke-opacity="0.28"
+          stroke-width="0.8"
+          stroke-dasharray="1.6 1.4"
+        />
+        <!-- eslint-disable-next-line vue/no-v-html -- constant symbol markup from data/badges.ts -->
+        <g
+          class="badge-art"
+          transform="translate(8.6 8.6) scale(0.95)"
+          v-html="BADGE_SYMBOLS[family] || ''"
+        />
+      </svg>
     </button>
-    <template #content>
-      <div class="max-w-56 py-0.5">
-        <div class="font-medium">{{ title }} · {{ tier }}</div>
-        <div v-if="description" class="mt-0.5 opacity-80">{{ description }}</div>
-      </div>
-    </template>
-  </Tooltip>
+  </BadgeTooltip>
 </template>
 <script setup lang="ts">
-import { nextTick, ref } from 'vue'
-import { Tooltip } from 'frappe-ui'
+import BadgeTooltip from './BadgeTooltip.vue'
+import { useReplay } from './useReplay'
 import { BADGE_SYMBOLS, type BadgeTier } from '@/data/badges'
 
 withDefaults(
@@ -47,45 +57,23 @@ withDefaults(
     title: string
     /** What the badge is for, shown in the tooltip. */
     description?: string
+    grantedAt?: string
+    count?: number
     size?: 'sm' | 'md' | 'lg'
   }>(),
-  { size: 'md', description: '' },
+  { size: 'md', description: '', grantedAt: '', count: 1 },
 )
 
-const sizes = {
-  sm: { frame: 'size-6 border-[1.5px]', symbol: 'size-3.5' },
-  md: { frame: 'size-10 border-2', symbol: 'size-5' },
-  lg: { frame: 'size-16 border-[3px]', symbol: 'size-8' },
-}
+const sizes = { sm: 'size-6', md: 'size-10', lg: 'size-16' }
 
 // Hovering or clicking flips the medallion like a coin. A click never follows a link the
 // medallion sits in, so the flip can be seen; the badge's name next to it is the link.
-const playing = ref(false)
-async function play() {
-  playing.value = false
-  await nextTick()
-  playing.value = true
-}
+const { playing, play, stop } = useReplay()
 </script>
 <style>
-/* Tier colours are Discourse's, approved in prd/badges.md as the one exception to the
-   gray-token rule for badge medallions. */
-.badge-medallion--bronze {
-  background: var(--badge-bronze-fill);
-  border-color: var(--badge-bronze-ring);
-  color: var(--badge-bronze-symbol);
+.badge-medallion {
+  --badge-cut: var(--badge-face);
 }
-.badge-medallion--silver {
-  background: var(--badge-silver-fill);
-  border-color: var(--badge-silver-ring);
-  color: var(--badge-silver-symbol);
-}
-.badge-medallion--gold {
-  background: var(--badge-gold-fill);
-  border-color: var(--badge-gold-ring);
-  color: var(--badge-gold-symbol);
-}
-
 .badge-medallion--playing {
   animation: badge-medallion-flip 700ms cubic-bezier(0.34, 1.3, 0.64, 1);
 }

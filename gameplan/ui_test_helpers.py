@@ -438,7 +438,10 @@ def _badges():
 		frappe.get_doc("GP Discussion", ids["discussion"]).react([{"emoji": "👍", "operation": "add"}])
 	check_user(MEMBER, notify=False)
 	check_user(SECOND_MEMBER, notify=False)
-	return {**ids, "member_profile": frappe.db.get_value("GP User Profile", {"user": MEMBER})}
+	profile = frappe.db.get_value("GP User Profile", {"user": MEMBER})
+	# An empty profile shows no cards, and favourites hang from the name card.
+	frappe.db.set_value("GP User Profile", profile, "bio", "Writes the release notes.")
+	return {**ids, "member_profile": profile}
 
 
 SCENARIOS = {

@@ -6,6 +6,7 @@ import frappe
 from gameplan.badges import QUEUE, catalog, on_reaction_change
 from gameplan.badges.api import (
 	badge_holders,
+	favorites,
 	get_settings,
 	grant_badge,
 	list_badges,
@@ -323,6 +324,8 @@ class TestReading(BadgeTestCase):
 		with self.as_user(self.member):
 			result = set_favorites(["welcome"])
 			self.assertEqual((result["badges"][0].name, result["badges"][0].is_favorite), ("welcome", 1))
+			# The hover card shows every favourite.
+			self.assertEqual([b.name for b in favorites([self.member.name])[self.member.name]], ["welcome"])
 			with self.assertRaises(frappe.ValidationError):
 				set_favorites(["first-like"])
 			with self.assertRaises(frappe.ValidationError):

@@ -148,8 +148,8 @@ def user_badges(user: str):
 	return {"enabled": 1, "badges": rows}
 
 
-def first_favorites(users):
-	"""{user: badge} with each person's first favourite, for the hover card. Empty while badges are off."""
+def favorites(users):
+	"""{user: [badge]} with each person's favourites, for the hover card. Empty while badges are off."""
 	if not users or not is_enabled():
 		return {}
 	Grant, Badge = frappe.qb.DocType("GP User Badge"), frappe.qb.DocType("GP Badge")
@@ -164,10 +164,11 @@ def first_favorites(users):
 		.orderby(Badge.position)
 		.run(as_dict=True)
 	)
-	favorites = {}
+	# set_favorites marks one grant per badge, and at most three.
+	chosen = {}
 	for row in rows:
-		favorites.setdefault(row.pop("user"), row)
-	return favorites
+		chosen.setdefault(row.pop("user"), []).append(row)
+	return chosen
 
 
 @frappe.whitelist(methods=["POST"])

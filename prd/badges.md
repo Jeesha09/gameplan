@@ -10,7 +10,7 @@ The names, rules, tiers, and thresholds are Discourse's own, so a badge imported
 | --- | --- |
 | B1 | Reader works as Discourse defines it: read every reply in a discussion with more than 100 replies. |
 | B2 | Out of Love, Higher Love, and Crazy in Love are not ported. They need a daily like limit, and Gameplan has none. |
-| B3 | Tiers are coloured Bronze, Silver, and Gold, with Discourse's colours. This is a deliberate exception to the gray-tokens rule. |
+| B3 | Tiers are coloured Bronze, Silver, and Gold, with frappe-ui's orange, gray, and yellow. This is a deliberate exception to the gray-tokens rule. |
 | B4 | Each badge family has its own symbol. The tiers of a family share the symbol and differ by medallion colour. |
 | B5 | Badges ship on `forum-features`. |
 
@@ -81,42 +81,41 @@ A new "Badge" notification for each grant. Grants from the first full pass and f
 
 - **Badges page** at `/g/badges`: every enabled badge by group, with its tier, how many people hold it, and whether you hold it.
 - **Badge page**: the badge's description, and who earned it, newest first. Per-post badges link to the post.
-- **Profile**: a Badges section with every badge the member holds, and up to 3 favourites the member picks.
-- **Hover card**: the member's first favourite.
+- **Profile**: a Badges tab with every badge the member holds, and up to 3 favourites the member picks. The favourites hang as ribbons from the top edge of the profile's name card, for everyone who can see the profile.
+- **Hover card**: the member's favourites, as coins with no names. The tooltip on each names it.
 - **Site administration**: turn badges on and off, turn single badges on and off, and grant or revoke a badge by hand with a reason. Each manual change goes to the member's account history. A revoked grant stays as a hidden row, so the next automatic check does not grant it again. Only badges earned once can be granted by hand.
 
 ## Medallions
 
-A medallion is a circle filled with a tint of the tier colour, ringed in the tier colour, with the family's symbol in a dark shade of it. Approved colours:
+A medallion is a coin: a ring in the tier colour, a face in a tint of it, an engraved dashed rim, and the family's symbol in a dark shade. Every colour is a frappe-ui token, so dark mode follows the theme.
 
-| Tier | Theme | Fill | Ring | Symbol |
+| Tier | frappe-ui colour | Ring | Face | Symbol |
 | --- | --- | --- | --- | --- |
-| Bronze | Light | `#F6E6D6` | `#CD7F32` | `#7A3F12` |
-| | Dark | `#3B2818` | `#D38F42` | `#F0C08E` |
-| Silver | Light | `#EEF0F2` | `#A3ABB4` | `#4B5563` |
-| | Dark | `#2A2E33` | `#C0C0C0` | `#E3E6EA` |
-| Gold | Light | `#FBF0C2` | `#E7C300` | `#6E5400` |
-| | Dark | `#3A3210` | `#E7C300` | `#F7DD62` |
+| Bronze | orange | `surface-orange-7` | `surface-orange-2` | `ink-orange-8` |
+| Silver | gray | `surface-gray-7` | `surface-gray-2` | `ink-gray-7` |
+| Gold | yellow | `surface-yellow-7` | `surface-yellow-2` | `ink-yellow-8` |
 
-Hovering or clicking a medallion flips it like a coin, and a tooltip names the badge and what it is for. A click never follows a link the medallion sits in. With reduced motion, the medallion pulses instead.
+Hovering or clicking a medallion flips it like a coin. A click never follows a link the medallion sits in. With reduced motion, the medallion pulses instead.
 
-Each symbol has a contrast ratio of at least 6:1 against its fill. The light-theme rings are faint on white, so the badge name and tier always show as text beside a medallion. The colours become tokens, and the colour trap in `AGENTS.md` names badge medallions as an exception in the same change.
+On the profile, each favourite is a ribbon instead of a coin: a pennant in the tier colour with the symbol drawn on it, and no coin. Hovering a ribbon swings it from its top edge, and clicking it opens the badge's page. With reduced motion, it does not swing.
+
+A tooltip on every coin and ribbon names the badge, its tier, and what it is for. Where the grant is known, it also says when the member earned it and how many times. The badge name and tier also show as text beside a coin, because the light-theme rings are faint on white.
 
 ## Symbols
 
-One symbol per family, 12 in all, drawn as one set with the icon-set-generator skill: 24px grid, 1.5px stroke, round caps. The symbols are shown for approval before they are used.
+One symbol per family, 12 in all, drawn by hand as filled shapes on a 24px grid. Details are cut back to the background, so each reads as one shape at 24px.
 
-| Family | Symbol idea |
+| Family | Symbol |
 | --- | --- |
-| Autobiographer | A profile card |
-| First Like | A heart |
+| Autobiographer | A cameo portrait |
+| First Like | A heart with a highlight |
 | First Mention | An at sign |
-| Reader | An open book |
+| Reader | An open book with a bookmark |
 | Welcome | A waving hand |
-| Appreciated | A star |
+| Appreciated | A star with a sparkle |
 | Thank You | A hand holding a heart |
-| Enthusiast | A calendar with a check mark |
-| Anniversary | A cake |
+| Enthusiast | A flame |
+| Anniversary | A cake with a candle |
 | Helper | A life buoy |
 | Reply | A speech bubble |
 | Topic | Two stacked speech bubbles |

@@ -17,7 +17,7 @@
         "
       />
       <p v-if="isOwnProfile && held.length" class="mb-3 text-p-sm text-ink-gray-6">
-        Star up to {{ MAX_FAVORITES }} badges to show them first here and on your hover card.
+        Star up to {{ MAX_FAVORITES }} badges to show them on your profile and hover card.
       </p>
       <div class="grid gap-2 sm:grid-cols-2">
         <div
@@ -30,6 +30,8 @@
             :tier="badge.tier"
             :title="badge.title"
             :description="badge.description"
+            :granted-at="badge.granted_at"
+            :count="badge.count"
           />
           <router-link
             :to="{ name: 'Badge', params: { badgeId: badge.name } }"

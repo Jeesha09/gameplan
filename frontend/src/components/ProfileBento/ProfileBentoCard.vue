@@ -110,8 +110,17 @@
       :class="flow ? 'min-h-[6.5rem]' : 'h-full'"
     >
       <div class="flex items-center gap-1.5 pb-2 text-xs font-medium text-ink-gray-5 sm:text-sm">
-        {{ card.title }}
+        <!-- Wraps rather than truncates when the ribbons leave it little room. -->
+        <span class="min-w-0">{{ card.title }}</span>
         <span v-if="card.url" class="lucide-arrow-up-right size-3.5" aria-hidden="true" />
+        <!-- Favourite badges hang from the card's top edge, so the row's padding is pulled
+             back out. A zero-height box keeps them from making the row taller, and the
+             margin keeps them clear of the owner's edit button in the corner. -->
+        <ProfileBadgeRibbons
+          v-if="showBadgeRibbons"
+          class="-mt-3 ml-auto h-0 shrink-0 self-start sm:-mt-4"
+          :class="{ 'mr-8': canEdit }"
+        />
       </div>
       <p :class="textClass">{{ textCardBody }}</p>
     </div>
@@ -243,6 +252,7 @@ import {
 } from './profileBentoLayout'
 import { Button, Spinner } from 'frappe-ui'
 import ImageUploader from '@/components/ImageUploader.vue'
+import ProfileBadgeRibbons from '@/components/Badges/ProfileBadgeRibbons.vue'
 import { useProfileImageReposition } from './useProfileImageReposition'
 
 const props = defineProps<{
@@ -307,6 +317,11 @@ const overlayButtonClass =
   'relative transition-opacity [@media(hover:hover)]:opacity-0 focus:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:after:absolute [@media(pointer:coarse)]:after:-inset-2.5'
 
 const cardElement = useTemplateRef<HTMLElement>('cardElement')
+
+/** Only on the profile page itself: the customize page edits the layout, not the badges. */
+const showBadgeRibbons = computed(
+  () => props.card.field === 'full_name' && !props.editor && !props.interactive,
+)
 const htmlStack = ref<HTMLElement | null>(null)
 
 /**

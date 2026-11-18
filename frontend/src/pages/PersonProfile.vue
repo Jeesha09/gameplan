@@ -70,8 +70,8 @@
   </NotFound>
 </template>
 <script setup lang="ts">
-import { computed, inject } from 'vue'
-import { badgesEnabled } from '@/data/badges'
+import { computed, inject, provide } from 'vue'
+import { badgesEnabled, profileUserKey } from '@/data/badges'
 import { routerViewLocationKey, useRoute, useRouter } from 'vue-router'
 import { PageHeader, Breadcrumbs, Button, TabButtons, useDoc, usePageMeta } from 'frappe-ui'
 import NotFound from '@/pages/NotFound.vue'
@@ -126,6 +126,11 @@ const profileChildResource = computed(() => ({
   doc: profile.value,
 }))
 const isOwnProfile = computed(() => profile.value?.user === sessionUser.name)
+// The name card hangs this person's favourite badges from its top edge.
+provide(
+  profileUserKey,
+  computed(() => profile.value?.user || ''),
+)
 const canBlock = computed(() => Boolean(profile.value) && !isOwnProfile.value && messagesEnabled())
 const canMessage = computed(
   () =>
