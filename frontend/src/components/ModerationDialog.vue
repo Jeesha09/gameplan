@@ -14,7 +14,7 @@
       <div class="flex min-h-0 flex-1 flex-col md:flex-row">
         <aside
           v-if="$slots.sidebar"
-          class="max-h-[35vh] shrink-0 border-b border-outline-gray-2 bg-surface-gray-1 md:order-last md:max-h-none md:w-80 md:border-b-0 md:border-l"
+          class="max-h-[35vh] shrink-0 border-b border-outline-gray-2 bg-surface-gray-1 md:max-h-none md:w-80 md:border-b-0 md:border-r"
         >
           <!-- On wide screens the sidebar takes the dialog's height and scrolls inside it, so a
                resized feedback box cannot grow over the footer. -->
