@@ -64,3 +64,4 @@ gameplan.gameplan.doctype.gp_comment.patches.add_reference_index
 gameplan.patches.backfill_user_restrictions
 gameplan.gameplan.doctype.gp_posting_settings.patches.set_content_cap_defaults
 gameplan.patches.add_scale_indexes #2026-11-12 reaction index for trust levels
+gameplan.patches.rename_member_trust_level_to_contributor #2026-11-19 trust level 2 is Contributor

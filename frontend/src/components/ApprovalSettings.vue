@@ -43,7 +43,7 @@
       <h3 id="auto-hide-title" class="text-base font-medium text-ink-gray-8">Auto-hide</h3>
       <p class="mt-1 text-p-sm text-ink-gray-6">
         Hide a post until review when its Spam and Abuse reports reach a weight. New and Basic
-        members count 1, Members 2, Regulars, Leaders and Community staff 3. Posts by Community
+        members count 1, Contributors 2, Regulars, Leaders and Community staff 3. Posts by Community
         staff never hide.
       </p>
       <Checkbox
@@ -100,7 +100,7 @@ const props = defineProps<{ communityId: string }>()
 const levelPolicies = [
   { label: 'Nobody', value: '' },
   { label: 'New members', value: 'Basic' },
-  { label: 'New and Basic members', value: 'Member' },
+  { label: 'New and Basic members', value: 'Contributor' },
 ]
 const loaded = ref(false)
 const open = ref(false),

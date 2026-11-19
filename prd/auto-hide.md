@@ -15,7 +15,7 @@ Member reports can hide a post until a moderator reviews it. Each report counts 
 | Reporter | Weight |
 | --- | --- |
 | New, Basic | 1 |
-| Member | 2 |
+| Contributor | 2 |
 | Regular, Leader | 3 |
 | Community staff, global admins | 3 |
 

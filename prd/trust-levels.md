@@ -1,6 +1,6 @@
 # Trust levels
 
-Decisions D103 to D132 in [moderation decisions](moderation-decisions.md). They replace the per-Community design (D62 to D77).
+Decisions D103 to D133 in [moderation decisions](moderation-decisions.md). They replace the per-Community design (D62 to D77).
 
 Trust levels mirror Discourse. Each person has one site-wide level. Members earn the first three levels from what they do, keep Regular only while they stay active, and get Leader only by hand. Levels are off until a global admin turns them on.
 
@@ -10,7 +10,7 @@ Trust levels mirror Discourse. Each person has one site-wide level. Members earn
 | --- | --- | --- | --- |
 | 0 New | Joining | Approval in Communities that hold New posts. The new-user limits: 3 discussions and 10 replies on the first day, 1 image, 2 links, no files, 2 mentions, no @everyone. | 1 |
 | 1 Basic | 5 discussions entered, visits on 2 days, 1 accepted post | The new-user limits end. The site content caps apply. | 1 |
-| 2 Member | Visits on 15 days, 1 reaction given, 1 received, replies in 3 discussions, 20 discussions entered | Twice the posting-rate limits | 2 |
+| 2 Contributor | Visits on 15 days, 1 reaction given, 1 received, replies in 3 discussions, 20 discussions entered | Twice the posting-rate limits | 2 |
 | 3 Regular | In the last 100 days: visits on 50 days, replies in 10 discussions, 25% of new discussions entered (at most 500), 30 reactions given, 20 received from at least 5 people, at most 5 posts removed by moderators. No ban, suspension, or silence in the last 180 days. | Skips the content caps | 3 |
 | 4 Leader | A global admin only | Nothing beyond report weight (D132) | 3 |
 
@@ -39,17 +39,17 @@ Reading time and posts read are not tracked.
 
 ## When levels change
 
-- **A new visit day.** The first request of a UTC day sets a cache key and queues a job that records the day. A New or Basic member is then checked for Basic and Member.
+- **A new visit day.** The first request of a UTC day sets a cache key and queues a job that records the day. A New or Basic member is then checked for Basic and Contributor.
 - **A published post.** A New or Basic author is checked again.
-- **The nightly job.** Members who visited since yesterday are checked for Regular. Regulars past their grace period are checked again, and drop to Member if they fall short.
-- **Turning levels on.** A job counts past visit days from posts, reactions, and discussion visits, then works out each person's level up to Member. Nobody is told.
+- **The nightly job.** Contributors who visited since yesterday are checked for Regular. Regulars past their grace period are checked again, and drop to Contributor if they fall short.
+- **Turning levels on.** A job counts past visit days from posts, reactions, and discussion visits, then works out each person's level up to Contributor. Nobody is told.
 - **A first read.** A member the job has not reached yet is worked out the first time their level is needed.
 
-New, Basic, and Member never drop by themselves. A promotion to Regular, automatic or manual, starts a 14-day grace period. A lock stops every automatic change. An active ban, suspension, or silence pauses promotion.
+New, Basic, and Contributor never drop by themselves. A promotion to Regular, automatic or manual, starts a 14-day grace period. A lock stops every automatic change. An active ban, suspension, or silence pauses promotion.
 
 ## Approval
 
-While levels are on, each Community admin chooses whether to hold posts from members below Basic or Member, or from nobody. Community staff are never held. While levels are off, the first-N rule (D37) works as before.
+While levels are on, each Community admin chooses whether to hold posts from members below Basic or Contributor, or from nobody. Community staff are never held. While levels are off, the first-N rule (D37) works as before.
 
 ## Manual changes
 
@@ -57,14 +57,14 @@ Global admins set or lock a level with a reason. Each change goes to the member'
 
 ## Notifications
 
-Members get an in-app notification for each promotion, and when they drop from Regular to Member.
+Members get an in-app notification for each promotion, and when they drop from Regular to Contributor.
 
 ## Scale
 
 - Each count stops at the number its requirement needs, and reads the member's own rows through an index.
 - The posting path reads one `GP Trust Level` row by primary key.
 - A visit costs one cache read per request and one job per member per day.
-- The nightly job reads only Members who visited since yesterday and Regulars past their grace period. Both jobs commit in batches and continue as a new job after a time limit.
+- The nightly job reads only Contributors who visited since yesterday and Regulars past their grace period. Both jobs commit in batches and continue as a new job after a time limit.
 - New indexes: `GP Reaction (user, creation)`, `GP Visit Day (user, day)` unique, `GP Visit Day (day, user)`, and `GP Trust Level (level, locked, user)`.
 
 ## API

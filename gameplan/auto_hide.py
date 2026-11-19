@@ -15,7 +15,7 @@ from gameplan.mixins.moderation import content_is_removed, parent_discussion, re
 from gameplan.permissions import can_manage_community, get_content_project, require_can_manage_community
 
 COUNTED_REASONS = ("Spam", "Abuse/inappropriate")
-# Report weight by trust level: New, Basic, Member, Regular, Leader (D116).
+# Report weight by trust level: New, Basic, Contributor, Regular, Leader (D116).
 WEIGHTS = (1, 1, 2, 3, 3)
 STAFF_WEIGHT = 3
 DEFAULT_THRESHOLD = 6

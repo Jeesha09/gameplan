@@ -142,6 +142,7 @@ A recommendation becomes a decision only after Ebrahim accepts it.
 | D130 | A manual change to Regular also starts the grace period. A lock keeps a level for good. | |
 | D131 | The trust level engine and visit tracking are PR 12. The UI is PR 13. Weighted auto-hide is PR 14. Each is one PR whatever its size. | Supersedes D77. |
 | D132 | Leader unlocks nothing beyond report weight 3. Every member who can see a Space keeps editing, closing, reopening, pinning, and moving its discussions. | Supersedes D116's Leader actions and D128. Confirmed November 12, 2026. |
+| D133 | Level 2 is called Contributor, not Member. | "Member" already means someone who belongs to a Community or Space. Supersedes the level name in D103, D106, D113, D125 and D129. Confirmed November 19, 2026. |
 
 
 

@@ -1,6 +1,6 @@
-"""Site-wide trust levels that mirror Discourse: New, Basic, Member, Regular and Leader.
+"""Site-wide trust levels that mirror Discourse: New, Basic, Contributor, Regular and Leader.
 
-Decisions D103 to D132. A member earns Basic and Member from visits, discussions entered,
+Decisions D103 to D132. A member earns Basic and Contributor from visits, discussions entered,
 reactions and replies, Regular from the same signals over a rolling window, and Leader only by
 hand. Levels are stored on GP Trust Level, one row a person, so the posting path reads one row
 by primary key. Requirements are checked once a day per member, when a post is accepted, and
@@ -19,8 +19,8 @@ import gameplan
 from gameplan.api import require_admin
 from gameplan.restrictions import active_condition, utc_now
 
-LEVELS = ("New", "Basic", "Member", "Regular", "Leader")
-NEW, BASIC, MEMBER, REGULAR, LEADER = range(5)
+LEVELS = ("New", "Basic", "Contributor", "Regular", "Leader")
+NEW, BASIC, CONTRIBUTOR, REGULAR, LEADER = range(5)
 LEVEL_ACTIONS = ("Level Changed", "Level Locked", "Level Unlocked", "Regular Promotion", "Regular Demotion")
 REMOVAL_ACTIONS = ("Ban", "Suspend", "Silence")
 # Setting: (default, smallest, largest).
@@ -28,11 +28,11 @@ REQUIREMENTS = {
 	"basic_entered": (5, 0, 1000),
 	"basic_days": (2, 0, 1000),
 	"basic_accepted": (1, 0, 1000),
-	"member_days": (15, 0, 1000),
-	"member_given": (1, 0, 1000),
-	"member_received": (1, 0, 1000),
-	"member_replied": (3, 0, 1000),
-	"member_entered": (20, 0, 1000),
+	"contributor_days": (15, 0, 1000),
+	"contributor_given": (1, 0, 1000),
+	"contributor_received": (1, 0, 1000),
+	"contributor_replied": (3, 0, 1000),
+	"contributor_entered": (20, 0, 1000),
 	"regular_window": (100, 30, 365),
 	"regular_days": (50, 0, 365),
 	"regular_replied": (10, 0, 1000),
@@ -294,12 +294,12 @@ def requirements(user, level, cfg, *, now=None):
 		yield at_least("entered", cfg.basic_entered, lambda n: entered(user, n))
 		yield at_least("days", cfg.basic_days, lambda n: visit_days(user, n))
 		yield at_least("accepted", cfg.basic_accepted, lambda n: accepted(user, n))
-	elif level == MEMBER:
-		yield at_least("days", cfg.member_days, lambda n: visit_days(user, n))
-		yield at_least("given", cfg.member_given, lambda n: given(user, n))
-		yield at_least("received", cfg.member_received, lambda n: received(user, n))
-		yield at_least("replied", cfg.member_replied, lambda n: replied(user, n))
-		yield at_least("entered", cfg.member_entered, lambda n: entered(user, n))
+	elif level == CONTRIBUTOR:
+		yield at_least("days", cfg.contributor_days, lambda n: visit_days(user, n))
+		yield at_least("given", cfg.contributor_given, lambda n: given(user, n))
+		yield at_least("received", cfg.contributor_received, lambda n: received(user, n))
+		yield at_least("replied", cfg.contributor_replied, lambda n: replied(user, n))
+		yield at_least("entered", cfg.contributor_entered, lambda n: entered(user, n))
 	elif level == REGULAR:
 		now = now or utc_now()
 		since = now - timedelta(days=cfg.regular_window)
@@ -326,10 +326,10 @@ def meets(user, level, cfg, *, now=None):
 
 
 def early_level(user, cfg):
-	"""New, Basic or Member from what the member has done. Regular comes from the nightly job."""
+	"""New, Basic or Contributor from what the member has done. Regular comes from the nightly job."""
 	if not meets(user, BASIC, cfg):
 		return NEW
-	return MEMBER if meets(user, MEMBER, cfg) else BASIC
+	return CONTRIBUTOR if meets(user, CONTRIBUTOR, cfg) else BASIC
 
 
 # Changing a level -----------------------------------------------------------------------------
@@ -349,7 +349,7 @@ def apply_level(row, level, cfg, *, notify=True):
 
 MESSAGES = {
 	BASIC: "You are now Basic. You can add more links, images, files and mentions to your posts.",
-	MEMBER: "You are now a Member. You can post more often.",
+	CONTRIBUTOR: "You are now a Contributor. You can post more often.",
 	REGULAR: "You are now a Regular. Your posts skip the content caps.",
 	LEADER: "You are now a Leader.",
 }
@@ -358,8 +358,8 @@ MESSAGES = {
 def notify_change(user, previous, level):
 	if level > previous:
 		message = _(MESSAGES[level])
-	elif previous == REGULAR and level == MEMBER:
-		message = _("You are now a Member. Keep visiting and taking part to become a Regular again.")
+	elif previous == REGULAR and level == CONTRIBUTOR:
+		message = _("You are now a Contributor. Keep visiting and taking part to become a Regular again.")
 	else:
 		message = _("Your trust level is now {0}.").format(_(LEVELS[level]))
 	frappe.get_doc(
@@ -384,7 +384,7 @@ def log_level(user, action, reason="", previous=None, level=None):
 
 
 def check_user(user):
-	"""Move a New or Basic member up as far as Member when they qualify (D123)."""
+	"""Move a New or Basic member up as far as Contributor when they qualify (D123)."""
 	if not is_enabled() or not has_level(user):
 		return
 	cfg = config()
@@ -392,7 +392,7 @@ def check_user(user):
 	if not row:
 		ensure_row(user)
 		return
-	if row.locked or cint(row.level) >= MEMBER or restricted(user):
+	if row.locked or cint(row.level) >= CONTRIBUTOR or restricted(user):
 		return
 	level = early_level(user, cfg)
 	if level > cint(row.level):
@@ -406,7 +406,7 @@ def check_after_post(doc, method=None):
 	if not supports_approval(doc) or not is_enabled() or not has_level(doc.owner):
 		return
 	row = stored_row(doc.owner)
-	if row and (row.locked or cint(row.level) >= MEMBER):
+	if row and (row.locked or cint(row.level) >= CONTRIBUTOR):
 		return
 	frappe.enqueue(check_user, queue="short", user=doc.owner, enqueue_after_commit=True, now=frappe.in_test)
 
@@ -577,7 +577,7 @@ def set_lock(user: str, locked: int, reason: str):
 
 PAGE = 50
 # The level a member works toward. A Regular works to keep Regular. Leader has nothing next.
-NEXT = {NEW: BASIC, BASIC: MEMBER, MEMBER: REGULAR, REGULAR: REGULAR}
+NEXT = {NEW: BASIC, BASIC: CONTRIBUTOR, CONTRIBUTOR: REGULAR, REGULAR: REGULAR}
 
 
 def progress(user, row, cfg):
@@ -739,7 +739,7 @@ def community_levels(community: str):
 
 
 def nightly():
-	"""Daily: promote Members to Regular and recheck Regulars (D106, D119)."""
+	"""Daily: promote Contributors to Regular and recheck Regulars (D106, D119)."""
 	if not is_enabled():
 		return
 	frappe.enqueue(promote_regulars, queue="long", now=frappe.in_test)
@@ -747,7 +747,7 @@ def nightly():
 
 
 def promote_regulars(after="", budget=TIME_BUDGET):
-	"""Promote Members who visited since yesterday and now meet every Regular requirement."""
+	"""Promote Contributors who visited since yesterday and now meet every Regular requirement."""
 	cfg = config()
 	if not cfg.enabled:
 		return
@@ -761,7 +761,7 @@ def promote_regulars(after="", budget=TIME_BUDGET):
 			.on(Day.user == Level.user)
 			.select(Level.user)
 			.distinct()
-			.where((Level.level == MEMBER) & (Level.locked == 0) & (Level.user > after) & (Day.day >= since))
+			.where((Level.level == CONTRIBUTOR) & (Level.locked == 0) & (Level.user > after) & (Day.day >= since))
 			.orderby(Level.user)
 			.limit(JOB_BATCH)
 			.run(pluck=True)
@@ -772,12 +772,12 @@ def promote_regulars(after="", budget=TIME_BUDGET):
 		if (
 			row
 			and not row.locked
-			and cint(row.level) == MEMBER
+			and cint(row.level) == CONTRIBUTOR
 			and not restricted(user)
 			and meets(user, REGULAR, cfg)
 		):
 			apply_level(row, REGULAR, cfg)
-			log_level(user, "Regular Promotion", "", MEMBER, REGULAR)
+			log_level(user, "Regular Promotion", "", CONTRIBUTOR, REGULAR)
 
 	in_slices(
 		candidates,
@@ -789,7 +789,7 @@ def promote_regulars(after="", budget=TIME_BUDGET):
 
 
 def recheck_regulars(after="", budget=TIME_BUDGET):
-	"""Move a Regular who no longer meets the requirements to Member, after the grace period."""
+	"""Move a Regular who no longer meets the requirements to Contributor, after the grace period."""
 	cfg = config()
 	if not cfg.enabled:
 		return
@@ -814,8 +814,8 @@ def recheck_regulars(after="", budget=TIME_BUDGET):
 		if row.grace_until and get_datetime(row.grace_until) > now:
 			return
 		if not meets(user, REGULAR, cfg, now=now):
-			apply_level(row, MEMBER, cfg)
-			log_level(user, "Regular Demotion", "", REGULAR, MEMBER)
+			apply_level(row, CONTRIBUTOR, cfg)
+			log_level(user, "Regular Demotion", "", REGULAR, CONTRIBUTOR)
 
 	in_slices(
 		candidates,

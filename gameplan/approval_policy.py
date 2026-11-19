@@ -6,7 +6,7 @@ from gameplan.community_bans import can_moderate_community
 from gameplan.permissions import get_content_project, require_can_manage_community
 
 # Levels a Community can require before posts skip approval; "" holds nobody (D113).
-LEVEL_POLICIES = ("", "Basic", "Member")
+LEVEL_POLICIES = ("", "Basic", "Contributor")
 
 
 @frappe.whitelist(methods=["GET", "POST"])
@@ -41,10 +41,10 @@ def get_level_policy(community: str):
 
 @frappe.whitelist(methods=["POST"])
 def set_level_policy(community: str, min_level: str):
-	"""Hold posts from members below Basic or Member for approval, or none with "". Community admins."""
+	"""Hold posts from members below Basic or Contributor for approval, or none with "". Community admins."""
 	require_can_manage_community(community)
 	if min_level not in LEVEL_POLICIES:
-		frappe.throw("Choose no approval, Basic or Member")
+		frappe.throw("Choose no approval, Basic or Contributor")
 	if not frappe.db.get_value("GP Team", community, "name", for_update=True):
 		raise frappe.DoesNotExistError(f"GP Team {community} not found")
 	frappe.db.set_value("GP Team", community, "approval_min_level", min_level)

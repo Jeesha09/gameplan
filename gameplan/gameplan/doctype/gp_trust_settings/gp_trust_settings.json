@@ -10,12 +10,12 @@
   "basic_entered",
   "basic_days",
   "basic_accepted",
-  "member_section",
-  "member_days",
-  "member_given",
-  "member_received",
-  "member_replied",
-  "member_entered",
+  "contributor_section",
+  "contributor_days",
+  "contributor_given",
+  "contributor_received",
+  "contributor_replied",
+  "contributor_entered",
   "regular_section",
   "regular_window",
   "regular_days",
@@ -63,41 +63,41 @@
    "non_negative": 1
   },
   {
-   "fieldname": "member_section",
+   "fieldname": "contributor_section",
    "fieldtype": "Section Break",
-   "label": "Member"
+   "label": "Contributor"
   },
   {
    "default": "15",
-   "fieldname": "member_days",
+   "fieldname": "contributor_days",
    "fieldtype": "Int",
    "label": "Days visited",
    "non_negative": 1
   },
   {
    "default": "1",
-   "fieldname": "member_given",
+   "fieldname": "contributor_given",
    "fieldtype": "Int",
    "label": "Reactions given",
    "non_negative": 1
   },
   {
    "default": "1",
-   "fieldname": "member_received",
+   "fieldname": "contributor_received",
    "fieldtype": "Int",
    "label": "Reactions received",
    "non_negative": 1
   },
   {
    "default": "3",
-   "fieldname": "member_replied",
+   "fieldname": "contributor_replied",
    "fieldtype": "Int",
    "label": "Discussions replied to",
    "non_negative": 1
   },
   {
    "default": "20",
-   "fieldname": "member_entered",
+   "fieldname": "contributor_entered",
    "fieldtype": "Int",
    "label": "Discussions entered",
    "non_negative": 1

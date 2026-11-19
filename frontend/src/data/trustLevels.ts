@@ -1,7 +1,7 @@
 // Site-wide trust levels that mirror Discourse (decisions D103 to D132). The server owns every
 // rule; this file names the shapes it returns and turns requirements into short sentences.
 
-export const LEVEL_NAMES = ['New', 'Basic', 'Member', 'Regular', 'Leader'] as const
+export const LEVEL_NAMES = ['New', 'Basic', 'Contributor', 'Regular', 'Leader'] as const
 
 export type LevelNumber = 0 | 1 | 2 | 3 | 4
 
@@ -44,13 +44,13 @@ export const SETTING_GROUPS: { title: string; fields: [string, string][] }[] = [
     ],
   },
   {
-    title: 'Member',
+    title: 'Contributor',
     fields: [
-      ['member_days', 'Days visited'],
-      ['member_given', 'Reactions given'],
-      ['member_received', 'Reactions received'],
-      ['member_replied', 'Discussions replied to'],
-      ['member_entered', 'Discussions entered'],
+      ['contributor_days', 'Days visited'],
+      ['contributor_given', 'Reactions given'],
+      ['contributor_received', 'Reactions received'],
+      ['contributor_replied', 'Discussions replied to'],
+      ['contributor_entered', 'Discussions entered'],
     ],
   },
   {

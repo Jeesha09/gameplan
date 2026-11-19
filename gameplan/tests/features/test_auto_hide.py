@@ -12,7 +12,7 @@ from gameplan.tests.fixtures import (
 	create_member,
 	create_space,
 )
-from gameplan.trust_levels import BASIC, LEADER, MEMBER, NEW, REGULAR, removed
+from gameplan.trust_levels import BASIC, LEADER, CONTRIBUTOR, NEW, REGULAR, removed
 from gameplan.trust_levels import save_settings as save_trust_settings
 
 
@@ -89,7 +89,7 @@ class AutoHideTestCase(GameplanTestCase):
 
 class TestWeights(AutoHideTestCase):
 	def test_reports_hide_a_post_when_their_level_weights_reach_the_threshold(self):
-		self.give_level(self.reporters[0], MEMBER)
+		self.give_level(self.reporters[0], CONTRIBUTOR)
 		self.give_level(self.reporters[1], BASIC)
 		self.give_level(self.reporters[2], REGULAR)
 		weights = [self.report(user).weight for user in self.reporters[:2]]

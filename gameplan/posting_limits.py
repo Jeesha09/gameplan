@@ -134,12 +134,12 @@ def allowance(kind, *, for_update=False):
 	config = policy()
 	if not config["enabled"] or gameplan.is_admin():
 		return result
-	from gameplan.trust_levels import MEMBER, level_of
+	from gameplan.trust_levels import CONTRIBUTOR, level_of
 
 	prefix = "discussions" if kind == "discussion" else "replies"
 	level = level_of()
 	# Members and above may post twice as often (D116).
-	factor = 2 if level is not None and level >= MEMBER else 1
+	factor = 2 if level is not None and level >= CONTRIBUTOR else 1
 	limits = [
 		(config[f"{prefix}_hour"] * factor, 3600, "hour"),
 		(config[f"{prefix}_day"] * factor, 86400, "24 hours"),

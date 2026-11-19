@@ -14,7 +14,7 @@ from gameplan.tests.fixtures import create_comment, create_community, create_dis
 from gameplan.trust_levels import (
 	BASIC,
 	LEADER,
-	MEMBER,
+	CONTRIBUTOR,
 	NEW,
 	REGULAR,
 	add_visit_days,
@@ -34,11 +34,11 @@ SMALL = {
 	"basic_entered": 2,
 	"basic_days": 2,
 	"basic_accepted": 1,
-	"member_days": 3,
-	"member_given": 1,
-	"member_received": 1,
-	"member_replied": 2,
-	"member_entered": 3,
+	"contributor_days": 3,
+	"contributor_given": 1,
+	"contributor_received": 1,
+	"contributor_replied": 2,
+	"contributor_entered": 3,
 	"regular_days": 3,
 	"regular_replied": 2,
 	"regular_entered_percent": 50,
@@ -207,16 +207,16 @@ class TestEarlyLevels(TrustLevelTestCase):
 		self.assertEqual(self.level(), BASIC)
 		self.react(self.outsider, mine)
 		check_user(self.member.name)
-		self.assertEqual(self.level(), MEMBER)
+		self.assertEqual(self.level(), CONTRIBUTOR)
 
 	def test_replies_count_once_per_discussion(self):
 		self.earn_member()
-		self.assertEqual(level_of(self.member.name), MEMBER)
+		self.assertEqual(level_of(self.member.name), CONTRIBUTOR)
 		cfg = frappe._dict(get_settings())
-		replied = next(r for r in requirements(self.member.name, MEMBER, cfg) if r["key"] == "replied")
+		replied = next(r for r in requirements(self.member.name, CONTRIBUTOR, cfg) if r["key"] == "replied")
 		self.assertEqual(replied["actual"], 2)
 		create_comment(self.discussions[0], owner=self.member)
-		replied = next(r for r in requirements(self.member.name, MEMBER, cfg) if r["key"] == "replied")
+		replied = next(r for r in requirements(self.member.name, CONTRIBUTOR, cfg) if r["key"] == "replied")
 		self.assertEqual(replied["actual"], 2)
 
 	def test_an_accepted_post_checks_the_author_again(self):
@@ -260,7 +260,7 @@ class TestRegular(TrustLevelTestCase):
 		self.turn_on()
 		mine = self.earn_member()
 		self.react(self.second_member, mine)
-		self.assertEqual(level_of(self.member.name), MEMBER)
+		self.assertEqual(level_of(self.member.name), CONTRIBUTOR)
 
 	def test_the_nightly_job_promotes_a_member_who_meets_every_requirement(self):
 		self.run_jobs(nightly)
@@ -274,19 +274,19 @@ class TestRegular(TrustLevelTestCase):
 			doctype="GP Moderation Log", user=self.member.name, action="Ban", community=self.community.name
 		).insert(ignore_permissions=True)
 		self.run_jobs(nightly)
-		self.assertEqual(self.level(), MEMBER)
+		self.assertEqual(self.level(), CONTRIBUTOR)
 		frappe.db.delete("GP Moderation Log", {"user": self.member.name})
 		comment = create_comment(self.discussions[2], owner=self.member)
 		comment.db_set("hidden_at", frappe.utils.now())
 		self.run_jobs(nightly)
-		self.assertEqual(self.level(), MEMBER)
+		self.assertEqual(self.level(), CONTRIBUTOR)
 
 	def test_only_members_who_visited_since_yesterday_are_candidates(self):
 		frappe.db.delete("GP Visit Day", {"user": self.member.name})
 		old = utc_now().date() - timedelta(days=10)
 		add_visit_days(self.member.name, [str(old - timedelta(days=offset)) for offset in range(3)])
 		self.run_jobs(nightly)
-		self.assertEqual(self.level(), MEMBER)
+		self.assertEqual(self.level(), CONTRIBUTOR)
 
 	def test_a_regular_drops_to_member_only_after_the_grace_period(self):
 		self.run_jobs(nightly)
@@ -295,7 +295,7 @@ class TestRegular(TrustLevelTestCase):
 		self.assertEqual(self.level(), REGULAR)
 		frappe.db.set_value("GP Trust Level", self.member.name, "grace_until", utc_now() - timedelta(days=1))
 		self.run_jobs(nightly)
-		self.assertEqual(self.level(), MEMBER)
+		self.assertEqual(self.level(), CONTRIBUTOR)
 		self.assertEqual(len(self.logs("Regular Demotion")), 1)
 		self.assertIn("become a Regular again", self.notifications()[0])
 
@@ -303,7 +303,7 @@ class TestRegular(TrustLevelTestCase):
 		with self.as_user(self.admin):
 			set_lock(self.member.name, 1, "Keep for now")
 		self.run_jobs(nightly)
-		self.assertEqual(self.level(), MEMBER)
+		self.assertEqual(self.level(), CONTRIBUTOR)
 
 	def test_a_job_past_its_time_budget_continues_as_a_new_job(self):
 		from gameplan.trust_levels import promote_regulars
@@ -371,9 +371,9 @@ class TestBackfill(TrustLevelTestCase):
 	def test_the_first_calculation_never_lowers_a_level(self):
 		self.turn_on()
 		with self.as_user(self.admin):
-			set_level(self.member.name, MEMBER, "Known contributor")
+			set_level(self.member.name, CONTRIBUTOR, "Known contributor")
 		self.run_jobs(backfill)
-		self.assertEqual(self.level(), MEMBER)
+		self.assertEqual(self.level(), CONTRIBUTOR)
 
 
 class TestPrivileges(TrustLevelTestCase):
@@ -428,7 +428,7 @@ class TestPrivileges(TrustLevelTestCase):
 	def test_regulars_skip_the_content_caps(self):
 		with self.as_user(self.admin):
 			save_posting_settings(0, 0, 0, 0, 0, caps_enabled=1, max_links=1)
-			set_level(self.member.name, MEMBER, "Known")
+			set_level(self.member.name, CONTRIBUTOR, "Known")
 		self.addCleanup(frappe.clear_cache, doctype="GP Posting Settings")
 		post = frappe._dict(content='<a href="https://a.example">a</a><a href="https://b.example">b</a>')
 		with self.as_user(self.member), self.assertRaises(frappe.ValidationError):
@@ -449,7 +449,7 @@ class TestPrivileges(TrustLevelTestCase):
 		with self.as_user(self.member):
 			self.assertGreater(allowance("discussion")["retry_after"], 0)
 		with self.as_user(self.admin):
-			set_level(self.member.name, MEMBER, "Known")
+			set_level(self.member.name, CONTRIBUTOR, "Known")
 		with self.as_user(self.member):
 			self.assertEqual(allowance("discussion")["retry_after"], 0)
 
@@ -484,7 +484,7 @@ class TestReading(TrustLevelTestCase):
 		from gameplan.trust_levels import member_levels, member_progress
 
 		with self.as_user(self.admin):
-			set_level(self.member.name, MEMBER, "Known")
+			set_level(self.member.name, CONTRIBUTOR, "Known")
 			everyone = member_levels()
 			members = member_levels(level="2")
 			pending = member_levels(level="pending")

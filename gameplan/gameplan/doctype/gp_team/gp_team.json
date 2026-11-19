@@ -143,7 +143,7 @@
    "fieldtype": "Select",
    "hidden": 1,
    "label": "Approve posts from members below",
-   "options": "\nBasic\nMember",
+   "options": "\nBasic\nContributor",
    "read_only": 1,
    "description": "Used instead of the approval post count while trust levels are on."
   },
