@@ -34,9 +34,6 @@
                 <span class="lucide-search size-4 text-ink-gray-5" aria-hidden="true" />
               </template>
             </TextInput>
-            <span class="text-p-sm text-ink-gray-6" data-badge-count>
-              {{ onCount }} of {{ badges.length }} on
-            </span>
           </div>
           <p v-if="!groups.length" class="mt-4 text-p-sm text-ink-gray-6">
             No badge matches "{{ search.trim() }}".
@@ -191,7 +188,6 @@ function changed(what: 'enabled' | string) {
   return saved.disabled.includes(what) !== current.value.disabled.includes(what)
 }
 
-const onCount = computed(() => badges.value.filter((badge) => isOn(badge.name)).length)
 // Matches the name, the tier, the group and what the badge is for.
 const groups = computed(() => {
   const words = search.value.toLowerCase().split(/\s+/).filter(Boolean)
