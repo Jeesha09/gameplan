@@ -96,9 +96,11 @@ describe('Badges', () => {
 
   it('lets a global admin turn a badge off', () => {
     cy.loginAs('admin')
-    cy.visit('/g/moderation?scope=site&tab=badges')
+    cy.visit('/g/admin-settings?tab=badges')
     checkbox('Use badges').should('be.checked')
-    checkbox('Reader (Bronze)').uncheck()
+    cy.get('input[aria-label="Search badges"]').type('reader')
+    cy.get('[data-badge-row]').should('have.length', 1)
+    cy.get('button[role="switch"][aria-label="Reader (Bronze)"]').click()
     cy.button('Save badges').click()
     cy.contains('Badges saved.').should('be.visible')
     cy.visit('/g/badges')

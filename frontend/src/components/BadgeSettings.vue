@@ -12,28 +12,70 @@
           Members earn badges as they take part. Turning badges on works out everyone's badges in
           the background, without notifying anyone. Members see the change after reloading the page.
         </p>
-        <div class="mt-4 grid gap-x-6 gap-y-2 sm:grid-cols-2">
-          <div v-for="badge in badges" :key="badge.name" class="flex items-center gap-2">
-            <BadgeMedallion
-              size="sm"
-              :family="badge.family"
-              :tier="badge.tier"
-              :title="badge.title"
-              :description="badge.description"
-            />
-            <Checkbox
-              v-model="badgeSwitches[badge.name]"
-              :label="`${badge.title} (${badge.tier})`"
-              :disabled="saving || !enabled"
-            />
+        <!-- Like the section below, the list is only there while badges are on. -->
+        <div v-if="enabled" class="mt-5">
+          <div class="flex flex-wrap items-center gap-3">
+            <TextInput
+              v-model="search"
+              class="min-w-48 flex-1"
+              type="search"
+              placeholder="Search badges"
+              aria-label="Search badges"
+            >
+              <template #prefix>
+                <span class="lucide-search size-4 text-ink-gray-5" aria-hidden="true" />
+              </template>
+            </TextInput>
+            <span class="text-p-sm text-ink-gray-6" data-badge-count>
+              {{ onCount }} of {{ badges.length }} on
+            </span>
+          </div>
+          <p v-if="!groups.length" class="mt-4 text-p-sm text-ink-gray-6">
+            No badge matches "{{ search.trim() }}".
+          </p>
+          <div v-for="group in groups" :key="group.title" class="mt-4">
+            <h3 class="pb-1 text-xs font-medium uppercase tracking-wide text-ink-gray-5">
+              {{ group.title }}
+            </h3>
+            <ul class="divide-y divide-outline-gray-1 rounded-lg border border-outline-gray-2">
+              <li
+                v-for="badge in group.badges"
+                :key="badge.name"
+                class="flex items-center gap-3 px-3 py-2.5"
+                data-badge-row
+              >
+                <BadgeMedallion
+                  size="md"
+                  :family="badge.family"
+                  :tier="badge.tier"
+                  :title="badge.title"
+                  :description="badge.description"
+                />
+                <div class="min-w-0 flex-1">
+                  <div class="text-base-medium text-ink-gray-9">
+                    {{ badge.title }}
+                    <span class="font-normal text-ink-gray-5">· {{ badge.tier }}</span>
+                  </div>
+                  <div class="truncate text-p-sm text-ink-gray-6">{{ badge.description }}</div>
+                </div>
+                <Switch
+                  v-model="badgeSwitches[badge.name]"
+                  :aria-label="`${badge.title} (${badge.tier})`"
+                  :disabled="saving"
+                />
+              </li>
+            </ul>
           </div>
         </div>
-        <ErrorMessage
-          v-if="saveError"
-          class="mt-3"
-          :message="errorText(saveError, 'Could not save the badge settings.')"
-        />
-        <Button class="mt-4" variant="solid" :loading="saving" @click="save">Save badges</Button>
+        <!-- Stays in view below a long list. -->
+        <div class="sticky bottom-0 z-10 mt-4 border-t border-outline-gray-1 bg-surface-base py-3">
+          <ErrorMessage
+            v-if="saveError"
+            class="mb-2"
+            :message="errorText(saveError, 'Could not save the badge settings.')"
+          />
+          <Button variant="solid" :loading="saving" @click="save">Save badges</Button>
+        </div>
       </section>
 
       <section v-if="enabled" class="mt-10">
@@ -78,17 +120,28 @@
 </template>
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Button, Checkbox, ErrorMessage, Select, Textarea, call, toast } from 'frappe-ui'
+import {
+  Button,
+  Checkbox,
+  ErrorMessage,
+  Select,
+  Switch,
+  Textarea,
+  TextInput,
+  call,
+  toast,
+} from 'frappe-ui'
 import BadgeMedallion from '@/components/Badges/BadgeMedallion.vue'
 import LoadError from '@/components/LoadError.vue'
 import UserCombobox from '@/components/UserCombobox.vue'
-import type { BadgeTier } from '@/data/badges'
+import { BADGE_GROUPS, type BadgeGroup, type BadgeTier } from '@/data/badges'
 import { errorText } from '@/utils'
 
 type SettingsBadge = {
   name: string
   title: string
   description: string
+  badge_group: BadgeGroup
   family: string
   tier: BadgeTier
   enabled: 0 | 1
@@ -103,6 +156,21 @@ const loaded = ref(false),
   saveError = ref<unknown>(null)
 const badges = ref<SettingsBadge[]>([])
 const badgeSwitches = ref<Record<string, boolean>>({})
+const search = ref('')
+const onCount = computed(() => Object.values(badgeSwitches.value).filter(Boolean).length)
+// Matches the name, the tier, the group and what the badge is for.
+const groups = computed(() => {
+  const words = search.value.toLowerCase().split(/\s+/).filter(Boolean)
+  const shown = badges.value.filter((badge) => {
+    const text =
+      `${badge.title} ${badge.tier} ${badge.badge_group} ${badge.description}`.toLowerCase()
+    return words.every((word) => text.includes(word))
+  })
+  return BADGE_GROUPS.map((title) => ({
+    title,
+    badges: shown.filter((badge) => badge.badge_group === title),
+  })).filter((group) => group.badges.length)
+})
 
 const person = ref<string | null>(null),
   chosenBadge = ref(''),
