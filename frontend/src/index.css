@@ -7,7 +7,7 @@
   cv11  — single-story lowercase 'a': cleaner, more contemporary feel
 */
 /* Badges (prd/badges.md): the tiers use frappe-ui's orange, gray and yellow, the one exception
-   to gray tokens. `--badge-cut` is whatever the symbol sits on: the coin's face or the ribbon. */
+   to gray tokens. `--badge-cut` is whatever the symbol sits on: the coin's face. */
 .badge-tier--bronze {
   --badge-ring: var(--surface-orange-7);
   --badge-face: var(--surface-orange-2);

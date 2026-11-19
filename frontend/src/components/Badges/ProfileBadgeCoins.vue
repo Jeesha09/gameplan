@@ -1,12 +1,22 @@
 <template>
-  <div v-if="favorites.length" class="flex items-start gap-1" data-profile-badge-ribbons>
-    <BadgeRibbon v-for="badge in favorites" :key="badge.name" :badge="badge" />
+  <div v-if="favorites.length" class="flex items-center gap-1" data-profile-badge-coins>
+    <BadgeMedallion
+      v-for="badge in favorites"
+      :key="badge.name"
+      size="sm"
+      :family="badge.family"
+      :tier="badge.tier"
+      :title="badge.title"
+      :description="badge.description"
+      :granted-at="badge.granted_at"
+      :count="badge.count"
+    />
   </div>
 </template>
 <script setup lang="ts">
 import { computed, inject, ref } from 'vue'
 import { useCall } from 'frappe-ui'
-import BadgeRibbon from './BadgeRibbon.vue'
+import BadgeMedallion from './BadgeMedallion.vue'
 import { badgesEnabled, MAX_FAVORITES, profileUserKey, type HeldBadge } from '@/data/badges'
 import { isAnonymousVisitor } from '@/utils/publicAccess'
 

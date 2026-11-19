@@ -81,7 +81,7 @@ A new "Badge" notification for each grant. Grants from the first full pass and f
 
 - **Badges page** at `/g/badges`: every enabled badge by group, with its tier, how many people hold it, and whether you hold it.
 - **Badge page**: the badge's description, and who earned it, newest first. Per-post badges link to the post.
-- **Profile**: a Badges tab with every badge the member holds, and up to 3 favourites the member picks. The favourites hang as ribbons from the top edge of the profile's name card, for everyone who can see the profile.
+- **Profile**: a Badges tab with every badge the member holds, and up to 3 favourites the member picks. The favourites show as coins on the profile's name card, for everyone who can see the profile.
 - **Hover card**: the member's favourites, as coins with no names. The tooltip on each names it.
 - **Site administration**: turn badges on and off, turn single badges on and off, and grant or revoke a badge by hand with a reason. Each manual change goes to the member's account history. A revoked grant stays as a hidden row, so the next automatic check does not grant it again. Only badges earned once can be granted by hand.
 
@@ -97,9 +97,7 @@ A medallion is a coin: a ring in the tier colour, a face in a tint of it, an eng
 
 Hovering or clicking a medallion runs a shine across it. A click never follows a link the medallion sits in. With reduced motion, nothing moves.
 
-On the profile, each favourite is a ribbon instead of a coin: a pennant in the tier colour with the symbol drawn on it, and no coin. Hovering a ribbon swings it from its top edge, and clicking it opens the badge's page. With reduced motion, it does not swing.
-
-A tooltip on every coin and ribbon names the badge, its tier, and what it is for. Where the grant is known, it also says when the member earned it and how many times. The badge name and tier also show as text beside a coin, because the light-theme rings are faint on white.
+A tooltip on every coin names the badge, its tier, and what it is for. Where the grant is known, it also says when the member earned it and how many times. The badge name and tier also show as text beside a coin, because the light-theme rings are faint on white.
 
 ## Symbols
 
