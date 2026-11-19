@@ -10,8 +10,8 @@
         data-testid="trust-levels-switch"
       />
       <p class="mt-2 text-p-sm text-ink-gray-6">
-        Members earn Basic, Contributor and Regular as they visit and take part. Leader is set by hand.
-        Turning levels on works out everyone's level in the background.
+        Members earn Basic, Contributor and Regular as they visit and take part. Leader is set by
+        hand. Turning levels on works out everyone's level in the background.
       </p>
     </div>
     <div v-for="group in SETTING_GROUPS" :key="group.title" class="mt-3">
