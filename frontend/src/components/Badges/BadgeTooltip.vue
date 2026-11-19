@@ -1,5 +1,5 @@
 <template>
-  <Tooltip :hover-delay="200">
+  <Tooltip :hover-delay="200" :disabled="disabled">
     <slot />
     <template #content>
       <div class="max-w-56 py-0.5">
@@ -26,8 +26,10 @@ const props = withDefaults(
     /** The latest grant, when the caller knows it. */
     grantedAt?: string
     count?: number
+    /** Leaves the tooltip off where the page already says all of this. */
+    disabled?: boolean
   }>(),
-  { description: '', grantedAt: '', count: 1 },
+  { description: '', grantedAt: '', count: 1, disabled: false },
 )
 
 const earned = computed(() => dayjsLocal(props.grantedAt).format('D MMM YYYY'))

@@ -29,6 +29,10 @@ export const dirtyKeys = computed(() =>
 )
 export const hasUnsavedChanges = computed(() => dirtyKeys.value.length > 0)
 
+export function savedValue(key: string) {
+  return saved[key]
+}
+
 export function loadSaved(key: string, value: unknown) {
   const untouched = !dirtyKeys.value.includes(key)
   saved[key] = copy(value)

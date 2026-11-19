@@ -469,7 +469,20 @@ export const adminSections: AdminSection[] = [
     label: 'Badges',
     icon: 'lucide-medal',
     keywords: 'badges grant revoke award',
-    groups: [],
+    // One value for the whole page: { enabled, disabled }. The page replaces it as a whole
+    // when anything changes, so a saved copy and the draft never share an object that changes.
+    groups: [
+      {
+        settings: [
+          {
+            key: 'badges',
+            label: 'Badges',
+            type: 'list',
+            default: { enabled: false, disabled: [] } as unknown as string[],
+          },
+        ],
+      },
+    ],
   },
   {
     id: 'users',

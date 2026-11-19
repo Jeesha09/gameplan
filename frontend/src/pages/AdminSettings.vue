@@ -203,7 +203,6 @@ const crumbs = computed(() => {
   ]
 })
 
-
 function open(id: string) {
   router.replace({ name: 'AdminSettings', query: { tab: id } })
 }
@@ -290,7 +289,10 @@ async function saveChanges() {
   const changed = [...pageChanges.value]
   const site = changed.filter((key) => siteKeys.has(key))
   const posting = changed.filter((key) => key.startsWith(postingLimitPrefix))
-  const other = changed.filter((key) => !site.includes(key) && !posting.includes(key))
+  const badges = changed.filter((key) => key === 'badges')
+  const other = changed.filter(
+    (key) => !site.includes(key) && !posting.includes(key) && key !== 'badges',
+  )
   saving.value = true
   try {
     if (site.length) {
@@ -311,6 +313,13 @@ async function saveChanges() {
         ),
       )
       markSaved(posting)
+    }
+    if (badges.length) {
+      await call('gameplan.badges.api.save_settings', {
+        enabled: values.badges.enabled ? 1 : 0,
+        disabled_badges: values.badges.disabled,
+      })
+      markSaved(badges)
     }
     markSaved(other)
     toast.success('Changes saved')

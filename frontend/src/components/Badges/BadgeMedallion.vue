@@ -5,6 +5,7 @@
     :description="description"
     :granted-at="grantedAt"
     :count="count"
+    :disabled="!tooltip"
   >
     <button
       type="button"
@@ -60,8 +61,10 @@ withDefaults(
     grantedAt?: string
     count?: number
     size?: 'sm' | 'md' | 'lg'
+    /** Shows the tooltip on hover. The shine plays either way. */
+    tooltip?: boolean
   }>(),
-  { size: 'md', description: '', grantedAt: '', count: 1 },
+  { size: 'md', description: '', grantedAt: '', count: 1, tooltip: true },
 )
 
 const sizes = { sm: 'size-6', md: 'size-10', lg: 'size-16' }

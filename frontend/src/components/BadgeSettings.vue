@@ -7,15 +7,10 @@
     />
     <template v-else-if="loaded">
       <section>
-        <div class="flex items-center justify-between gap-3">
-          <Checkbox v-model="enabled" label="Use badges" :disabled="saving" />
-          <Button variant="solid" :loading="saving" @click="save">Save badges</Button>
+        <div class="flex items-center">
+          <Checkbox v-model="enabled" label="Use badges" />
+          <span v-if="changed('enabled')" class="unsaved-dot" aria-hidden="true" />
         </div>
-        <ErrorMessage
-          v-if="saveError"
-          class="mt-3"
-          :message="errorText(saveError, 'Could not save the badge settings.')"
-        />
         <p class="mt-2 text-p-sm text-ink-gray-6">
           Members earn badges as they take part. Turning badges on works out everyone's badges in
           the background, without notifying anyone. Members see the change after reloading the page.
@@ -54,6 +49,7 @@
               >
                 <BadgeMedallion
                   size="md"
+                  :tooltip="false"
                   :family="badge.family"
                   :tier="badge.tier"
                   :title="badge.title"
@@ -62,14 +58,15 @@
                 <div class="min-w-0 flex-1">
                   <div class="text-base-medium text-ink-gray-9">
                     {{ badge.title }}
-                    <span class="font-normal text-ink-gray-5">· {{ badge.tier }}</span>
+                    <span class="font-normal text-ink-gray-5">· {{ badge.tier }}</span
+                    ><span v-if="changed(badge.name)" class="unsaved-dot" aria-hidden="true" />
                   </div>
                   <div class="truncate text-p-sm text-ink-gray-6">{{ badge.description }}</div>
                 </div>
                 <Switch
-                  v-model="badgeSwitches[badge.name]"
+                  :model-value="isOn(badge.name)"
                   :aria-label="`${badge.title} (${badge.tier})`"
-                  :disabled="saving"
+                  @update:model-value="setOn(badge.name, Boolean($event))"
                 />
               </li>
             </ul>
@@ -134,6 +131,7 @@ import BadgeMedallion from '@/components/Badges/BadgeMedallion.vue'
 import LoadError from '@/components/LoadError.vue'
 import UserCombobox from '@/components/UserCombobox.vue'
 import { BADGE_GROUPS, type BadgeGroup, type BadgeTier } from '@/data/badges'
+import { draft, loadSaved, savedValue } from '@/components/AdminSettings/draft'
 import { errorText } from '@/utils'
 
 type SettingsBadge = {
@@ -149,14 +147,30 @@ type SettingsBadge = {
 type Settings = { enabled: 0 | 1; badges: SettingsBadge[] }
 
 const loaded = ref(false),
-  enabled = ref(false),
-  saving = ref(false),
-  loadError = ref<unknown>(null),
-  saveError = ref<unknown>(null)
+  loadError = ref<unknown>(null)
 const badges = ref<SettingsBadge[]>([])
-const badgeSwitches = ref<Record<string, boolean>>({})
 const search = ref('')
-const onCount = computed(() => Object.values(badgeSwitches.value).filter(Boolean).length)
+
+// The switches live in the page's shared draft, which the header's Save and Discard commit.
+type BadgesDraft = { enabled: boolean; disabled: string[] }
+const current = computed(() => draft.badges as BadgesDraft)
+const enabled = computed({
+  get: () => current.value.enabled,
+  set: (on: boolean) => (draft.badges = { ...current.value, enabled: on }),
+})
+const isOn = (name: string) => !current.value.disabled.includes(name)
+function setOn(name: string, on: boolean) {
+  const others = current.value.disabled.filter((item) => item !== name)
+  draft.badges = { ...current.value, disabled: on ? others : [...others, name] }
+}
+// A dot beside what differs from what is saved, as on the other pages.
+function changed(what: 'enabled' | string) {
+  const saved = savedValue('badges') as BadgesDraft
+  if (what === 'enabled') return saved.enabled !== current.value.enabled
+  return saved.disabled.includes(what) !== current.value.disabled.includes(what)
+}
+
+const onCount = computed(() => badges.value.filter((badge) => isOn(badge.name)).length)
 // Matches the name, the tier, the group and what the badge is for.
 const groups = computed(() => {
   const words = search.value.toLowerCase().split(/\s+/).filter(Boolean)
@@ -178,7 +192,7 @@ const person = ref<string | null>(null),
   manualError = ref<unknown>(null)
 const manualOptions = computed(() =>
   badges.value
-    .filter((badge) => badge.enabled)
+    .filter((badge) => isOn(badge.name))
     .map((badge) => ({ label: badge.title, value: badge.name })),
 )
 const canChange = computed(
@@ -187,40 +201,18 @@ const canChange = computed(
     !badges.value.find((badge) => badge.name === chosenBadge.value)?.per_post,
 )
 
-function apply(settings: Settings) {
-  enabled.value = Boolean(settings.enabled)
-  badges.value = settings.badges
-  badgeSwitches.value = Object.fromEntries(settings.badges.map((b) => [b.name, Boolean(b.enabled)]))
-  loaded.value = true
-}
-
 async function load() {
   loadError.value = null
   try {
-    apply(await call<Settings>('gameplan.badges.api.get_settings'))
+    const settings = await call<Settings>('gameplan.badges.api.get_settings')
+    badges.value = settings.badges
+    loadSaved('badges', {
+      enabled: Boolean(settings.enabled),
+      disabled: settings.badges.filter((badge) => !badge.enabled).map((badge) => badge.name),
+    })
+    loaded.value = true
   } catch (error) {
     loadError.value = error
-  }
-}
-
-async function save() {
-  saving.value = true
-  saveError.value = null
-  try {
-    const disabled = Object.entries(badgeSwitches.value)
-      .filter(([, on]) => !on)
-      .map(([name]) => name)
-    apply(
-      await call<Settings>('gameplan.badges.api.save_settings', {
-        enabled: enabled.value ? 1 : 0,
-        disabled_badges: disabled,
-      }),
-    )
-    toast.success('Badges saved.')
-  } catch (error) {
-    saveError.value = error
-  } finally {
-    saving.value = false
   }
 }
 
@@ -244,3 +236,8 @@ async function change(method: 'grant_badge' | 'revoke_badge') {
 
 load()
 </script>
+<style scoped>
+.unsaved-dot {
+  @apply ml-1.5 inline-block size-1.5 rounded-full bg-surface-gray-7 align-middle;
+}
+</style>
