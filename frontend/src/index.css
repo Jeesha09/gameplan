@@ -49,6 +49,25 @@
   stroke: var(--badge-cut);
 }
 
+/* Censored words (watched words, action Censor). The server masks each one as a run of ■.
+   CensorDust and CensoredText hide the run and lay a canvas over it, where utils/censorDust.ts
+   draws it as drifting dust in the text colour. */
+.censor-dust {
+  position: relative;
+  -webkit-text-fill-color: transparent;
+}
+.censor-dust-anchor {
+  position: relative;
+  display: inline-block;
+  width: 0;
+}
+.censor-dust-canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+}
+
 html {
   --mobile-header-height: 52px;
   --offline-banner-height: 28px;

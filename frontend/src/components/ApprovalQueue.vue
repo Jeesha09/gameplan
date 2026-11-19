@@ -23,14 +23,16 @@
           size="md"
       /></template>
       <template #title>
-        {{
-          item.title ||
-          (item.discussion_title
-            ? `Reply in “${item.discussion_title}”`
-            : `Reply to #${item.discussion}`)
-        }}
+        <CensoredText
+          :text="
+            item.title ||
+            (item.discussion_title
+              ? `Reply in “${item.discussion_title}”`
+              : `Reply to #${item.discussion}`)
+          "
+        />
       </template>
-      <template v-if="item.excerpt" #detail>{{ item.excerpt }}</template>
+      <template v-if="item.excerpt" #detail><CensoredText :text="item.excerpt" /></template>
       <template #meta>
         {{ useUser(item.owner).full_name }} ·
         <span :title="dayjsLocal(item.creation).format('D MMM YYYY [at] h:mm A')">{{
@@ -138,6 +140,7 @@
 </template>
 
 <script setup lang="ts">
+import CensoredText from '@/components/CensoredText.vue'
 import { computed, ref, watch } from 'vue'
 import {
   Avatar,

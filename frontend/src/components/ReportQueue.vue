@@ -68,11 +68,13 @@
         />
       </template>
       <template #title>
-        {{
-          item.reference_doctype === 'GP Comment'
-            ? `Reply in “${item.discussion_title || `#${item.reference_name}`}”`
-            : item.discussion_title || `Discussion #${item.reference_name}`
-        }}
+        <CensoredText
+          :text="
+            item.reference_doctype === 'GP Comment'
+              ? `Reply in “${item.discussion_title || `#${item.reference_name}`}”`
+              : item.discussion_title || `Discussion #${item.reference_name}`
+          "
+        />
       </template>
       <template #meta>
         <template v-if="item.author">{{ useUser(item.author).full_name }} · </template>
@@ -284,6 +286,7 @@
   </ModerationDialog>
 </template>
 <script setup lang="ts">
+import CensoredText from '@/components/CensoredText.vue'
 import { computed, provide, ref, watch } from 'vue'
 import {
   Avatar,

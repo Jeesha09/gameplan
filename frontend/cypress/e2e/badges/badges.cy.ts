@@ -38,7 +38,7 @@ describe('Badges', () => {
     cy.contains('a', 'Welcome thread').should('be.visible')
   })
 
-  it('says what a badge is for and flips when hovered', () => {
+  it('says what a badge is for and shines when hovered', () => {
     cy.loginAs('member')
     cy.visit('/g/badges')
     cy.get('button[aria-label="Reader, Bronze badge"]').trigger('mouseenter')
@@ -53,7 +53,7 @@ describe('Badges', () => {
     cy.contains('[role="tooltip"]', 'Read every reply in a discussion with more than 100 replies')
   })
 
-  it('flips a medallion on click without following the link', () => {
+  it('shines a medallion on click without following the link', () => {
     cy.loginAs('member')
     cy.visit('/g/badges')
     cy.get('button[aria-label="Welcome, Bronze badge"]').click()

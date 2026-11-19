@@ -95,7 +95,7 @@ A medallion is a coin: a ring in the tier colour, a face in a tint of it, an eng
 | Silver | gray | `surface-gray-7` | `surface-gray-2` | `ink-gray-7` |
 | Gold | yellow | `surface-yellow-7` | `surface-yellow-2` | `ink-yellow-8` |
 
-Hovering or clicking a medallion flips it like a coin. A click never follows a link the medallion sits in. With reduced motion, the medallion pulses instead.
+Hovering or clicking a medallion runs a shine across it. A click never follows a link the medallion sits in. With reduced motion, nothing moves.
 
 On the profile, each favourite is a ribbon instead of a coin: a pennant in the tier colour with the symbol drawn on it, and no coin. Hovering a ribbon swings it from its top edge, and clicking it opens the badge's page. With reduced motion, it does not swing.
 

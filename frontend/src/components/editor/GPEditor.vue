@@ -13,6 +13,7 @@ import {
 } from 'frappe-ui/editor'
 import { uploadFile } from './config'
 import LinkToolbar from './LinkToolbar.vue'
+import { CensorDust } from './censorDust'
 
 // Shared gameplan editor layout, built on the v1 <Editor> via its #default
 // (L3) slot so gameplan keeps full control of editor-class, the scroll container,
@@ -43,6 +44,9 @@ const props = withDefaults(
     floatingMenu: false,
   },
 )
+
+// Every editor draws censored words as dust, whatever its own extensions.
+const allExtensions = computed(() => [...props.extensions, CensorDust])
 
 const emit = defineEmits<{
   change: [value: string]
@@ -86,7 +90,7 @@ function updateScrollFades() {
 <template>
   <FrappeEditor
     ref="ft"
-    :extensions="extensions"
+    :extensions="allExtensions"
     :model-value="content ?? ''"
     :editable="editable"
     :autofocus="autofocus"

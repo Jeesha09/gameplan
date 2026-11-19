@@ -21,7 +21,7 @@
           fill="var(--badge-ring)"
           d="M6 2h52a2 2 0 0 1 2 2v53.5c0 .8-.5 1.5-1.2 1.8L32 72 5.2 59.3A2 2 0 0 1 4 57.5V4a2 2 0 0 1 2-2z"
         />
-        <path fill="var(--badge-panel)" d="M10 6.5h44v49.3L32 66.4 10 55.8z" />
+        <path fill="var(--badge-panel)" d="M7.5 5.5h49v51.2L32 68.3 7.5 56.7z" />
         <!-- eslint-disable-next-line vue/no-v-html -- constant symbol markup from data/badges.ts -->
         <g
           class="badge-art"

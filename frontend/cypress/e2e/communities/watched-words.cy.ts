@@ -85,6 +85,28 @@ describe('Watched words', () => {
     })
   })
 
+  it('keeps the reply buttons still for a blocked reply, and clears the error on Discard', () => {
+    resetData('space_with_discussion').then((ids) => {
+      rule(ids, 'Block', 'forbiddenphrase')
+      cy.switchUser('secondMember')
+      thread(ids)
+      cy.button('Add a comment').click()
+      cy.get('[contenteditable=true]').click().type('forbiddenphrase')
+      cy.button('Discard').then(($discard) => {
+        const top = $discard[0].getBoundingClientRect().top
+        cy.button('Submit').click()
+        cy.contains('Remove the blocked words or phrases: forbiddenphrase').should('be.visible')
+        cy.button('Discard').should(($after) => {
+          expect($after[0].getBoundingClientRect().top).to.equal(top)
+        })
+      })
+      cy.button('Discard').click()
+      cy.button('Discard comment').click()
+      cy.button('Add a comment').click()
+      cy.contains('Remove the blocked words or phrases').should('not.exist')
+    })
+  })
+
   it('censors ordinary API/page reads while the author edits the original', () => {
     resetData('space_with_discussion').then((ids) => {
       cy.request('PUT', `/api/v2/document/GP Discussion/${ids.discussion}`, {

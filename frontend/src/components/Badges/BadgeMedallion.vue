@@ -22,13 +22,13 @@
     >
       <svg class="size-full" viewBox="0 0 40 40" aria-hidden="true">
         <circle cx="20" cy="20" r="19" fill="var(--badge-ring)" />
-        <circle cx="20" cy="20" r="16.2" fill="var(--badge-face)" />
+        <circle cx="20" cy="20" r="17.2" fill="var(--badge-face)" />
         <!-- The engraved rim is lost at the smallest size, so it is left out there. -->
         <circle
           v-if="size !== 'sm'"
           cx="20"
           cy="20"
-          r="14.4"
+          r="15.4"
           fill="none"
           stroke="var(--badge-symbol)"
           stroke-opacity="0.28"
@@ -66,18 +66,15 @@ withDefaults(
 
 const sizes = { sm: 'size-6', md: 'size-10', lg: 'size-16' }
 
-// Hovering or clicking flips the medallion like a coin. A click never follows a link the
-// medallion sits in, so the flip can be seen; the badge's name next to it is the link.
+// Hovering or clicking runs a shine across the coin. A click never follows a link the
+// medallion sits in, so the shine can be seen; the badge's name next to it is the link.
 const { playing, play, stop } = useReplay()
 </script>
 <style>
 .badge-medallion {
   --badge-cut: var(--badge-face);
 }
-.badge-medallion--playing {
-  animation: badge-medallion-flip 700ms cubic-bezier(0.34, 1.3, 0.64, 1);
-}
-/* A light band crosses the face while it turns. */
+/* A light band crosses the face. */
 .badge-medallion--playing::after {
   content: '';
   position: absolute;
@@ -91,17 +88,6 @@ const { playing, play, stop } = useReplay()
   animation: badge-medallion-shine 700ms ease-out;
   pointer-events: none;
 }
-@keyframes badge-medallion-flip {
-  0% {
-    transform: perspective(200px) rotateY(0) scale(1);
-  }
-  45% {
-    transform: perspective(200px) rotateY(200deg) scale(1.15);
-  }
-  100% {
-    transform: perspective(200px) rotateY(360deg) scale(1);
-  }
-}
 @keyframes badge-medallion-shine {
   from {
     transform: translateX(-100%);
@@ -111,16 +97,8 @@ const { playing, play, stop } = useReplay()
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .badge-medallion--playing {
-    animation: badge-medallion-pulse 300ms ease-out;
-  }
   .badge-medallion--playing::after {
     display: none;
-  }
-  @keyframes badge-medallion-pulse {
-    50% {
-      transform: scale(1.08);
-    }
   }
 }
 </style>

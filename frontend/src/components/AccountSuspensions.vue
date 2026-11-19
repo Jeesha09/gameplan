@@ -105,15 +105,34 @@
     />
     <Dialog v-model:open="historyOpen" title="Account history">
       <ScrollArea class="h-96" viewport-class="h-96 pr-3">
+        <!-- An empty or failed load must not look like a blank box: say which it is. -->
+        <p
+          v-if="historyLoading && !history.length"
+          role="status"
+          class="py-6 text-base text-ink-gray-5"
+        >
+          Loading history…
+        </p>
+        <ErrorMessage
+          v-else-if="historyError"
+          class="py-3"
+          :message="extractServerMessage(historyError) || 'Could not load the history'"
+        />
+        <ModerationEmpty
+          v-else-if="!history.length"
+          icon="lucide-history"
+          title="No history yet"
+          description="Restrictions, trust level changes and badge changes for this account show here."
+        />
         <div v-for="row in history" :key="row.name" class="border-b border-outline-gray-2 py-4">
-          <p class="text-base-medium">
+          <p class="text-base-medium text-ink-gray-9">
             {{ row.action }} ·
             {{ systemActions.includes(row.action) ? 'System' : useUser(row.owner).full_name }}
           </p>
           <p class="mt-1 text-p-sm text-ink-gray-6">
             {{ dayjsLocal(row.creation).format('D MMM YYYY, h:mm A z') }}
           </p>
-          <p class="mt-2 whitespace-pre-wrap text-base">{{ row.reason }}</p>
+          <p class="mt-2 whitespace-pre-wrap text-base text-ink-gray-8">{{ row.reason }}</p>
           <p class="mt-2 text-base text-ink-gray-6">
             {{
               row.title ? row.title : row.level ? levelTransition(row) : restrictionTransition(row)
@@ -269,10 +288,16 @@ function saved() {
 async function showHistory(user: RestrictionUser) {
   historyUser.value = user.user
   history.value = []
+  historyCursor.value = ''
   historyOpen.value = true
   await loadHistory()
 }
+const historyLoading = ref(false)
+// Shown inside the dialog: the page's own error line is hidden behind it.
+const historyError = ref<unknown>(null)
 async function loadHistory(before = '') {
+  historyLoading.value = true
+  historyError.value = null
   try {
     const data = await call<Page<HistoryItem>>('gameplan.restriction_queries.account_history', {
       user: historyUser.value,
@@ -281,7 +306,9 @@ async function loadHistory(before = '') {
     history.value = before ? [...history.value, ...data.items] : data.items
     historyCursor.value = data.next_cursor
   } catch (e) {
-    error.value = e
+    historyError.value = e
+  } finally {
+    historyLoading.value = false
   }
 }
 function moreCandidatesOnScroll(event: Event) {

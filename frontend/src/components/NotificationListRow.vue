@@ -31,7 +31,7 @@
                 notification.read ? 'text-md sm:text-base' : 'text-md-medium sm:text-base-medium'
               "
             >
-              {{ notification.message }}
+              <CensoredText :text="notification.message" />
             </span>
           </div>
         </div>
@@ -41,7 +41,7 @@
             class="inline-flex items-center overflow-hidden text-ellipsis whitespace-nowrap text-md text-ink-gray-5 sm:text-base"
           >
             <div class="flex min-w-0 items-center" v-if="title">
-              <div class="truncate">{{ title }}</div>
+              <div class="truncate"><CensoredText :text="title" /></div>
             </div>
           </div>
         </div>
@@ -76,6 +76,7 @@
 </template>
 
 <script setup lang="ts">
+import CensoredText from '@/components/CensoredText.vue'
 import { computed } from 'vue'
 import { isOnline } from '@/data/online'
 import { Button, dayjsLocal, Tooltip } from 'frappe-ui'

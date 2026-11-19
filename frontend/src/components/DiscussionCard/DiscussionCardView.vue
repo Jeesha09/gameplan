@@ -19,7 +19,7 @@
         {{ preview?.title || node.attrs.title }}
       </div>
       <p v-if="preview?.snippet" class="mt-2 line-clamp-2 text-p-sm text-ink-gray-6">
-        {{ preview.snippet }}
+        <CensoredText :text="preview.snippet" />
       </p>
     </a>
     <a v-else :href="node.attrs.href" class="text-base text-ink-gray-9 underline" @click="onClick">
@@ -29,6 +29,7 @@
 </template>
 
 <script setup lang="ts">
+import CensoredText from '@/components/CensoredText.vue'
 import { ref, watch } from 'vue'
 import { NodeViewWrapper, nodeViewProps } from '@tiptap/vue-3'
 import { dayjsLocal } from 'frappe-ui'
