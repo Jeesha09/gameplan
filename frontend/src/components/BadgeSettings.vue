@@ -7,14 +7,19 @@
     />
     <template v-else-if="loaded">
       <section>
-        <div class="flex items-center">
-          <Switch v-model="enabled" label="Use badges" />
-          <span v-if="changed('enabled')" class="unsaved-dot" aria-hidden="true" />
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <span class="text-base-medium leading-tighter block text-ink-gray-8">
+              Use badges<span v-if="changed('enabled')" class="unsaved-dot" aria-hidden="true" />
+            </span>
+            <p class="mt-1 text-base leading-5 text-ink-gray-6">
+              Members earn badges as they take part. Turning badges on works out everyone's badges
+              in the background, without notifying anyone. Members see the change after reloading
+              the page.
+            </p>
+          </div>
+          <Switch v-model="enabled" aria-label="Use badges" />
         </div>
-        <p class="mt-2 text-p-sm text-ink-gray-6">
-          Members earn badges as they take part. Turning badges on works out everyone's badges in
-          the background, without notifying anyone. Members see the change after reloading the page.
-        </p>
         <!-- Like the section below, the list is only there while badges are on. -->
         <div v-if="enabled" class="mt-5">
           <div class="flex flex-wrap items-center gap-3">
@@ -41,13 +46,15 @@
               <h3 class="text-xs font-medium uppercase tracking-wide text-ink-gray-5">
                 {{ group.title }}
               </h3>
-              <Checkbox
-                label="Select all"
-                :model-value="allOn(group.badges)"
-                :indeterminate="someOn(group.badges)"
-                :aria-label="`Select all ${group.title} badges`"
-                @update:model-value="setMany(group.badges, Boolean($event))"
-              />
+              <span class="flex items-center gap-2 text-p-sm text-ink-gray-7">
+                Select all
+                <Checkbox
+                  :model-value="allOn(group.badges)"
+                  :indeterminate="someOn(group.badges)"
+                  :aria-label="`Select all ${group.title} badges`"
+                  @update:model-value="setMany(group.badges, Boolean($event))"
+                />
+              </span>
             </div>
             <ul class="divide-y divide-outline-gray-1 rounded-lg border border-outline-gray-2">
               <li

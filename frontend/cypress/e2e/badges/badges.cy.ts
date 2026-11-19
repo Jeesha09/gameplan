@@ -97,7 +97,7 @@ describe('Badges', () => {
   it('lets a global admin turn a badge off', () => {
     cy.loginAs('admin')
     cy.visit('/g/admin-settings?tab=badges')
-    cy.get('button[role="switch"][aria-label="Use badges"], [role="switch"]')
+    cy.get('[role="switch"][aria-label="Use badges"]')
       .first()
       .should('have.attr', 'aria-checked', 'true')
     cy.get('input[aria-label="Search badges"]').type('reader')
