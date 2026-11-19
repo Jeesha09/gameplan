@@ -152,13 +152,6 @@ export const adminSections: AdminSection[] = [
             description: 'Invite only hides the sign-up form',
           },
           {
-            key: 'invite_expiry_days',
-            label: 'Invitations expire after',
-            type: 'number',
-            default: 3,
-            description: 'Unused invite links stop working after these many days',
-          },
-          {
             key: 'blocked_email_domains',
             label: 'Blocked email domains',
             type: 'list',
@@ -256,15 +249,6 @@ export const adminSections: AdminSection[] = [
             type: 'switch',
             default: false,
             description: 'Members can switch the email they sign in with',
-          },
-          {
-            key: 'account_deletion_max_posts',
-            label: 'Account deletion limit',
-            description:
-              "Members with this many posts or more can't delete their own account. Their posts stay, shown under Deleted user",
-            type: 'number',
-            default: 10,
-            placeholder: 'No limit',
           },
           {
             key: 'public_profiles',

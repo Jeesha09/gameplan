@@ -15,7 +15,6 @@ GP_FIELDS = (
 	"default_communities",
 	"default_quick_reactions",
 	"invite_role",
-	"account_deletion_max_posts",
 	"min_title_length",
 	"max_title_length",
 	"min_post_length",
@@ -35,7 +34,7 @@ CHECKS = {
 	"direct_messages_enabled",
 	"search_enabled",
 }
-INTS = {"min_title_length", "max_title_length", "min_post_length", "account_deletion_max_posts"}
+INTS = {"min_title_length", "max_title_length", "min_post_length"}
 LISTS = {"default_communities", "default_quick_reactions", "allowed_file_types"}
 SECRET = "unsplash_access_key"
 MASK = "********"

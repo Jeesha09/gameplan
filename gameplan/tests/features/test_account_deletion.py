@@ -8,13 +8,12 @@ from unittest.mock import patch
 import frappe
 
 from gameplan.account_deletion import REQUEST, request_account_deletion
-from gameplan.site_settings import save_setting
 from gameplan.tests.base import GameplanTestCase
+from gameplan.tests.fixtures import create_community, create_discussion, create_space
 
 
 class TestAccountDeletion(GameplanTestCase):
 	def setUp(self):
-		self.addCleanup(frappe.clear_cache, doctype="GP Settings")
 		super().setUp()
 		self.enterContext(patch("frappe.sendmail"))
 
@@ -23,8 +22,11 @@ class TestAccountDeletion(GameplanTestCase):
 			request_account_deletion()
 		return frappe.get_last_doc(REQUEST, filters={"email": user.name})
 
-	def set_posts(self, user, count):
-		frappe.db.set_value("GP User Profile", {"user": user.name}, "discussions_count", count)
+	def confirm(self, request):
+		with self.as_user("Guest"):
+			request.status = "Pending Approval"
+			request.save(ignore_permissions=True)
+		return request.reload()
 
 	def test_member_gets_a_verification_request(self):
 		self.assertEqual(self.request(self.member).status, "Pending Verification")
@@ -34,12 +36,8 @@ class TestAccountDeletion(GameplanTestCase):
 		self.request(self.member)
 		self.assertEqual(frappe.db.count(REQUEST, {"email": self.member.name}), 1)
 
-	def test_post_limit_refuses_busy_accounts(self):
-		self.set_posts(self.member, 10)
-		with self.as_user(self.member):
-			self.assertRaises(frappe.ValidationError, request_account_deletion)
-		with self.as_user(self.admin):
-			save_setting("account_deletion_max_posts", 0)
+	def test_busy_accounts_can_delete_too(self):
+		frappe.db.set_value("GP User Profile", {"user": self.member.name}, "discussions_count", 500)
 		self.assertEqual(self.request(self.member).status, "Pending Verification")
 
 	def test_guests_cannot_ask(self):
@@ -50,13 +48,20 @@ class TestAccountDeletion(GameplanTestCase):
 		email = self.member.name
 		profile = frappe.db.get_value("GP User Profile", {"user": email})
 		frappe.db.set_value("GP User Profile", profile, "bio", "Something personal")
-		request = self.request(self.member)
-		with self.as_user("Guest"):
-			request.status = "Pending Approval"
-			request.save(ignore_permissions=True)
-		self.assertEqual(request.reload().status, "Deleted")
+		request = self.confirm(self.request(self.member))
+		self.assertEqual(request.status, "Deleted")
 		self.assertFalse(frappe.db.exists("User", email))
 		self.assertFalse(frappe.db.exists("GP User Profile", profile))
 		cleared = frappe.get_doc("GP User Profile", {"user": request.name})
 		self.assertEqual((cleared.full_name, cleared.bio, cleared.enabled), ("Deleted user", "", 0))
 		self.assertEqual(frappe.db.get_value("User", request.name, "full_name"), "Deleted user")
+
+	def test_posts_stay_under_the_deleted_account(self):
+		community = create_community("Deletion Community", members=[self.member])
+		space = create_space("Deletion Space", community)
+		with self.as_user(self.member):
+			discussion = create_discussion("Still here", space, content="<p>Keep me</p>")
+		request = self.confirm(self.request(self.member))
+		kept = frappe.get_doc("GP Discussion", discussion.name)
+		self.assertEqual((kept.owner, kept.title), (request.name, "Still here"))
+		self.assertIn("Keep me", kept.content)

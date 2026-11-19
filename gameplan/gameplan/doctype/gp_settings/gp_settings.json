@@ -13,7 +13,6 @@
   "default_communities",
   "default_quick_reactions",
   "invite_role",
-  "account_deletion_max_posts",
   "posting_section",
   "min_title_length",
   "max_title_length",
@@ -61,14 +60,6 @@
    "fieldtype": "Select",
    "label": "Who can invite people",
    "options": "Site admins only\nCommunity and site admins\nAll members"
-  },
-  {
-   "default": "10",
-   "description": "Members with this many posts or more can't delete their own account. 0 means no limit",
-   "fieldname": "account_deletion_max_posts",
-   "fieldtype": "Int",
-   "label": "Account deletion post limit",
-   "non_negative": 1
   },
   {
    "fieldname": "posting_section",
