@@ -7,7 +7,15 @@
     />
     <template v-else-if="loaded">
       <section>
-        <Checkbox v-model="enabled" label="Use badges" :disabled="saving" />
+        <div class="flex items-center justify-between gap-3">
+          <Checkbox v-model="enabled" label="Use badges" :disabled="saving" />
+          <Button variant="solid" :loading="saving" @click="save">Save badges</Button>
+        </div>
+        <ErrorMessage
+          v-if="saveError"
+          class="mt-3"
+          :message="errorText(saveError, 'Could not save the badge settings.')"
+        />
         <p class="mt-2 text-p-sm text-ink-gray-6">
           Members earn badges as they take part. Turning badges on works out everyone's badges in
           the background, without notifying anyone. Members see the change after reloading the page.
@@ -66,15 +74,6 @@
               </li>
             </ul>
           </div>
-        </div>
-        <!-- Stays in view below a long list. -->
-        <div class="sticky bottom-0 z-10 mt-4 border-t border-outline-gray-1 bg-surface-base py-3">
-          <ErrorMessage
-            v-if="saveError"
-            class="mb-2"
-            :message="errorText(saveError, 'Could not save the badge settings.')"
-          />
-          <Button variant="solid" :loading="saving" @click="save">Save badges</Button>
         </div>
       </section>
 
