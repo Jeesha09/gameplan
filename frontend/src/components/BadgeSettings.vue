@@ -8,7 +8,7 @@
     <template v-else-if="loaded">
       <section>
         <div class="flex items-center">
-          <Checkbox v-model="enabled" label="Use badges" />
+          <Switch v-model="enabled" label="Use badges" />
           <span v-if="changed('enabled')" class="unsaved-dot" aria-hidden="true" />
         </div>
         <p class="mt-2 text-p-sm text-ink-gray-6">
@@ -37,9 +37,18 @@
             No badge matches "{{ search.trim() }}".
           </p>
           <div v-for="group in groups" :key="group.title" class="mt-4">
-            <h3 class="pb-1 text-xs font-medium uppercase tracking-wide text-ink-gray-5">
-              {{ group.title }}
-            </h3>
+            <div class="flex items-center justify-between pb-1.5">
+              <h3 class="text-xs font-medium uppercase tracking-wide text-ink-gray-5">
+                {{ group.title }}
+              </h3>
+              <Checkbox
+                label="Select all"
+                :model-value="allOn(group.badges)"
+                :indeterminate="someOn(group.badges)"
+                :aria-label="`Select all ${group.title} badges`"
+                @update:model-value="setMany(group.badges, Boolean($event))"
+              />
+            </div>
             <ul class="divide-y divide-outline-gray-1 rounded-lg border border-outline-gray-2">
               <li
                 v-for="badge in group.badges"
@@ -63,10 +72,10 @@
                   </div>
                   <div class="truncate text-p-sm text-ink-gray-6">{{ badge.description }}</div>
                 </div>
-                <Switch
+                <Checkbox
                   :model-value="isOn(badge.name)"
                   :aria-label="`${badge.title} (${badge.tier})`"
-                  @update:model-value="setOn(badge.name, Boolean($event))"
+                  @update:model-value="setMany([badge], Boolean($event))"
                 />
               </li>
             </ul>
@@ -159,10 +168,15 @@ const enabled = computed({
   set: (on: boolean) => (draft.badges = { ...current.value, enabled: on }),
 })
 const isOn = (name: string) => !current.value.disabled.includes(name)
-function setOn(name: string, on: boolean) {
-  const others = current.value.disabled.filter((item) => item !== name)
-  draft.badges = { ...current.value, disabled: on ? others : [...others, name] }
+// Turns several badges on or off at once, for one row or a whole group.
+function setMany(list: SettingsBadge[], on: boolean) {
+  const names = new Set(list.map((badge) => badge.name))
+  const others = current.value.disabled.filter((name) => !names.has(name))
+  draft.badges = { ...current.value, disabled: on ? others : [...others, ...names] }
 }
+const allOn = (list: SettingsBadge[]) => list.every((badge) => isOn(badge.name))
+// A mix: some on and some off. All on or all off is not.
+const someOn = (list: SettingsBadge[]) => !allOn(list) && list.some((badge) => isOn(badge.name))
 // A dot beside what differs from what is saved, as on the other pages.
 function changed(what: 'enabled' | string) {
   const saved = savedValue('badges') as BadgesDraft
