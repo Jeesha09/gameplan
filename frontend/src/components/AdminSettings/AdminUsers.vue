@@ -46,8 +46,8 @@
     <span class="text-base text-ink-gray-6">View</span>
   </button>
   <div class="-mx-3 mt-4">
-    <List class="max-sm:hidden list-gap-3" :columns="columns" divider="inset">
-      <ListHeader class="px-3">
+    <List class="max-sm:hidden list-gap-3 list-row-px-3" :columns="columns" divider="inset">
+      <ListHeader>
         <ListHeaderCellSort
           class="col-span-2"
           :direction="directionFor('full_name')"
@@ -74,7 +74,7 @@
         </ListHeaderCellSort>
         <ListHeaderCell />
       </ListHeader>
-      <ListRow v-for="user in users" :key="user.name" class="h-15 px-3">
+      <ListRow v-for="user in users" :key="user.name" class="h-15">
         <ListCell><UserAvatar :user="user.name" size="2xl" /></ListCell>
         <ListCell>
           <div class="min-w-0 flex-1">
