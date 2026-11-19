@@ -1,5 +1,5 @@
 <template>
-  <Button variant="ghost" icon-left="lucide-settings-2" @click="show">Approval settings</Button>
+  <Button variant="subtle" icon-left="lucide-settings-2" @click="show">Approval settings</Button>
   <Dialog v-model:open="open" title="Community post approval" :dismissible="!saving">
     <p class="mb-4 text-base text-ink-gray-6">
       Review new contributors' discussions and replies before publication. Community staff are

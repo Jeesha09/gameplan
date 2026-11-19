@@ -12,8 +12,8 @@
           <span class="lucide-search size-4 text-ink-gray-5" aria-hidden="true" />
         </template>
       </TextInput>
-      <div class="flex items-center gap-1">
-        <Button variant="ghost" icon-left="lucide-flask-conical" @click="testOpen = true"
+      <div class="flex items-center gap-2">
+        <Button variant="subtle" icon-left="lucide-flask-conical" @click="testOpen = true"
           >Test rules</Button
         >
         <FileUploader
@@ -28,7 +28,7 @@
               align="end"
               :button="{
                 icon: 'lucide-more-horizontal',
-                variant: 'ghost',
+                variant: 'subtle',
                 label: uploading ? `Uploading ${progress}%` : 'Import and export',
                 loading: uploading,
               }"

@@ -195,7 +195,7 @@
                         align="end"
                         :button="{
                           icon: 'lucide-more-horizontal',
-                          variant: 'ghost',
+                          variant: 'subtle',
                           label: 'More actions',
                         }"
                         :options="[
