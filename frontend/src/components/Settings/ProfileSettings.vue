@@ -91,6 +91,13 @@
           <SettingsRow title="Password" description="Manage password and account access">
             <Button href="/update-password">Update Password</Button>
           </SettingsRow>
+
+          <SettingsRow
+            title="Delete account"
+            description="Remove your account and personal details. Your posts stay, shown under Deleted user"
+          >
+            <Button theme="red" @click="confirmAccountDeletion">Delete account</Button>
+          </SettingsRow>
         </div>
       </section>
     </div>
@@ -118,11 +125,14 @@ import {
   SettingsRow,
   Textarea,
   TextInput,
+  call,
+  dialog,
   toast,
   useDoc,
 } from 'frappe-ui'
 import PanelHeader from './PanelHeader.vue'
 import PanelBody from './PanelBody.vue'
+import { extractServerMessage } from '@/utils'
 import type { DropdownOptions } from 'frappe-ui'
 import ProfileImageEditor from '@/components/ProfileImageEditor.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
@@ -338,6 +348,22 @@ function goToMyProfile() {
 
 function goToProfileCustomize() {
   router.push({ name: 'ProfileCustomize' })
+}
+
+function confirmAccountDeletion() {
+  dialog.danger({
+    title: 'Delete your account?',
+    message: `We'll email ${sessionUser.name} a link. Your account is deleted as soon as you open it, and this can't be undone.`,
+    confirmLabel: 'Send link',
+    onConfirm: async () => {
+      try {
+        await call('gameplan.account_deletion.request_account_deletion')
+        toast.success('Check your email to confirm')
+      } catch (error) {
+        toast.error(extractServerMessage(error) || 'Could not send the link')
+      }
+    },
+  })
 }
 
 function splitFullName(name: string) {

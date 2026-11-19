@@ -85,13 +85,36 @@
     :class="{ 'unsaved-row': unsaved }"
   >
     <Switch v-if="setting.type === 'switch'" v-model="model" :aria-label="setting.label" />
+    <div v-else-if="setting.type === 'number' && setting.max" class="flex items-center gap-2">
+      <TextInput
+        :model-value="shown(model)"
+        type="number"
+        :min="0"
+        class="w-24"
+        :placeholder="setting.placeholder"
+        :aria-label="`${setting.label} minimum`"
+        @update:model-value="model = stored($event)"
+      />
+      <span class="text-base text-ink-gray-5">to</span>
+      <TextInput
+        :model-value="shown(maxModel)"
+        type="number"
+        :min="0"
+        class="w-24"
+        placeholder="No max"
+        :aria-label="`${setting.label} maximum`"
+        @update:model-value="maxModel = stored($event)"
+      />
+    </div>
     <TextInput
       v-else-if="setting.type === 'number'"
-      v-model="model"
+      :model-value="shown(model)"
       type="number"
       :min="0"
-      class="w-20"
+      class="w-24"
+      :placeholder="setting.placeholder"
       :aria-label="setting.label"
+      @update:model-value="model = stored($event)"
     />
     <TextInput
       v-else-if="setting.type === 'text'"
@@ -175,7 +198,16 @@ import type { AdminSetting } from './sections'
 
 const props = defineProps<{ setting: AdminSetting; field?: boolean; unsaved?: boolean }>()
 const model = defineModel<any>()
+const maxModel = defineModel<any>('max')
 const emit = defineEmits<{ save: [] }>()
+
+function shown(value: any): string | number {
+  return props.setting.placeholder && !Number(value) ? '' : value
+}
+
+function stored(value: unknown) {
+  return value === '' || value == null ? 0 : value
+}
 
 const stacked = computed(() => ['textarea', 'list', 'emojis'].includes(props.setting.type))
 const previewOpen = ref(false)

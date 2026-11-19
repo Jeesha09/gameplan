@@ -21,12 +21,14 @@ export interface AdminSetting {
   placeholder?: string
   parent?: string
   wide?: boolean
+  max?: string
+  inline?: boolean
 }
 
 export interface AdminSettingGroup {
   heading?: string
   title?: string
-  layout?: 'fields'
+  layout?: 'fields' | 'identity'
   settings: AdminSetting[]
 }
 
@@ -67,6 +69,7 @@ function postingLimit(field: string, label: string, parent: string): AdminSettin
     label,
     type: 'number',
     default: 0,
+    placeholder: 'No limit',
     parent: postingLimitPrefix + parent,
   }
 }
@@ -79,28 +82,17 @@ export const adminSections: AdminSection[] = [
     groups: [
       {
         heading: 'General',
-        layout: 'fields',
+        layout: 'identity',
         settings: [
           { key: 'site_name', label: 'Site name', type: 'text', default: 'Frappe Forum' },
-          {
-            key: 'contact_email',
-            label: 'Contact email',
-            type: 'text',
-            default: '',
-            placeholder: 'team@example.com',
-          },
           {
             key: 'site_description',
             label: 'Short description',
             type: 'text',
             default: 'Forum for Frappe and ERPNext community',
-            wide: true,
+            description:
+              'Shown on the sign-in page and in link previews when someone shares the site.',
           },
-        ],
-      },
-      {
-        title: 'Logos',
-        settings: [
           {
             key: 'logo',
             label: 'Logo',
@@ -110,17 +102,34 @@ export const adminSections: AdminSection[] = [
           },
           {
             key: 'logo_dark',
-            label: 'Logo for dark mode',
+            label: 'Dark mode logo',
             type: 'image',
             default: '',
             description: 'Used on dark backgrounds. Falls back to the main logo',
+            parent: 'logo',
           },
           {
             key: 'favicon',
             label: 'Favicon',
             type: 'image',
             default: '',
-            description: 'The icon in the browser tab. Square, at least 192 px',
+            description: 'The browser tab icon. Square, at least 192 px',
+          },
+        ],
+      },
+      {
+        title: 'Contact',
+        layout: 'fields',
+        settings: [
+          {
+            key: 'contact_email',
+            label: 'Contact email',
+            type: 'text',
+            default: '',
+            placeholder: 'team@example.com',
+            description:
+              "Where people reach the team running this site, like when they can't sign in or want to appeal a ban. Shown on the sign-in page and to suspended accounts.",
+            wide: true,
           },
         ],
       },
@@ -132,7 +141,7 @@ export const adminSections: AdminSection[] = [
             label: 'Public access',
             type: 'switch',
             default: false,
-            description: 'Anyone can read public Spaces without signing in',
+            description: 'Anyone can read public discussions without signing in',
           },
           {
             key: 'signup',
@@ -238,8 +247,8 @@ export const adminSections: AdminSection[] = [
             key: 'invite_role',
             label: 'Who can invite people',
             type: 'select',
-            default: 'Admins only',
-            options: roles,
+            default: 'Site admins only',
+            options: ['Site admins only', 'Community and site admins', 'All members'],
           },
           {
             key: 'allow_email_change',
@@ -249,19 +258,13 @@ export const adminSections: AdminSection[] = [
             description: 'Members can switch the email they sign in with',
           },
           {
-            key: 'allow_account_deletion',
-            label: 'Delete their account',
-            type: 'switch',
-            default: false,
-            description: 'Their posts stay, shown under a deleted user',
-          },
-          {
             key: 'account_deletion_max_posts',
-            label: 'Post limit',
-            description: "Members with this many posts or more can't delete their account",
+            label: 'Account deletion limit',
+            description:
+              "Members with this many posts or more can't delete their own account. Their posts stay, shown under Deleted user",
             type: 'number',
             default: 10,
-            parent: 'allow_account_deletion',
+            placeholder: 'No limit',
           },
           {
             key: 'public_profiles',
@@ -281,15 +284,6 @@ export const adminSections: AdminSection[] = [
             type: 'switch',
             default: true,
             description: 'A summary of unread discussions and popular posts',
-          },
-          {
-            key: 'default_digest_frequency',
-            label: 'Default frequency',
-            type: 'select',
-            default: 'Off',
-            options: ['Off', 'Weekly', 'Fortnightly', 'Monthly'],
-            description: 'What new members start with',
-            parent: 'digests_enabled',
           },
           {
             key: 'default_digest_day',
@@ -334,31 +328,28 @@ export const adminSections: AdminSection[] = [
         settings: [
           {
             key: 'min_title_length',
-            label: 'Shortest title (characters)',
+            label: 'Title length',
             type: 'number',
             default: 0,
-            description: '0 turns this off',
+            description: 'Fewest and most characters a title can have',
+            placeholder: 'No min',
+            max: 'max_title_length',
           },
           {
             key: 'max_title_length',
-            label: 'Longest title (characters)',
+            label: 'Longest title',
             type: 'number',
             default: 0,
-            description: '0 turns this off',
+            placeholder: 'No max',
+            inline: true,
           },
           {
             key: 'min_post_length',
-            label: 'Shortest post (characters)',
+            label: 'Post length',
             type: 'number',
             default: 0,
-            description: '0 turns this off',
-          },
-          {
-            key: 'allow_duplicate_titles',
-            label: 'Duplicate titles',
-            type: 'switch',
-            default: true,
-            description: 'A new discussion can reuse the title of an existing one',
+            description: 'Fewest characters a post needs',
+            placeholder: 'No min',
           },
           {
             key: 'posting_limits_enabled',
@@ -366,7 +357,7 @@ export const adminSections: AdminSection[] = [
             type: 'switch',
             default: false,
             description:
-              'How many new discussions and replies one account can post. Global admins are exempt. Set a limit to 0 to turn it off',
+              'How many new discussions and replies one account can post. Global admins are exempt',
           },
           postingLimit('discussions_hour', 'Discussions per hour', 'enabled'),
           postingLimit('discussions_day', 'Discussions per 24 hours', 'enabled'),
@@ -374,11 +365,11 @@ export const adminSections: AdminSection[] = [
           postingLimit('replies_day', 'Replies per 24 hours', 'enabled'),
           {
             key: 'posting_limits_caps_enabled',
-            label: 'Content caps',
+            label: 'Per-post limits',
             type: 'switch',
             default: false,
             description:
-              'The most links, images, files and mentions one post can include. Community staff are exempt in their own Communities. Set a cap to 0 to turn it off',
+              'Stop one post from carrying too many links, images, files or mentions, a common spam pattern. Community staff are exempt in their own Communities',
           },
           postingLimit('max_links', 'Links per post', 'caps_enabled'),
           postingLimit('max_images', 'Images per post', 'caps_enabled'),

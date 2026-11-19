@@ -8,7 +8,7 @@
           </template>
           <template #suffix>
             <Button
-              v-if="isAdmin"
+              v-if="siteSettings.can_invite_people"
               variant="ghost"
               size="md"
               icon="lucide-user-plus"
@@ -49,7 +49,7 @@
                 </template>
               </TextInput>
               <Button
-                v-if="isAdmin"
+                v-if="siteSettings.can_invite_people"
                 class="hidden sm:inline-flex"
                 variant="solid"
                 icon-left="lucide-user-plus"
@@ -270,7 +270,7 @@
         </div>
       </div>
     </div>
-    <InvitePeople v-if="isAdmin" v-model:open="showInviteDialog" />
+    <InvitePeople v-if="siteSettings.can_invite_people" v-model:open="showInviteDialog" />
   </div>
 </template>
 <script setup lang="ts">
@@ -287,7 +287,8 @@ import {
 } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCellSort, ListRow } from 'frappe-ui/list'
 import InvitePeople from '@/components/Settings/InvitePeople.vue'
-import { isGameplanAdmin, loadMemberCount, memberCount, useUser } from '@/data/users'
+import { loadMemberCount, memberCount, useUser } from '@/data/users'
+import { siteSettings } from '@/data/siteSettings'
 import {
   people,
   peopleSearch,
@@ -312,7 +313,6 @@ defineOptions({
 })
 
 const search = peopleSearch
-const isAdmin = computed(() => isGameplanAdmin())
 const showInviteDialog = ref(false)
 const skeletonRowCount = 3
 

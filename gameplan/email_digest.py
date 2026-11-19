@@ -17,8 +17,6 @@ from gameplan.watched_word_matching import censor
 
 EMAIL_DIGEST_FREQUENCY_DAYS = {
 	"Weekly": 7,
-	"Fortnightly": 14,
-	"Monthly": 30,
 }
 EMAIL_DIGEST_DAYS_OF_WEEK = {
 	"Monday": 0,

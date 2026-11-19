@@ -65,18 +65,6 @@ class TestEmailDigest(GameplanTestCase):
 
 		self.assertFalse(is_digest_due(profile, date(2026, 6, 30)))
 
-	def test_longer_digest_frequencies_use_their_intervals(self):
-		fortnightly = frappe._dict(
-			email_digest_frequency="Fortnightly", email_digest_last_sent_on=date(2026, 6, 1)
-		)
-		monthly = frappe._dict(email_digest_frequency="Monthly", email_digest_last_sent_on=date(2026, 6, 1))
-
-		self.assertFalse(is_digest_due(fortnightly, date(2026, 6, 14)))
-		self.assertTrue(is_digest_due(fortnightly, date(2026, 6, 15)))
-		self.assertFalse(is_digest_due(monthly, date(2026, 6, 30)))
-		self.assertFalse(is_digest_due(monthly, date(2026, 7, 1)))
-		self.assertTrue(is_digest_due(monthly, date(2026, 7, 6)))
-
 	def test_get_due_profiles_skips_suspended_accounts(self):
 		from gameplan.restrictions import set_restriction
 

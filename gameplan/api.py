@@ -493,10 +493,15 @@ def public_file(fid=None):
 @frappe.whitelist(methods=["POST"])
 @validate_type
 def invite_by_email(emails: str, role: str, projects: list = None):
-	"""Invite comma-separated `emails` with a Gameplan `role`, optionally to `projects`. Admin only."""
-	require_admin()
+	"""Invite comma-separated `emails` with a Gameplan `role`. Non-admins invite members only."""
+	from gameplan.site_settings import can_invite_people
+
+	if not can_invite_people():
+		frappe.throw(_("You can't invite people to this site"), frappe.PermissionError)
 	if role not in GAMEPLAN_ROLES:
 		frappe.throw(_("Invalid role: {0}").format(role), frappe.ValidationError)
+	if role != "Gameplan Member" and not gameplan.is_admin():
+		frappe.throw(_("Only admins can invite with this role"), frappe.PermissionError)
 	return _invite_by_email(emails, role, projects)
 
 
@@ -538,7 +543,7 @@ def disable_user(user: str):
 def _invite_by_email(emails: str, role: str, projects: list = None) -> dict:
 	"""Core invite logic, callable from trusted server code (e.g. onboarding).
 
-	The public invite_by_email wrapper adds the admin gate + role allowlist; this
+	The public invite_by_email wrapper adds the permission gate + role allowlist; this
 	helper assumes the caller has already authorized the invite and validated role.
 
 	Two outcomes, split on whether the person already has an account here:

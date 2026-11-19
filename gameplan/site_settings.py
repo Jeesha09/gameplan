@@ -7,16 +7,18 @@ from frappe.utils import cint, strip_html
 
 import gameplan
 from gameplan.api import require_admin
+from gameplan.public_access import PUBLIC_ACCESS_CONFIG_KEY
 
 GP_FIELDS = (
 	"logo_dark",
 	"blocked_email_domains",
 	"default_communities",
 	"default_quick_reactions",
+	"invite_role",
+	"account_deletion_max_posts",
 	"min_title_length",
 	"max_title_length",
 	"min_post_length",
-	"allow_duplicate_titles",
 	"tags_enabled",
 	"tag_create_role",
 	"polls_enabled",
@@ -28,13 +30,12 @@ GP_FIELDS = (
 )
 WEBSITE_FIELDS = {"logo": "app_logo", "favicon": "favicon"}
 CHECKS = {
-	"allow_duplicate_titles",
 	"tags_enabled",
 	"polls_enabled",
 	"direct_messages_enabled",
 	"search_enabled",
 }
-INTS = {"min_title_length", "max_title_length", "min_post_length"}
+INTS = {"min_title_length", "max_title_length", "min_post_length", "account_deletion_max_posts"}
 LISTS = {"default_communities", "default_quick_reactions", "allowed_file_types"}
 SECRET = "unsplash_access_key"
 MASK = "********"
@@ -135,6 +136,7 @@ def get_settings():
 	extensions = frappe.db.get_single_value("System Settings", "allowed_file_extensions") or ""
 	values["allowed_file_types"] = [line.strip().lower() for line in extensions.splitlines() if line.strip()]
 	values["max_upload_mb"] = get_max_file_size() // MB
+	values["public_access"] = bool(cint(frappe.conf.get(PUBLIC_ACCESS_CONFIG_KEY)))
 	return values
 
 
@@ -149,6 +151,7 @@ def save_settings(values: dict):
 	"""Save several Admin settings values together, all or nothing. Global admins only."""
 	require_admin()
 	docs = {}
+	public_access = None
 
 	def single(doctype):
 		if doctype not in docs:
@@ -167,13 +170,33 @@ def save_settings(values: dict):
 			if not 1 <= size <= 10240:
 				frappe.throw("Largest upload must be between 1 and 10240 MB")
 			single("System Settings").set("max_file_size", size)
+		elif key == "public_access":
+			public_access = checked(value)
 		elif key in GP_FIELDS:
 			set_gp_setting(single("GP Settings"), key, value)
 		else:
 			frappe.throw(f"Unknown setting: {key}")
 
+	if public_access:
+		refuse_unsafe_public_access()
 	for doc in docs.values():
 		doc.save(ignore_permissions=True)
+	if public_access is not None:
+		from frappe.installer import update_site_config
+
+		update_site_config(PUBLIC_ACCESS_CONFIG_KEY, public_access)
+
+
+def checked(value):
+	return 1 if value and value not in ("0", "false") else 0
+
+
+def refuse_unsafe_public_access():
+	from gameplan.public_access_audit import public_access_audit
+
+	problems = public_access_audit().problems
+	if problems:
+		frappe.throw("Public access can't be turned on yet. " + " ".join(problems))
 
 
 def clean_extensions(value):
@@ -191,7 +214,7 @@ def set_gp_setting(doc, key, value):
 	if key == SECRET and value == MASK:
 		return
 	if key in CHECKS:
-		value = 1 if value and value not in ("0", "false") else 0
+		value = checked(value)
 	elif key in INTS:
 		value = cint(value)
 	elif key == "default_communities":
@@ -224,6 +247,7 @@ def boot_settings():
 		"direct_messages_enabled": feature_enabled("direct_messages_enabled"),
 		"search_enabled": feature_enabled("search_enabled"),
 		"can_start_conversations": can_start_conversations(),
+		"can_invite_people": can_invite_people(),
 		"min_title_length": cint(doc.min_title_length),
 		"max_title_length": cint(doc.max_title_length),
 		"min_post_length": cint(doc.min_post_length),
@@ -270,6 +294,19 @@ def can_start_conversations(user=None):
 	return level >= (1 if role == "Basic trust level and up" else 2)
 
 
+def can_invite_people(user=None):
+	"""Whether the user may invite people, under Admin settings' "Who can invite people"."""
+	user = user or frappe.session.user
+	if gameplan.is_admin(user):
+		return True
+	role = settings_doc().invite_role
+	if role == "All members":
+		return "Gameplan Member" in frappe.get_roles(user)
+	if role == "Community and site admins":
+		return bool(frappe.db.exists("GP Member", {"user": user, "parenttype": "GP Team", "is_admin": 1}))
+	return False
+
+
 def require_can_start_conversation():
 	if not can_start_conversations():
 		frappe.throw("You cannot start new conversations yet", frappe.PermissionError)
@@ -307,12 +344,6 @@ def check_title(doc):
 		frappe.throw(f"Titles need at least {shortest} characters.")
 	if longest and len(title) > longest:
 		frappe.throw(f"Titles can have up to {longest} characters.")
-	if not cint(settings.allow_duplicate_titles):
-		filters = {"title": title}
-		if doc.name and not doc.is_new():
-			filters["name"] = ("!=", doc.name)
-		if frappe.db.exists("GP Discussion", filters):
-			frappe.throw("A discussion with this title already exists.")
 
 
 def check_length(doc):

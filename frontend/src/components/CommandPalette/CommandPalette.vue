@@ -243,17 +243,19 @@ const adminSettingItems: CommandPaletteItem[] = adminSections.flatMap((section) 
     route: { name: 'AdminSettings', query: { tab: section.id } },
   },
   ...section.groups.flatMap((group) =>
-    group.settings.map((setting) => ({
-      title: setting.label,
-      name: `admin-setting-${setting.key}`,
-      icon: section.icon,
-      suffix: section.label,
-      search: [setting.label, group.heading, group.title, setting.description]
-        .filter(Boolean)
-        .join(' '),
-      defaultScore: 0,
-      route: { name: 'AdminSettings', query: { tab: section.id, setting: setting.key } },
-    })),
+    group.settings
+      .filter((setting) => !setting.inline)
+      .map((setting) => ({
+        title: setting.label,
+        name: `admin-setting-${setting.key}`,
+        icon: section.icon,
+        suffix: section.label,
+        search: [setting.label, group.heading, group.title, setting.description]
+          .filter(Boolean)
+          .join(' '),
+        defaultScore: 0,
+        route: { name: 'AdminSettings', query: { tab: section.id, setting: setting.key } },
+      })),
   ),
 ])
 

@@ -8,7 +8,8 @@ from unittest.mock import patch
 import frappe
 
 from gameplan import direct_messages as dm
-from gameplan.api import search_sqlite
+from gameplan.api import invite_by_email, search_sqlite
+from gameplan.public_access import PUBLIC_ACCESS_CONFIG_KEY
 from gameplan.site_settings import check_email_domain, get_settings, save_setting, save_settings
 from gameplan.tests.base import GameplanTestCase
 from gameplan.tests.fixtures import (
@@ -72,6 +73,69 @@ class TestSavingSettings(SiteSettingsTestCase):
 		self.assertEqual(frappe.get_cached_doc("GP Settings").get_password("unsplash_access_key"), "real-key")
 
 
+class TestPublicAccess(SiteSettingsTestCase):
+	def setUp(self):
+		super().setUp()
+		self.write = self.enterContext(patch("frappe.installer.update_site_config"))
+		self.audit = self.enterContext(patch("gameplan.public_access_audit.public_access_audit"))
+		self.audit.return_value = frappe._dict(problems=[])
+
+	def test_reads_the_site_config_switch(self):
+		with self.as_user(self.admin):
+			with patch.dict(frappe.conf, {PUBLIC_ACCESS_CONFIG_KEY: 1}):
+				self.assertIs(get_settings()["public_access"], True)
+			with patch.dict(frappe.conf, {PUBLIC_ACCESS_CONFIG_KEY: 0}):
+				self.assertIs(get_settings()["public_access"], False)
+
+	def test_turning_on_writes_the_site_config_switch(self):
+		self.configure(public_access=1)
+		self.write.assert_called_once_with(PUBLIC_ACCESS_CONFIG_KEY, 1)
+
+	def test_audit_problems_refuse_turning_on_and_save_nothing(self):
+		self.audit.return_value = frappe._dict(problems=["Signup gives new accounts the Member role."])
+		with self.as_user(self.admin):
+			self.assertRaises(frappe.ValidationError, save_settings, {"public_access": 1, "polls_enabled": 0})
+			self.assertIs(get_settings()["polls_enabled"], True)
+		self.write.assert_not_called()
+
+	def test_turning_off_skips_the_audit(self):
+		self.audit.return_value = frappe._dict(problems=["Anything"])
+		self.configure(public_access=0)
+		self.audit.assert_not_called()
+		self.write.assert_called_once_with(PUBLIC_ACCESS_CONFIG_KEY, 0)
+
+	def test_only_global_admins_switch_it(self):
+		with self.as_user(self.member):
+			self.assertRaises(frappe.PermissionError, save_setting, "public_access", 1)
+		self.write.assert_not_called()
+
+
+class TestInviting(SiteSettingsTestCase):
+	def invite(self, email, role="Gameplan Member"):
+		with patch("frappe.sendmail"):
+			return invite_by_email(email, role)
+
+	def test_only_site_admins_invite_by_default(self):
+		with self.as_user(self.member):
+			self.assertRaises(frappe.PermissionError, self.invite, "by-default@invite.test")
+		with self.as_user(self.admin):
+			self.assertEqual(self.invite("by-admin@invite.test")["invited"], ["by-admin@invite.test"])
+
+	def test_all_members_invite_members_but_not_admins(self):
+		self.configure(invite_role="All members")
+		with self.as_user(self.member):
+			self.assertEqual(self.invite("by-member@invite.test")["invited"], ["by-member@invite.test"])
+			self.assertRaises(frappe.PermissionError, self.invite, "as-admin@invite.test", "Gameplan Admin")
+
+	def test_community_admins_invite_when_allowed(self):
+		self.configure(invite_role="Community and site admins")
+		create_community("Inviting Community", admins=[self.second_member])
+		with self.as_user(self.member):
+			self.assertRaises(frappe.PermissionError, self.invite, "plain-member@invite.test")
+		with self.as_user(self.second_member):
+			self.assertEqual(self.invite("by-staff@invite.test")["invited"], ["by-staff@invite.test"])
+
+
 class TestPostingRules(SiteSettingsTestCase):
 	def test_defaults_keep_todays_behaviour(self):
 		create_discussion("Hi", self.space, content="<p>x</p>")
@@ -82,11 +146,6 @@ class TestPostingRules(SiteSettingsTestCase):
 		self.assertRaises(frappe.ValidationError, create_discussion, "Tiny", self.space)
 		self.assertRaises(frappe.ValidationError, create_discussion, "Far too long a title", self.space)
 		create_discussion("Just right", self.space)
-
-	def test_duplicate_titles_can_be_refused(self):
-		self.configure(allow_duplicate_titles=0)
-		create_discussion("Same title", self.space)
-		self.assertRaises(frappe.ValidationError, create_discussion, "Same title", self.space)
 
 	def test_post_length_ignores_markup(self):
 		self.configure(min_post_length=5)

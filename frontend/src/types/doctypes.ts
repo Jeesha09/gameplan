@@ -102,7 +102,7 @@ export interface GPUserProfile extends DocType {
   /** Hide Inactive Spaces: Check */
   hide_inactive_spaces: 0 | 1
   /** Email Digest Frequency: Select */
-  email_digest_frequency?: 'Off' | 'Weekly' | 'Fortnightly' | 'Monthly'
+  email_digest_frequency?: 'Off' | 'Weekly'
   /** Email Digest Day of Week: Select */
   email_digest_day_of_week?:
     | 'Monday'

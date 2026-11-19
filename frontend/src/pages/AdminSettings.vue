@@ -8,13 +8,6 @@
   <PageHeader class="hidden sm:flex">
     <div class="flex min-w-0 items-center gap-3">
       <Breadcrumbs class="h-7" :items="crumbs" />
-      <Select
-        v-if="communityId"
-        variant="ghost"
-        aria-label="Community view"
-        :options="viewOptions"
-        v-model="communityView"
-      />
     </div>
     <div v-if="pageChanges.length" class="flex shrink-0 items-center gap-2">
       <Button :disabled="saving" @click="discardChanges(pageChanges)">Discard</Button>
@@ -79,7 +72,28 @@
             <h2 v-if="group.title" class="text-md-semibold text-ink-gray-8">
               {{ group.title }}
             </h2>
-            <div v-if="group.layout === 'fields'" class="grid gap-6 pt-2 sm:grid-cols-2">
+            <div v-if="group.layout === 'identity'" class="grid gap-6">
+              <AdminSettingField
+                v-for="setting in group.settings.filter((s) => s.type !== 'image')"
+                :id="`admin-setting-${setting.key}`"
+                :key="setting.key"
+                v-model="values[setting.key]"
+                :setting="setting"
+                :unsaved="pageChanges.includes(setting.key)"
+                field
+              />
+              <div class="divide-y divide-outline-gray-1">
+                <AdminSettingField
+                  v-for="setting in group.settings.filter((s) => s.type === 'image')"
+                  :id="`admin-setting-${setting.key}`"
+                  :key="setting.key"
+                  v-model="values[setting.key]"
+                  :setting="setting"
+                  @save="saveImage(setting)"
+                />
+              </div>
+            </div>
+            <div v-else-if="group.layout === 'fields'" class="grid gap-6 pt-2 sm:grid-cols-2">
               <AdminSettingField
                 v-for="setting in group.settings"
                 :id="`admin-setting-${setting.key}`"
@@ -93,12 +107,20 @@
             </div>
             <div v-else class="divide-y divide-outline-gray-1" :class="{ 'mt-2': group.title }">
               <AdminSettingField
-                v-for="setting in group.settings"
+                v-for="setting in group.settings.filter((s) => !s.inline)"
                 :id="`admin-setting-${setting.key}`"
                 :key="setting.key"
                 v-model="values[setting.key]"
+                :max="setting.max && values[setting.max]"
+                @update:max="(value: number) => (values[setting.max!] = value)"
                 :setting="setting"
-                :unsaved="pageChanges.includes(setting.key)"
+                :unsaved="
+                  pageChanges.includes(setting.key) ||
+                  (!!setting.max && pageChanges.includes(setting.max))
+                "
+                :class="{
+                  'ml-1 !border-t-0 border-l border-outline-gray-2 !py-2.5 pl-4': setting.parent,
+                }"
                 @save="saveImage(setting)"
               />
             </div>
@@ -181,15 +203,6 @@ const crumbs = computed(() => {
   ]
 })
 
-const viewOptions = [
-  { label: 'Spaces', value: 'spaces' },
-  { label: 'Members', value: 'members' },
-]
-
-const communityView = computed({
-  get: () => (route.query.view === 'members' ? 'members' : 'spaces'),
-  set: (view) => router.replace(communityViewRoute(view === 'members' ? 'members' : 'spaces')),
-})
 
 function open(id: string) {
   router.replace({ name: 'AdminSettings', query: { tab: id } })

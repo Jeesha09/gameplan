@@ -187,6 +187,9 @@ override_doctype_class = {"File": "gameplan.moderated_file.ModeratedFile"}
 # Hook on document methods and events
 
 doc_events = {
+	"Personal Data Deletion Request": {
+		"on_update": "gameplan.account_deletion.anonymise_on_confirmation",
+	},
 	"GP Team": {
 		"on_trash": [
 			"gameplan.approval_policy.delete_counters",

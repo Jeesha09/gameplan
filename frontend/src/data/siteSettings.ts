@@ -10,6 +10,7 @@ export interface SiteSettings {
   direct_messages_enabled: boolean
   search_enabled: boolean
   can_start_conversations: boolean
+  can_invite_people: boolean
   min_title_length: number
   max_title_length: number
   min_post_length: number
@@ -25,6 +26,7 @@ export const siteSettings = reactive<SiteSettings>({
   direct_messages_enabled: true,
   search_enabled: true,
   can_start_conversations: true,
+  can_invite_people: false,
   min_title_length: 0,
   max_title_length: 0,
   min_post_length: 0,

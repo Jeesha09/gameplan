@@ -7,7 +7,7 @@
         label="Invite by email"
         :disabled="inviteByEmail.loading"
       />
-      <div>
+      <div v-if="isAdmin">
         <Select label="Role" :options="roleOptions" v-model="role" />
         <p class="mt-1.5 text-p-sm text-ink-gray-5">{{ roleDescriptions[role] }}</p>
       </div>
@@ -36,7 +36,7 @@
         </p>
       </div>
 
-      <div v-if="pendingInvitations.data?.length">
+      <div v-if="isAdmin && pendingInvitations.data?.length">
         <div class="border-b py-2 text-base text-ink-gray-5">Pending invites</div>
         <ul class="divide-y">
           <li
@@ -95,7 +95,7 @@ import { computed, ref, useTemplateRef, watch } from 'vue'
 import { Button, Dialog, ErrorMessage, Select, Tooltip, useCall, useList } from 'frappe-ui'
 import EmailListInput, { parseEmailList } from '@/components/EmailListInput.vue'
 import type { GPInvitation } from '@/types/doctypes'
-import { loadMemberCount } from '@/data/users'
+import { isGameplanAdmin, loadMemberCount } from '@/data/users'
 import { errorText } from '@/utils'
 
 type Role = 'Gameplan Admin' | 'Gameplan Member'
@@ -125,6 +125,7 @@ const roleDescriptions: Record<Role, string> = {
 }
 
 const role = ref<Role>('Gameplan Member')
+const isAdmin = isGameplanAdmin()
 const emails = ref('')
 const pendingToDelete = ref<string | null>(null)
 const result = ref<InviteResult | null>(null)

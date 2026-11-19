@@ -26,6 +26,21 @@
             />
           </template>
         </PageHeaderMobile>
+        <Tabs
+          v-if="asPage && selectedCommunity && !isPhone"
+          :model-value="view"
+          class="mb-3"
+          @update:model-value="(value) => (view = value as CommunityView)"
+        >
+          <TabList variant="underline">
+            <TabTrigger
+              v-for="option in viewButtons"
+              :key="option.value"
+              :value="option.value"
+              :label="option.label"
+            />
+          </TabList>
+        </Tabs>
         <div :class="{ 'flex items-center gap-4 pb-3': asPage }">
           <div v-if="!asPage" class="flex shrink-0 items-center gap-2 max-sm:hidden">
             <Button
@@ -203,7 +218,15 @@
 defineEmits<{ (e: 'close-dialog'): void }>()
 import { computed, inject, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Button, PageHeaderBackButton, PageHeaderMobile, Select } from 'frappe-ui'
+import {
+  Button,
+  PageHeaderBackButton,
+  PageHeaderMobile,
+  Select,
+  TabList,
+  TabTrigger,
+  Tabs,
+} from 'frappe-ui'
 import NewSpaceDialog from '@/components/NewSpaceDialog.vue'
 import CustomizeSidebarDialog from '@/components/AppRail/CustomizeSidebarDialog.vue'
 import {
