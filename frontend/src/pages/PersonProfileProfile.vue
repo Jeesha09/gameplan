@@ -150,6 +150,10 @@ function editCard(card: ProfileBentoCard) {
     showAboutDialog.value = true
     return
   }
+  if (card.field === 'badges') {
+    router.push({ name: 'PersonProfileBadges', params: router.currentRoute.value.params })
+    return
+  }
   if (card.field === 'cover_image') {
     router.push({ name: 'ProfileCustomize', query: { field: 'cover_image' } })
     return

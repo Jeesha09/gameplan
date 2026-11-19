@@ -3,7 +3,7 @@ export type ProfileCardSize = '1x1' | '1x2' | '2x1' | '2x2' | '4x1' | '4x2'
 export type ProfileImageRendering = 'Cover' | 'Natural' | 'Fit'
 /** `field` cards resolve their value from the profile at read time. */
 export type ProfileCardSource = 'custom' | 'field'
-export type ProfileCardFormat = 'text' | 'html' | 'image'
+export type ProfileCardFormat = 'text' | 'html' | 'image' | 'badges'
 
 export interface ProfileBentoCard {
   id: string
@@ -106,7 +106,7 @@ export interface ProfileFieldDraft {
 }
 
 /** A profile field a bento card can bind to. */
-export type ProfileBoundField = 'cover_image' | 'image' | 'full_name' | 'bio' | 'readme'
+export type ProfileBoundField = 'cover_image' | 'image' | 'full_name' | 'bio' | 'badges' | 'readme'
 
 /**
  * Which control the panel edits a bound field with.
@@ -115,7 +115,7 @@ export type ProfileBoundField = 'cover_image' | 'image' | 'full_name' | 'bio' | 
  * `format` is how the card renders the value, this is how it is typed in. A
  * name is one string on the card and two inputs in the panel.
  */
-export type ProfileBoundEditor = 'name' | 'text' | 'richText' | 'image'
+export type ProfileBoundEditor = 'name' | 'text' | 'richText' | 'image' | 'badges'
 
 export interface ProfileBoundFieldSpec {
   field: ProfileBoundField
@@ -182,6 +182,16 @@ export const profileBoundFields: ProfileBoundFieldSpec[] = [
     editor: 'text',
     emptyIcon: 'lucide-quote',
     emptyPrompt: 'Add a short bio',
+  },
+  {
+    field: 'badges',
+    id: 'badges',
+    size: '4x1',
+    title: 'Badges',
+    format: 'badges',
+    editor: 'badges',
+    emptyIcon: 'lucide-award',
+    emptyPrompt: 'Earn a badge to show it here',
   },
   {
     field: 'readme',

@@ -36,7 +36,7 @@ export function badgesEnabled() {
   return Boolean(window.badges_enabled)
 }
 
-/** The profile that `ProfileBadgeRibbons` shows favourites for. Provided by `PersonProfile`. */
+/** The profile that `ProfileBadgesShelf` shows badges for. Provided by `PersonProfile`. */
 export const profileUserKey: InjectionKey<Readonly<Ref<string>>> = Symbol('profileUser')
 
 /**
