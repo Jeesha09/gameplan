@@ -87,7 +87,7 @@ Steps run in this order: `users`, `categories`, `topics`, `messages`, `trust_lev
 `badges`, `links`, `backlinks`. Activity counts and the search index are rebuilt at the end.
 
 The `badges` step brings over grants of the badges Gameplan ports (`prd/badges.md`), with no
-notifications. Turn badges on afterwards in Site administration: its first pass is silent and
+notifications. Turn badges on afterwards in Admin settings > Badges: its first pass is silent and
 grants Helper, which Discourse has no badge for, and anything else Discourse missed.
 
 Options, passed through `--kwargs`:

@@ -1,5 +1,5 @@
 <template>
-  <Button variant="ghost" icon-left="lucide-settings-2" @click="show">Trust level settings</Button>
+  <Button icon-left="lucide-settings-2" @click="show">Trust level settings</Button>
   <Dialog v-model:open="open" title="Trust levels" :dismissible="!saving" size="6xl">
     <!-- Every requirement stays on screen without scrolling, down to a 1024 × 600 window. -->
     <div class="trust-level-settings">

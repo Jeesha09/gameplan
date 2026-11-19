@@ -1,4 +1,4 @@
-import { ref, type Component } from 'vue'
+import { ref, type Component, type InjectionKey } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import router from '@/router'
 import { isSettingsRoute } from './overlayHistory'
@@ -31,6 +31,8 @@ export const settingsBackgroundPath = ref<string | null>(null)
  * button to the list, the community's title and the Spaces/Members switcher.
  */
 export const panelOwnsPageHeader = ref(false)
+
+export const panelAsPage: InjectionKey<boolean> = Symbol('panelAsPage')
 
 // Lets callers deep-link into the Communities tab, optionally with a specific
 // community + view (e.g. a discussion's "Manage spaces" action). The community

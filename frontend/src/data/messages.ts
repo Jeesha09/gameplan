@@ -4,6 +4,7 @@ import type { Router } from 'vue-router'
 import { onSocketEvent, onSocketReconnect, type ReadCursor } from '@/socket'
 import { isAnonymousVisitor } from '@/utils/publicAccess'
 import { onReconnect } from './online'
+import { siteSettings } from './siteSettings'
 import { useSessionUser, useUser } from './users'
 
 const METHODS = 'gameplan.direct_messages'
@@ -67,7 +68,7 @@ export const inbox = reactive({
 })
 
 export function messagesEnabled() {
-  return Boolean(useSessionUser().direct_messages_enabled)
+  return siteSettings.direct_messages_enabled && Boolean(useSessionUser().direct_messages_enabled)
 }
 
 async function loadUnreadConversations() {

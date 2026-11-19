@@ -17,7 +17,7 @@
       />
       <p class="mt-2 text-p-sm text-ink-gray-6">
         Trust levels are on for the site, so levels decide who needs approval here. A global admin
-        sets the level requirements under Site administration.
+        sets the level requirements in Admin settings.
       </p>
     </template>
     <Checkbox
@@ -54,7 +54,7 @@
         data-testid="auto-hide-switch"
       />
       <p v-if="!levelsEnabled" class="mt-2 text-p-sm text-ink-gray-6">
-        Auto-hide needs trust levels. A global admin turns them on under Site administration.
+        Auto-hide needs trust levels. A global admin turns them on in Admin settings.
         <template v-if="autoHideEnabled">Until then, auto-hide is paused.</template>
       </p>
       <TextInput

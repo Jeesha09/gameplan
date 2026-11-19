@@ -85,7 +85,7 @@ import { hasUnseenEntries, openChangelog } from '@/data/changelog'
 import UnseenDot from '@/components/Changelog/UnseenDot.vue'
 import { session } from '@/data/session'
 import { communities } from '@/data/communities'
-import { canModerateCommunity } from '@/utils/permissions'
+import { canModerateCommunity, isGlobalAdmin } from '@/utils/permissions'
 import { useIsMobile } from '@/utils/useIsMobile'
 import { useTheme, type Theme } from '@/utils/useTheme'
 import { WINDOW_OPTIONS, offlineWindow } from '@/data/offlineDownloads'
@@ -146,6 +146,9 @@ const itemGroups = computed<MoreItemGroup[]>(() => {
   const workspaceItems: MoreItem[] = [
     ...(communities.data?.some((community) => canModerateCommunity(community, sessionUser))
       ? [{ label: 'Moderation', icon: 'lucide-shield-check', route: { name: 'Moderation' } }]
+      : []),
+    ...(isGlobalAdmin(sessionUser)
+      ? [{ label: 'Admin settings', icon: 'lucide-monitor-cog', route: { name: 'AdminSettings' } }]
       : []),
     { label: 'Drafts', icon: 'lucide-pencil-line', route: { name: 'Drafts' } },
     { label: 'My submissions', icon: 'lucide-clipboard-check', route: { name: 'MySubmissions' } },
@@ -208,9 +211,9 @@ const itemGroups = computed<MoreItemGroup[]>(() => {
                 route: { name: 'SettingsTab', params: { tab: 'emojis' } },
               },
               {
-                label: 'Users',
+                label: 'Manage users',
                 icon: 'lucide-users',
-                route: { name: 'SettingsTab', params: { tab: 'users' } },
+                route: { name: 'AdminSettings', query: { tab: 'users' } },
               },
             ]
           : []),

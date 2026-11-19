@@ -25,14 +25,23 @@
     v-if="filteredMembers.length"
     :columns="{
       base: ['1.5rem', 'minmax(0,1fr)', '1.5rem'],
-      md: ['1.25rem', 'minmax(12rem,1fr)', 'minmax(12rem,1fr)', '8rem', '1.5rem'],
+      md: [
+        '1.25rem',
+        'minmax(12rem,1fr)',
+        ...(asPage ? [] : ['minmax(12rem,1fr)']),
+        '13rem',
+        '1.5rem',
+      ],
     }"
   >
     <!-- Sticky at the settings scroll-viewport top — it rests exactly where it
          pins, so it never visibly moves. -->
-    <ListHeader class="sticky top-0 z-10 bg-surface-elevation-1 max-md:hidden">
+    <ListHeader
+      class="max-md:hidden"
+      :class="{ 'sticky top-0 z-10 bg-surface-elevation-1': !asPage }"
+    >
       <ListHeaderCell class="col-span-2">Member</ListHeaderCell>
-      <ListHeaderCell>Email</ListHeaderCell>
+      <ListHeaderCell v-if="!asPage">Email</ListHeaderCell>
       <ListHeaderCell>Role</ListHeaderCell>
       <ListHeaderCell />
     </ListHeader>
@@ -80,7 +89,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
+import { panelAsPage } from '@/components/Settings'
 import { Button, useCall } from 'frappe-ui'
 import { List, ListHeader, ListHeaderCell } from 'frappe-ui/list'
 import type { Community } from '@/data/communities'
@@ -145,4 +155,6 @@ const filteredMembers = computed(() => {
     )
   })
 })
+
+const asPage = inject(panelAsPage, false)
 </script>

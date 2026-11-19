@@ -38,6 +38,7 @@
           </template>
         </MobileNavItem>
         <MobileNavItem
+          v-if="siteSettings.search_enabled"
           label="Search"
           icon="lucide-search"
           :route="{ name: 'Search' }"
@@ -81,6 +82,7 @@ defineOptions({
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { MobileShell, MobileNav, MobileNavItem } from 'frappe-ui'
+import { siteSettings } from '@/data/siteSettings'
 import { useSessionUser } from '@/data/users'
 import ReadOnlyBanner from './ReadOnlyBanner.vue'
 import UserAvatar from './UserAvatar.vue'

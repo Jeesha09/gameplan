@@ -10,7 +10,21 @@
         :class="open ? 'bg-surface-base shadow-sm' : 'hover:opacity-90'"
         aria-label="Gameplan menu"
       >
-        <GameplanLogo class="size-7 rounded-[7px]" />
+        <template v-if="siteSettings.logo">
+          <img
+            :src="siteSettings.logo"
+            alt=""
+            class="size-7 rounded-[7px] object-contain"
+            :class="{ 'dark:hidden': siteSettings.logo_dark }"
+          />
+          <img
+            v-if="siteSettings.logo_dark"
+            :src="siteSettings.logo_dark"
+            alt=""
+            class="hidden size-7 rounded-[7px] object-contain dark:block"
+          />
+        </template>
+        <GameplanLogo v-else class="size-7 rounded-[7px]" />
       </button>
     </template>
   </Dropdown>
@@ -25,6 +39,7 @@ import { clear as clearIndexDb } from 'idb-keyval'
 import { settingsShortcutLabel, showSettingsDialog } from '@/components/Settings'
 import AboutDialog from './AboutDialog.vue'
 import GameplanLogo from './GameplanLogo.vue'
+import { siteSettings } from '@/data/siteSettings'
 import { openCustomizeSidebarDialog } from './AppRail/customizeSidebar'
 import { isAnonymousVisitor } from '@/utils/publicAccess'
 import { installedApps } from '@/data/apps'

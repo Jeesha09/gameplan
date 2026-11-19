@@ -1,0 +1,168 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 0,
+ "allow_rename": 0,
+ "creation": "2026-11-18 10:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "logo_dark",
+  "blocked_email_domains",
+  "members_section",
+  "default_communities",
+  "default_quick_reactions",
+  "posting_section",
+  "min_title_length",
+  "max_title_length",
+  "min_post_length",
+  "allow_duplicate_titles",
+  "features_section",
+  "tags_enabled",
+  "tag_create_role",
+  "polls_enabled",
+  "direct_messages_enabled",
+  "direct_message_role",
+  "everyone_mention_role",
+  "search_enabled",
+  "unsplash_access_key"
+ ],
+ "fields": [
+  {
+   "fieldname": "logo_dark",
+   "fieldtype": "Attach Image",
+   "label": "Logo for dark mode"
+  },
+  {
+   "description": "One domain per line",
+   "fieldname": "blocked_email_domains",
+   "fieldtype": "Small Text",
+   "label": "Blocked email domains"
+  },
+  {
+   "fieldname": "members_section",
+   "fieldtype": "Section Break",
+   "label": "New members"
+  },
+  {
+   "fieldname": "default_communities",
+   "fieldtype": "JSON",
+   "label": "Default communities"
+  },
+  {
+   "fieldname": "default_quick_reactions",
+   "fieldtype": "JSON",
+   "label": "Default quick reactions"
+  },
+  {
+   "fieldname": "posting_section",
+   "fieldtype": "Section Break",
+   "label": "Posting rules"
+  },
+  {
+   "default": "0",
+   "fieldname": "min_title_length",
+   "fieldtype": "Int",
+   "label": "Shortest title"
+  },
+  {
+   "default": "0",
+   "fieldname": "max_title_length",
+   "fieldtype": "Int",
+   "label": "Longest title"
+  },
+  {
+   "default": "0",
+   "fieldname": "min_post_length",
+   "fieldtype": "Int",
+   "label": "Shortest post"
+  },
+  {
+   "default": "1",
+   "fieldname": "allow_duplicate_titles",
+   "fieldtype": "Check",
+   "label": "Allow duplicate titles"
+  },
+  {
+   "fieldname": "features_section",
+   "fieldtype": "Section Break",
+   "label": "Features"
+  },
+  {
+   "default": "1",
+   "fieldname": "tags_enabled",
+   "fieldtype": "Check",
+   "label": "Tags"
+  },
+  {
+   "default": "All members",
+   "fieldname": "tag_create_role",
+   "fieldtype": "Select",
+   "label": "Who can create new tags",
+   "options": "Admins only\nCommunity admins and up\nCommunity staff and up\nAll members"
+  },
+  {
+   "default": "1",
+   "fieldname": "polls_enabled",
+   "fieldtype": "Check",
+   "label": "Polls"
+  },
+  {
+   "default": "1",
+   "fieldname": "direct_messages_enabled",
+   "fieldtype": "Check",
+   "label": "Direct messages"
+  },
+  {
+   "default": "All members",
+   "fieldname": "direct_message_role",
+   "fieldtype": "Select",
+   "label": "Who can start a conversation",
+   "options": "All members\nBasic trust level and up\nMember trust level and up\nCommunity staff and up"
+  },
+  {
+   "default": "All members",
+   "fieldname": "everyone_mention_role",
+   "fieldtype": "Select",
+   "label": "Mention everyone",
+   "options": "Admins only\nCommunity admins and up\nCommunity staff and up\nAll members"
+  },
+  {
+   "default": "1",
+   "fieldname": "search_enabled",
+   "fieldtype": "Check",
+   "label": "Search"
+  },
+  {
+   "fieldname": "unsplash_access_key",
+   "fieldtype": "Password",
+   "label": "Unsplash access key"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-11-18 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Gameplan",
+ "name": "GP Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Gameplan Admin",
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

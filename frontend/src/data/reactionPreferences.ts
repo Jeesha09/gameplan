@@ -1,31 +1,11 @@
 import { computed, ref } from 'vue'
 import { debounce, toast, useDoctype } from 'frappe-ui'
 import type { GPUserProfile } from '@/types/doctypes'
+import { siteSettings } from './siteSettings'
 
 export const quickReactionSlotCount = 20
 
-export const defaultQuickReactionEmojis = [
-  '👍',
-  '👎',
-  '💖',
-  '🔥',
-  '👏🏻',
-  '🤔',
-  '😱',
-  '🤯',
-  '😡',
-  '⚡️',
-  '🥳',
-  '🎉',
-  '💩',
-  '🤩',
-  '😢',
-  '😂',
-  '🍿',
-  '🙈',
-  '🌚',
-  '🚀',
-]
+export const defaultQuickReactionEmojis = ['👍', '😄', '🎉', '❤️', '🙏', '👀']
 
 /**
  * Per-user preference, persisted on GP User Profile. The ref is the source of
@@ -44,12 +24,14 @@ export const currentQuickReactionEmojis = computed(() => slots.value.filter(Bool
 
 const persist = debounce((value: string[]) => {
   if (!profileName.value) return
-  userProfiles.setValue.submit({
-    name: profileName.value,
-    quick_reaction_emojis: JSON.stringify(normalizeQuickReactionSlots(value)),
-  }).catch(() => {
-    // Best-effort sync; the local ref stays authoritative for this session.
-  })
+  userProfiles.setValue
+    .submit({
+      name: profileName.value,
+      quick_reaction_emojis: JSON.stringify(normalizeQuickReactionSlots(value)),
+    })
+    .catch(() => {
+      // Best-effort sync; the local ref stays authoritative for this session.
+    })
 }, 500)
 
 /** Seed slots from persisted boot data without echoing back to the server. */
@@ -86,7 +68,13 @@ export function moveQuickReactionEmoji(fromIndex: number, toIndex: number) {
 }
 
 export function resetQuickReactionEmojis() {
-  commit([...defaultQuickReactionEmojis])
+  commit([...startingQuickReactionEmojis()])
+}
+
+export function startingQuickReactionEmojis() {
+  return siteSettings.default_quick_reactions.length
+    ? siteSettings.default_quick_reactions
+    : defaultQuickReactionEmojis
 }
 
 function parseStoredSlots(value: unknown): unknown {
@@ -100,7 +88,7 @@ function parseStoredSlots(value: unknown): unknown {
 
 /** Coerce stored data into exactly `quickReactionSlotCount` deduped slots. */
 function normalizeQuickReactionSlots(value: unknown): string[] {
-  const source = Array.isArray(value) ? value : defaultQuickReactionEmojis
+  const source = Array.isArray(value) ? value : startingQuickReactionEmojis()
 
   const seen = new Set<string>()
   const result = source.slice(0, quickReactionSlotCount).map((entry) => {

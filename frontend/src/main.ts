@@ -16,6 +16,7 @@ import { getPlatform } from './utils'
 import { useUser, users } from './data/users'
 import { isSessionUser, session } from './data/session'
 import { initSocket } from './socket'
+import { loadSiteSettings } from './data/siteSettings'
 import { installErrorReporting } from './utils/errorReporting'
 import { retryOnConflict } from './utils/retryOnConflict'
 import { clearCachesOnUserSwitch, setupOfflineSupport } from './offline'
@@ -71,6 +72,7 @@ function setupApp() {
   // this is unset. A long list formats several timestamps per row, so resolve it once.
   setConfig('localTimezone', Intl.DateTimeFormat().resolvedOptions().timeZone)
   setConfig('maxFileSize', window.max_file_size ? Number(window.max_file_size) : null)
+  loadSiteSettings()
   // A switched user's data goes before the first component can read it. If it could not be
   // cleared, this browser still holds the previous account's content, so nothing is shown.
   clearCachesOnUserSwitch().then((safe) => (safe ? mountApp() : showCleanupFailure()))

@@ -6,53 +6,10 @@
     <Breadcrumbs :items="[{ label: sectionTitle }]" />
   </PageHeader>
   <div class="flex min-h-0 flex-1 flex-col text-ink-gray-9">
-    <CommunityModeration
-      v-if="selected || siteWide"
-      :key="selected"
-      :community-id="selected"
-      :site-wide="siteWide"
-      @community="openCommunitySection"
-    >
+    <CommunityModeration v-if="selected" :key="selected" :community-id="selected">
       <template #sidebar
         ><Select v-model="selected" label="Community" :options="options"
       /></template>
-      <template v-if="isGlobalAdmin(useSessionUser())" #administration>
-        <SidebarLabel class="mt-6">Site administration</SidebarLabel>
-        <SidebarItem
-          label="Account restrictions"
-          icon="lucide-shield-ban"
-          :active="siteWide && siteSection === 'suspensions'"
-          class="mt-0.5"
-          @click="openAccountSuspensions"
-        />
-        <SidebarItem
-          label="Posting limits"
-          icon="lucide-gauge"
-          :active="siteWide && siteSection === 'posting-limits'"
-          class="mt-0.5"
-          @click="openPostingLimits"
-        />
-        <SidebarItem
-          label="Trust levels"
-          icon="lucide-award"
-          :active="siteWide && siteSection === 'trust-levels'"
-          class="mt-0.5"
-          @click="openTrustLevels"
-        />
-        <SidebarItem
-          label="Badges"
-          icon="lucide-medal"
-          :active="siteWide && siteSection === 'badges'"
-          class="mt-0.5"
-          @click="openSiteSection('badges')"
-        />
-      </template>
-      <template #site-wide>
-        <PostingLimits v-if="siteSection === 'posting-limits'" />
-        <TrustLevels v-else-if="siteSection === 'trust-levels'" />
-        <BadgeSettings v-else-if="siteSection === 'badges'" />
-        <AccountSuspensions v-else />
-      </template>
     </CommunityModeration>
     <p v-else class="py-12 text-center text-base text-ink-gray-6">
       Only Community moderators can open this page.
@@ -62,37 +19,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import {
-  Breadcrumbs,
-  PageHeader,
-  PageHeaderBackButton,
-  PageHeaderMobile,
-  SidebarItem,
-  SidebarLabel,
-  Select,
-} from 'frappe-ui'
+import { Breadcrumbs, PageHeader, PageHeaderBackButton, PageHeaderMobile, Select } from 'frappe-ui'
 import { communities } from '@/data/communities'
 import { useSessionUser } from '@/data/users'
-import { canModerateCommunity, isGlobalAdmin } from '@/utils/permissions'
+import { canModerateCommunity } from '@/utils/permissions'
 import CommunityModeration from './CommunityModeration.vue'
-import AccountSuspensions from '@/components/AccountSuspensions.vue'
-import PostingLimits from '@/components/PostingLimits.vue'
-import TrustLevels from '@/components/TrustLevels.vue'
-import BadgeSettings from '@/components/BadgeSettings.vue'
 const route = useRoute()
 const router = useRouter()
-const siteWide = computed(() => route.query.scope === 'site' && isGlobalAdmin(useSessionUser()))
-const siteSection = computed(() =>
-  ['posting-limits', 'trust-levels', 'badges'].includes(String(route.query.tab))
-    ? String(route.query.tab)
-    : 'suspensions',
-)
-const siteTitles: Record<string, string> = {
-  'posting-limits': 'Posting limits',
-  'trust-levels': 'Trust levels',
-  badges: 'Badges',
-  suspensions: 'Account restrictions',
-}
 const sectionTitles: Record<string, string> = {
   approvals: 'Approvals',
   reports: 'Reports',
@@ -102,31 +35,9 @@ const sectionTitles: Record<string, string> = {
   history: 'History',
 }
 const sectionTitle = computed(() => {
-  if (siteWide.value) return siteTitles[siteSection.value]
   if (!selected.value) return 'Moderation'
   return sectionTitles[String(route.query.tab)] || 'Approvals'
 })
-function openCommunitySection(tab: string) {
-  router.replace({ name: 'Moderation', query: { community: selected.value, tab } })
-}
-function openAccountSuspensions() {
-  router.replace({ name: 'Moderation', query: { community: selected.value, scope: 'site' } })
-}
-function openTrustLevels() {
-  router.replace({
-    name: 'Moderation',
-    query: { community: selected.value, scope: 'site', tab: 'trust-levels' },
-  })
-}
-function openSiteSection(tab: string) {
-  router.replace({ name: 'Moderation', query: { community: selected.value, scope: 'site', tab } })
-}
-function openPostingLimits() {
-  router.replace({
-    name: 'Moderation',
-    query: { community: selected.value, scope: 'site', tab: 'posting-limits' },
-  })
-}
 const options = computed(() =>
   (communities.data || [])
     .filter((community) => canModerateCommunity(community, useSessionUser()))

@@ -116,10 +116,11 @@ import { useActiveNavRoute } from '@/utils/navigationTarget'
 import { hasUnseenEntries } from '@/data/changelog'
 import UnseenDot from '../Changelog/UnseenDot.vue'
 import { activeCommunities, communities } from '@/data/communities'
-import { canModerateCommunity } from '@/utils/permissions'
+import { canModerateCommunity, isGlobalAdmin } from '@/utils/permissions'
 import type { Community } from '@/data/communities'
 import { draftCount } from '@/data/drafts'
 import { messagesEnabled, unreadConversations } from '@/data/messages'
+import { siteSettings } from '@/data/siteSettings'
 import { unreadNotifications } from '@/data/notifications'
 import { currentShowAllDiscussions, currentSidebarBadgeStyle } from '@/data/sidebarPreferences'
 import { getSpaceUnreadCount, spaces } from '@/data/spaces'
@@ -170,12 +171,16 @@ const allDiscussionsShortcut = computed<RailShortcut>(() => ({
 }))
 
 const shortcuts = computed<RailShortcut[]>(() => [
-  {
-    label: 'Search',
-    icon: 'lucide-search',
-    isActive: isRoute('Search'),
-    route: { name: 'Search' },
-  },
+  ...(siteSettings.search_enabled
+    ? [
+        {
+          label: 'Search',
+          icon: 'lucide-search',
+          isActive: isRoute('Search'),
+          route: { name: 'Search' },
+        },
+      ]
+    : []),
   ...(communities.data?.some((community) => canModerateCommunity(community, sessionUser))
     ? [
         {
@@ -183,6 +188,16 @@ const shortcuts = computed<RailShortcut[]>(() => [
           icon: 'lucide-shield-check',
           isActive: isRoute('Moderation'),
           route: { name: 'Moderation' },
+        },
+      ]
+    : []),
+  ...(isGlobalAdmin(sessionUser)
+    ? [
+        {
+          label: 'Admin settings',
+          icon: 'lucide-monitor-cog',
+          isActive: isRoute('AdminSettings'),
+          route: { name: 'AdminSettings' },
         },
       ]
     : []),

@@ -10,6 +10,7 @@ import { until } from '@vueuse/core'
 import { call } from 'frappe-ui'
 import { session } from './data/session'
 import { useSessionUser, users, usersReady } from './data/users'
+import { isGlobalAdmin } from './utils/permissions'
 import { communities, getCommunity } from './data/communities'
 import { spaces, getSpace, fetchSpace } from './data/spaces'
 import type { Space } from './data/spaces'
@@ -29,6 +30,7 @@ import { shellScrollContainer } from 'frappe-ui'
 import { isNetworkError } from './data/offline/requests'
 import { isOnline } from './data/online'
 import { navigationTarget } from './utils/navigationTarget'
+import { siteSettings } from './data/siteSettings'
 
 declare const __FRONTEND_ROUTE__: string
 
@@ -160,6 +162,21 @@ const routes: RouteRecordRaw[] = [
     path: '/moderation',
     name: 'Moderation',
     component: () => import('@/pages/Moderation.vue'),
+    beforeEnter: (to) =>
+      to.query.scope !== 'site' || {
+        name: 'AdminSettings',
+        query: {
+          tab:
+            { 'posting-limits': 'posting', 'trust-levels': 'users' }[String(to.query.tab)] ||
+            'account-restrictions',
+        },
+      },
+  },
+  {
+    path: '/admin-settings',
+    name: 'AdminSettings',
+    component: () => import('@/pages/AdminSettings.vue'),
+    beforeEnter: () => isGlobalAdmin(useSessionUser()) || { name: 'NotFound' },
   },
   {
     path: '/community/:communityId',
@@ -303,6 +320,7 @@ const routes: RouteRecordRaw[] = [
     name: 'Search',
     component: () => import('@/pages/Search.vue'),
     meta: { public: true, prefetch: true },
+    beforeEnter: () => siteSettings.search_enabled || { name: 'NotFound' },
   },
   {
     path: '/onboarding',
@@ -508,6 +526,10 @@ const routes: RouteRecordRaw[] = [
         name: 'SettingsCommunity',
         component: () => import('@/pages/SettingsPage.vue'),
         meta: { settingsOverlay: true },
+      },
+      {
+        path: 'users',
+        redirect: { name: 'AdminSettings', query: { tab: 'users' } },
       },
       {
         path: ':tab',

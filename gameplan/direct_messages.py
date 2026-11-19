@@ -173,6 +173,10 @@ def send_message(
 		require_others_enabled(conversation)
 	else:
 		require_recipient(to)
+		if not frappe.db.exists("GP Conversation", {"direct_key": direct_key(frappe.session.user, to)}):
+			from gameplan.site_settings import require_can_start_conversation
+
+			require_can_start_conversation()
 	reply_to = cint(reply_to) or None
 	if reply_to:
 		original = frappe.db.get_value("GP Message", reply_to, ["conversation", "deleted_at"], as_dict=True)
@@ -715,8 +719,12 @@ def messages_enabled(user):
 
 
 def require_app_access():
+	from gameplan.site_settings import feature_enabled
+
 	if not has_app_access():
 		frappe.throw("Not permitted", frappe.PermissionError)
+	if not feature_enabled("direct_messages_enabled"):
+		frappe.throw("Direct messages are turned off on this site", frappe.PermissionError)
 
 
 def require_enabled():

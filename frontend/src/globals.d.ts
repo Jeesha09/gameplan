@@ -46,6 +46,7 @@ declare global {
     Cypress?: unknown
     /** The realtime socket, exposed only under Cypress so specs can fake server events. */
     gameplanSocket?: import('socket.io-client').Socket
+    site_settings?: Partial<import('./data/siteSettings').SiteSettings>
   }
 }
 

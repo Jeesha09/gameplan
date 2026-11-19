@@ -17,7 +17,7 @@
       v-else-if="badges.data && !badges.data.enabled"
       icon="lucide-award"
       title="Badges are off"
-      description="A global admin can turn badges on in Site administration."
+      description="A global admin can turn badges on in Admin settings."
     />
     <template v-else-if="badges.data">
       <section v-for="group in groups" :key="group.title" class="mb-8">

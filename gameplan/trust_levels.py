@@ -621,14 +621,8 @@ def member_levels(level: str = "", query: str = "", after: str = ""):
 	`after` is the last user of the previous page, so a long list scrolls without an offset.
 	"""
 	require_admin()
-	Profile, User, Level, Role = (
-		frappe.qb.DocType(dt) for dt in ("GP User Profile", "User", "GP Trust Level", "Has Role")
-	)
-	admins = (
-		frappe.qb.from_(Role)
-		.select(Role.parent)
-		.where((Role.parenttype == "User") & Role.role.isin(["Gameplan Admin", "System Manager"]))
-	)
+	Profile, User, Level = (frappe.qb.DocType(dt) for dt in ("GP User Profile", "User", "GP Trust Level"))
+	admins = admin_users()
 	full_name = fn.IfNull(User.full_name, "")
 	rows = (
 		frappe.qb.from_(Profile)
@@ -664,6 +658,60 @@ def member_levels(level: str = "", query: str = "", after: str = ""):
 		for row in rows[:PAGE]
 	]
 	return {"enabled": int(is_enabled()), "members": members, "more": len(rows) > PAGE}
+
+
+def admin_users(among=None):
+	Role = frappe.qb.DocType("Has Role")
+	q = (
+		frappe.qb.from_(Role)
+		.select(Role.parent)
+		.where((Role.parenttype == "User") & Role.role.isin(["Gameplan Admin", "System Manager"]))
+	)
+	return q.where(Role.parent.isin(among)) if among else q
+
+
+def level_condition(user, level):
+	"""Query condition for people at `level`, a number, or "pending" for people not worked out yet."""
+	Level = frappe.qb.DocType("GP Trust Level")
+	holders = (user != "Administrator") & user.notin(admin_users())
+	if level == "pending":
+		return holders & user.notin(frappe.qb.from_(Level).select(Level.name))
+	if not str(level).isdigit() or int(level) >= len(LEVELS):
+		frappe.throw(_("Choose a level from 0 New to 4 Leader"))
+	return holders & user.isin(frappe.qb.from_(Level).select(Level.name).where(Level.level == cint(level)))
+
+
+@frappe.whitelist(methods=["POST"])
+def user_levels(users):
+	"""Return the stored level of each listed user, up to 100. Global admins only."""
+	from gameplan.api import USER_INFO_BATCH_LIMIT
+
+	require_admin()
+	names = frappe.parse_json(users)
+	if not isinstance(names, list) or len(names) > USER_INFO_BATCH_LIMIT:
+		frappe.throw(_("users must be a list of at most {0}").format(USER_INFO_BATCH_LIMIT))
+	names = [name for name in names if name and isinstance(name, str) and name != "Administrator"]
+	levels = {}
+	if names:
+		Level = frappe.qb.DocType("GP Trust Level")
+		admins = {row[0] for row in admin_users(names).run()}
+		stored = {
+			row.name: row
+			for row in frappe.qb.from_(Level)
+			.select(Level.name, Level.level, Level.locked)
+			.where(Level.name.isin(names))
+			.run(as_dict=True)
+		}
+		for name in names:
+			if name in admins:
+				continue
+			row = stored.get(name)
+			levels[name] = {
+				"level": cint(row.level) if row else None,
+				"locked": cint(row.locked) if row else 0,
+				"pending": int(row is None),
+			}
+	return {"enabled": int(is_enabled()), "levels": levels}
 
 
 @frappe.whitelist(methods=["GET", "POST"])

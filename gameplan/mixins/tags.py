@@ -51,6 +51,9 @@ class HasTags:
 		if existing_tag_id:
 			return existing_tag_id, False
 
+		from gameplan.site_settings import check_tag_creation
+
+		check_tag_creation(self)
 		try:
 			new_tag_doc = frappe.new_doc("GP Tag", label=tag_label)
 			new_tag_doc.insert(ignore_permissions=True)

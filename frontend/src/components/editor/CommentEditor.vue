@@ -30,6 +30,7 @@ import QuoteReplyButton from '@/components/RichQuoteExtension/QuoteReplyButton.v
 import { useRichQuotes, useBacklinkRefresh } from '@/components/RichQuoteExtension/useRichQuotes'
 import { commentExtensions } from './commentExtensions'
 import { hasPollBlock } from '@/components/PollBlock/poll-draft'
+import { siteSettings } from '@/data/siteSettings'
 
 // gameplan's comment box: the lighter CommentKit (no toc / iframe) + tables +
 // @-mentions + #-tags + RichQuote + slash commands. The shared `gameplanToolbar`
@@ -286,7 +287,7 @@ function canInsertCodeBlock(editor: Editor) {
                   @click="insertCodeBlock(e)"
                 />
                 <Button
-                  v-if="canAttachPoll"
+                  v-if="canAttachPoll && siteSettings.polls_enabled"
                   size="sm"
                   variant="ghost"
                   icon="lucide-bar-chart-2"

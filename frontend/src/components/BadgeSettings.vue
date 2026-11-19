@@ -1,5 +1,5 @@
 <template>
-  <div class="mx-auto w-full max-w-3xl px-5 py-6">
+  <div class="text-ink-gray-9">
     <LoadError
       v-if="loadError"
       :message="errorText(loadError, 'Could not load the badge settings.')"

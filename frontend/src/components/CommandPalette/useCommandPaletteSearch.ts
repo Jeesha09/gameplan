@@ -2,6 +2,7 @@ import { computed, ref, toValue, watch } from 'vue'
 import type { Component, MaybeRefOrGetter, Ref } from 'vue'
 import fuzzysort from 'fuzzysort'
 import type { CommandPaletteGroup, CommandPaletteItem } from './registry'
+import { siteSettings } from '@/data/siteSettings'
 
 interface ResultGroupConfig {
   id?: string
@@ -62,7 +63,9 @@ export function useCommandPaletteSearch(options: CommandPaletteSearchOptions) {
     const realResults = [...commandGroups, ...localResults, ...serverGroups].filter(
       (group) => group.items.length > 0,
     )
-    const allResults = appendFullTextSearchResult(realResults, fullTextSearchItem)
+    const allResults = siteSettings.search_enabled
+      ? appendFullTextSearchResult(realResults, fullTextSearchItem)
+      : realResults
 
     setActiveItem(allResults, activeItemKey)
     groupedSearchResults.value = allResults
