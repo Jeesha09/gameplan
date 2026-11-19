@@ -1,3 +1,5 @@
+import { SETTING_GROUPS } from '@/data/trustLevels'
+
 export type AdminSettingType =
   | 'switch'
   | 'number'
@@ -62,6 +64,7 @@ const fileTypes = [
 const pages = ['None', 'Community guidelines', 'Terms of service', 'Privacy policy']
 
 export const postingLimitPrefix = 'posting_limits_'
+export const trustPrefix = 'trust_'
 
 function postingLimit(field: string, label: string, parent: string): AdminSetting {
   return {
@@ -460,6 +463,40 @@ export const adminSections: AdminSection[] = [
             default: '',
             description: 'Lets people pick cover images from Unsplash',
           },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'trust-levels',
+    label: 'Trust levels',
+    icon: 'lucide-signal',
+    keywords: 'trust levels new basic member regular leader',
+    groups: [
+      {
+        settings: [
+          {
+            key: `${trustPrefix}enabled`,
+            label: 'Trust levels',
+            type: 'switch',
+            default: false,
+            description:
+              "Members earn Basic, Contributor and Regular as they visit and take part. Turning this on works out everyone's level in the background",
+          },
+          ...SETTING_GROUPS.flatMap((group) =>
+            group.sections
+              .flatMap((section) => section.fields)
+              .map(
+                ([field, label]): AdminSetting => ({
+                  key: trustPrefix + field,
+                  label,
+                  type: 'number',
+                  default: 0,
+                  parent: `${trustPrefix}enabled`,
+                  inline: true,
+                }),
+              ),
+          ),
         ],
       },
     ],

@@ -34,39 +34,89 @@ export type MemberLevel = {
   pending: number
 }
 
-export const SETTING_GROUPS: { title: string; fields: [string, string][] }[] = [
+export type SettingSection = { title: string; description?: string; fields: [string, string][] }
+
+export const SETTING_GROUPS: { title: string; sections: SettingSection[] }[] = [
   {
     title: 'Basic',
-    fields: [
-      ['basic_entered', 'Discussions entered'],
-      ['basic_days', 'Days visited'],
-      ['basic_accepted', 'Accepted posts'],
+    sections: [
+      {
+        title: 'Visits',
+        description: 'Counted since they joined',
+        fields: [
+          ['basic_days', 'Days visited'],
+          ['basic_entered', 'Discussions opened'],
+        ],
+      },
+      {
+        title: 'Posting',
+        description: 'Discussions and replies that were published and not removed',
+        fields: [['basic_accepted', 'Posts published']],
+      },
     ],
   },
   {
     title: 'Contributor',
-    fields: [
-      ['contributor_days', 'Days visited'],
-      ['contributor_given', 'Reactions given'],
-      ['contributor_received', 'Reactions received'],
-      ['contributor_replied', 'Discussions replied to'],
-      ['contributor_entered', 'Discussions entered'],
+    sections: [
+      {
+        title: 'Visits',
+        description: 'Counted since they joined',
+        fields: [
+          ['contributor_days', 'Days visited'],
+          ['contributor_entered', 'Discussions opened'],
+        ],
+      },
+      {
+        title: 'Taking part',
+        description: 'Counted since they joined. Several replies in one discussion count once',
+        fields: [
+          ['contributor_replied', 'Discussions replied to'],
+          ['contributor_given', 'Reactions given'],
+          ['contributor_received', 'Reactions received'],
+        ],
+      },
     ],
   },
   {
     title: 'Regular',
-    fields: [
-      ['regular_window', 'Window, days'],
-      ['regular_days', 'Days visited'],
-      ['regular_replied', 'Discussions replied to'],
-      ['regular_entered_percent', 'New discussions entered, %'],
-      ['regular_entered_max', 'Discussions entered, cap'],
-      ['regular_given', 'Reactions given'],
-      ['regular_received', 'Reactions received'],
-      ['regular_received_users', 'From this many people'],
-      ['regular_max_removed', 'Posts removed, at most'],
-      ['regular_restriction_days', 'Restriction-free days'],
-      ['regular_grace_days', 'Grace period, days'],
+    sections: [
+      {
+        title: 'Time frame',
+        description:
+          'Regular only counts recent activity, and members lose it if they stop meeting it',
+        fields: [
+          ['regular_window', 'Days to look back'],
+          ['regular_grace_days', 'Days safe after earning it'],
+        ],
+      },
+      {
+        title: 'Visits',
+        description:
+          'A share of the discussions started in that time, with a cap so busy sites stay reachable',
+        fields: [
+          ['regular_days', 'Days visited'],
+          ['regular_entered_percent', 'New discussions opened, %'],
+          ['regular_entered_max', 'Never more than'],
+        ],
+      },
+      {
+        title: 'Taking part',
+        description: 'Counted over the days above. Several replies in one discussion count once',
+        fields: [
+          ['regular_replied', 'Discussions replied to'],
+          ['regular_given', 'Reactions given'],
+          ['regular_received', 'Reactions received'],
+          ['regular_received_users', 'From different people'],
+        ],
+      },
+      {
+        title: 'Good standing',
+        description: 'Posts removed by moderators are counted over the days above',
+        fields: [
+          ['regular_max_removed', 'Posts removed, at most'],
+          ['regular_restriction_days', 'Days with no ban, suspension or silence'],
+        ],
+      },
     ],
   },
 ]

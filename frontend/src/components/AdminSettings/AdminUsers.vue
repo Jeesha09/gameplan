@@ -18,7 +18,6 @@
         aria-label="Trust level"
         :options="levelFilters"
       />
-      <TrustLevelSettings @saved="loadUsers()" />
       <Button
         class="hidden sm:inline-flex"
         variant="solid"
@@ -197,7 +196,6 @@ import {
 import EmptyStateBox from '@/components/EmptyStateBox.vue'
 import InvitePeople from '@/components/Settings/InvitePeople.vue'
 import TrustLevelDialog from '@/components/TrustLevelDialog.vue'
-import TrustLevelSettings from '@/components/TrustLevelSettings.vue'
 import TrustRequirements from '@/components/TrustRequirements.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import { loadMemberCount, searchUsers, updateUserInfo, type UserInfo } from '@/data/users'

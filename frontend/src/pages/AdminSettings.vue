@@ -60,6 +60,12 @@
         <AdminUsers v-if="section.id === 'users'" />
         <AccountSuspensions v-else-if="section.id === 'account-restrictions'" />
         <BadgeSettings v-else-if="section.id === 'badges'" />
+        <TrustLevelSettings
+          v-else-if="section.id === 'trust-levels'"
+          :settings="section.groups[0].settings"
+          :ranges="trustRanges"
+          :unsaved="pageChanges"
+        />
         <div v-else class="space-y-8">
           <div
             v-for="(group, index) in groups"
@@ -151,11 +157,13 @@ import AdminSettingField from '@/components/AdminSettings/AdminSettingField.vue'
 import {
   adminSections,
   postingLimitPrefix,
+  trustPrefix,
   type AdminSetting,
 } from '@/components/AdminSettings/sections'
 import AccountSuspensions from '@/components/AccountSuspensions.vue'
 import AdminUsers from '@/components/AdminSettings/AdminUsers.vue'
 import BadgeSettings from '@/components/BadgeSettings.vue'
+import TrustLevelSettings from '@/components/TrustLevelSettings.vue'
 import {
   discardChanges,
   dirtyKeys,
@@ -239,6 +247,22 @@ async function loadPostingLimits() {
   }
 }
 
+const trustKeys = Object.keys(values).filter((key) => key.startsWith(trustPrefix))
+const trustRanges = ref<Record<string, [number, number]>>({})
+
+async function loadTrustSettings() {
+  try {
+    const settings = await call<Record<string, any>>('gameplan.trust_levels.get_settings')
+    trustRanges.value = settings.ranges
+    for (const key of trustKeys) {
+      const value = settings[key.slice(trustPrefix.length)]
+      loadSaved(key, key === `${trustPrefix}enabled` ? Boolean(value) : value)
+    }
+  } catch (error) {
+    toast.error(extractServerMessage(error) || 'Could not load trust levels')
+  }
+}
+
 const siteKeys = new Set<string>()
 
 async function loadSiteSettings() {
@@ -290,8 +314,10 @@ async function saveChanges() {
   const site = changed.filter((key) => siteKeys.has(key))
   const posting = changed.filter((key) => key.startsWith(postingLimitPrefix))
   const badges = changed.filter((key) => key === 'badges')
+  const trust = changed.filter((key) => key.startsWith(trustPrefix))
   const other = changed.filter(
-    (key) => !site.includes(key) && !posting.includes(key) && key !== 'badges',
+    (key) =>
+      !site.includes(key) && !posting.includes(key) && key !== 'badges' && !trust.includes(key),
   )
   saving.value = true
   try {
@@ -321,6 +347,15 @@ async function saveChanges() {
       })
       markSaved(badges)
     }
+    if (trust.length) {
+      await call(
+        'gameplan.trust_levels.save_settings',
+        Object.fromEntries(
+          trustKeys.map((key) => [key.slice(trustPrefix.length), Number(values[key]) || 0]),
+        ),
+      )
+      markSaved(trust)
+    }
     markSaved(other)
     toast.success('Changes saved')
   } catch (error) {
@@ -347,5 +382,6 @@ onMounted(() => {
   revealSetting()
   loadPostingLimits()
   loadSiteSettings()
+  loadTrustSettings()
 })
 </script>

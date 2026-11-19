@@ -167,7 +167,7 @@ const routes: RouteRecordRaw[] = [
         name: 'AdminSettings',
         query: {
           tab:
-            { 'posting-limits': 'posting', 'trust-levels': 'users' }[String(to.query.tab)] ||
+            { 'posting-limits': 'posting', 'trust-levels': 'trust-levels' }[String(to.query.tab)] ||
             'account-restrictions',
         },
       },

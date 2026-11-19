@@ -17,11 +17,13 @@ describe('Trust levels', () => {
       cy.visit('/g/moderation?scope=site&tab=trust-levels')
       cy.contains('Trust levels are off').should('be.visible')
 
-      cy.contains('button', 'Trust level settings').click()
-      cy.get('[role="dialog"]').contains('Regular needs').should('be.visible')
-      cy.contains('label', 'Use trust levels').click()
-      cy.contains('button', 'Save trust levels').click()
-      cy.contains('Trust levels saved.').should('be.visible')
+      cy.visit('/g/admin-settings?tab=trust-levels')
+      cy.get('[role="tab"]').should('not.exist')
+      cy.get('[data-testid="trust-levels-switch"] [role="switch"]').click()
+      cy.contains('[role="tab"]', 'Regular').should('be.visible')
+      cy.contains('button', /^\s*Save\s*$/).click()
+      cy.contains('Changes saved').should('be.visible')
+      cy.visit('/g/moderation?scope=site&tab=trust-levels')
 
       // No job worker runs here, so the first calculation has not reached anyone yet.
       cy.contains('[role="radio"]', 'Not calculated').click()
