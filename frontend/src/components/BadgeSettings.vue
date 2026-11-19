@@ -42,7 +42,7 @@
             No badge matches "{{ search.trim() }}".
           </p>
           <div v-for="group in groups" :key="group.title" class="mt-4">
-            <div class="flex items-center justify-between pb-1.5">
+            <div class="flex items-center justify-between pb-1.5 pr-[13px]">
               <h3 class="text-xs font-medium uppercase tracking-wide text-ink-gray-5">
                 {{ group.title }}
               </h3>
