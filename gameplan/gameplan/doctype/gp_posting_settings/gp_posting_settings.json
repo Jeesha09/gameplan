@@ -53,13 +53,13 @@
   {
    "fieldname": "content_caps_section",
    "fieldtype": "Section Break",
-   "label": "Content caps"
+   "label": "Per-post limits"
   },
   {
    "default": "0",
    "fieldname": "caps_enabled",
    "fieldtype": "Check",
-   "label": "Enable content caps"
+   "label": "Enable per-post limits"
   },
   {
    "default": "20",

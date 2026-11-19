@@ -126,7 +126,7 @@ def check_caps(doc):
 		cap = config[field]
 		if cap and counts[key] > cap:
 			noun = singular if cap == 1 else plural
-			frappe.throw(f"Posts can have up to {cap} {noun}.", title="Content cap")
+			frappe.throw(f"Posts can have up to {cap} {noun}.", title="Per-post limit")
 
 
 def allowance(kind, *, for_update=False):

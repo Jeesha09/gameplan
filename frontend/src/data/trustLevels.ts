@@ -7,9 +7,9 @@ export type LevelNumber = 0 | 1 | 2 | 3 | 4
 
 export const levelDescriptions: Record<LevelNumber, string> = {
   0: 'Posts wait for approval where a Community requires it. New-user limits apply.',
-  1: 'New-user limits no longer apply. The site content caps do.',
+  1: 'New-user limits no longer apply. The site per-post limits do.',
   2: 'Can post twice as often.',
-  3: 'Posts skip the content caps. Kept while the member stays active.',
+  3: 'Posts skip the per-post limits. Kept while the member stays active.',
   4: 'Set by a global admin. Same as Regular, and never rechecked.',
 }
 

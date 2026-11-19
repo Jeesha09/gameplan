@@ -350,7 +350,7 @@ def apply_level(row, level, cfg, *, notify=True):
 MESSAGES = {
 	BASIC: "You are now Basic. You can add more links, images, files and mentions to your posts.",
 	CONTRIBUTOR: "You are now a Contributor. You can post more often.",
-	REGULAR: "You are now a Regular. Your posts skip the content caps.",
+	REGULAR: "You are now a Regular. Your posts skip the per-post limits.",
 	LEADER: "You are now a Leader.",
 }
 

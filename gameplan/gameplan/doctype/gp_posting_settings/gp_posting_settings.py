@@ -9,7 +9,7 @@ class GPPostingSettings(Document):
 	def validate(self):
 		require_admin()
 		if self.enabled not in (0, 1) or self.caps_enabled not in (0, 1):
-			frappe.throw("Choose whether posting limits and content caps are enabled")
+			frappe.throw("Choose whether posting limits and per-post limits are enabled")
 		for field in (*FIELDS, *CAPS):
 			value = self.get(field)
 			if not isinstance(value, int) or not 0 <= value <= MAX_LIMIT:
