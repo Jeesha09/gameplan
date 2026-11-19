@@ -1,4 +1,4 @@
-"""Badge endpoints. Anyone signed in reads badges. Settings and manual changes are for global admins."""
+"""Badge endpoints. Anyone signed in reads badges. Who holds a badge, settings and manual changes are for admins."""
 
 import frappe
 from frappe import _
@@ -38,32 +38,38 @@ def resolve_user(user):
 
 @frappe.whitelist(methods=["GET"])
 def list_badges():
-	"""Return every enabled badge by group, with how many people hold it and whether you do."""
+	"""Return every enabled badge by group and whether you hold it. Admins also get how many people hold each."""
 	require_signed_in()
 	if not is_enabled():
 		return {"enabled": 0, "badges": []}
 	Grant = frappe.qb.DocType("GP User Badge")
-	holders = dict(
-		frappe.qb.from_(Grant)
-		.select(Grant.badge, fn.Count(Grant.user).distinct())
-		.where(Grant.revoked == 0)
-		.groupby(Grant.badge)
-		.run()
+	# Who holds a badge is for admins. Everyone else sees the badges and their own.
+	holders = (
+		dict(
+			frappe.qb.from_(Grant)
+			.select(Grant.badge, fn.Count(Grant.user).distinct())
+			.where(Grant.revoked == 0)
+			.groupby(Grant.badge)
+			.run()
+		)
+		if gameplan.is_admin()
+		else None
 	)
 	mine = set(
 		frappe.get_all("GP User Badge", filters={"user": frappe.session.user, "revoked": 0}, pluck="badge")
 	)
 	badges = frappe.get_all("GP Badge", filters={"enabled": 1}, fields=BADGE_FIELDS, order_by="position asc")
 	for badge in badges:
-		badge.holders = cint(holders.get(badge.name))
+		if holders is not None:
+			badge.holders = cint(holders.get(badge.name))
 		badge.held = int(badge.name in mine)
 	return {"enabled": 1, "badges": badges}
 
 
 @frappe.whitelist(methods=["GET"])
 def badge_holders(badge: str, before: str = ""):
-	"""Return a badge and the people who earned it, newest first, 50 at a time before grant `before`."""
-	require_signed_in()
+	"""Return a badge and the people who earned it, newest first, 50 at a time before grant `before`. Admins only."""
+	require_admin()
 	info = badge_or_throw(badge)
 	Grant = frappe.qb.DocType("GP User Badge")
 	query = (

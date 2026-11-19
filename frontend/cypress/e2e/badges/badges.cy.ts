@@ -20,16 +20,25 @@ describe('Badges', () => {
     })
   })
 
-  it('lists badges by group and shows who earned one', () => {
+  it('lists badges by group, and keeps who earned one for admins', () => {
     cy.loginAs('member')
     cy.visit('/g/badges')
     for (const group of ['Getting Started', 'Community', 'Posting']) {
       cy.contains('h2', group).should('exist')
     }
-    cy.contains('a', 'Welcome').within(() => {
-      cy.get('[aria-label="You have this badge"]').should('exist')
-      cy.contains('1 person')
-    })
+    cy.contains('Welcome')
+      .parents('div')
+      .first()
+      .find('[aria-label="You have this badge"]')
+      .should('exist')
+    cy.contains('1 person').should('not.exist')
+    cy.contains('a', 'Welcome').should('not.exist')
+    cy.visit('/g/badges/welcome')
+    cy.location('pathname').should('eq', '/g/badges')
+
+    cy.switchUser('admin')
+    cy.visit('/g/badges')
+    cy.contains('a', 'Welcome').within(() => cy.contains('1 person'))
     cy.contains('a', 'Welcome').click()
     cy.location('pathname').should('eq', '/g/badges/welcome')
     cy.contains('.body-container h1', 'Welcome').should('be.visible')

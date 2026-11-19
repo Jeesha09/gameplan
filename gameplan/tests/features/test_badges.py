@@ -301,24 +301,29 @@ class TestReading(BadgeTestCase):
 		check_user(self.member.name)
 		check_user(self.second_member.name)
 
-	def test_the_badge_list_counts_holders_and_marks_your_own(self):
+	def test_the_badge_list_marks_your_own_and_counts_holders_for_admins_only(self):
 		with self.as_user(self.member):
 			badges = {badge.name: badge for badge in list_badges()["badges"]}
 		self.assertEqual(len(badges), 24)
-		self.assertEqual((badges["welcome"].holders, badges["welcome"].held), (1, 1))
-		self.assertEqual((badges["first-like"].holders, badges["first-like"].held), (1, 0))
+		self.assertEqual((badges["welcome"].held, badges["first-like"].held), (1, 0))
+		self.assertTrue(all("holders" not in badge for badge in badges.values()))
+		with self.as_user(self.admin):
+			counted = {badge.name: badge for badge in list_badges()["badges"]}
+		self.assertEqual((counted["welcome"].holders, counted["first-like"].holders), (1, 1))
+
+	def test_only_admins_see_who_holds_a_badge(self):
+		for user in (self.member, self.second_member, self.guest):
+			with self.as_user(user), self.assertRaises(frappe.PermissionError):
+				badge_holders("welcome")
 
 	def test_visitors_cannot_read_badges(self):
 		with self.as_user("Guest"), self.assertRaises(frappe.PermissionError):
 			list_badges()
 
 	def test_a_holder_shows_the_post_only_to_people_who_can_open_it(self):
-		with self.as_user(self.second_member):
+		with self.as_user(self.admin):
 			[holder] = badge_holders("welcome")["holders"]
 		self.assertEqual(holder["post"]["discussion"], str(self.discussion.name))
-		with self.as_user(self.guest):
-			[holder] = badge_holders("welcome")["holders"]
-		self.assertNotIn("post", holder)
 
 	def test_favourites_are_your_own_badges_and_at_most_three(self):
 		with self.as_user(self.member):

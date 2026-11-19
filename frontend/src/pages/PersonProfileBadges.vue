@@ -33,16 +33,18 @@
             :granted-at="badge.granted_at"
             :count="badge.count"
           />
-          <router-link
-            :to="{ name: 'Badge', params: { badgeId: badge.name } }"
-            class="min-w-0 flex-1 hover:underline"
+          <component
+            :is="isAdmin ? 'router-link' : 'div'"
+            v-bind="isAdmin ? { to: { name: 'Badge', params: { badgeId: badge.name } } } : {}"
+            class="min-w-0 flex-1"
+            :class="{ 'hover:underline': isAdmin }"
           >
             <div class="text-base-medium text-ink-gray-9">
               {{ badge.title
               }}<span v-if="badge.count > 1" class="text-ink-gray-6"> × {{ badge.count }}</span>
             </div>
             <div class="truncate text-p-sm text-ink-gray-6">{{ badge.description }}</div>
-          </router-link>
+          </component>
           <Button
             v-if="isOwnProfile"
             variant="ghost"
@@ -76,6 +78,7 @@ import { MAX_FAVORITES, type HeldBadge } from '@/data/badges'
 import { useSessionUser } from '@/data/users'
 import type { GPUserProfile } from '@/types/doctypes'
 import { errorText } from '@/utils'
+import { isGlobalAdmin } from '@/utils/permissions'
 
 defineOptions({ name: 'PersonProfileBadges' })
 
@@ -87,6 +90,7 @@ const props = defineProps<{
 type Result = { enabled: 0 | 1; badges: HeldBadge[] }
 
 const user = computed(() => props.profile.doc?.user || '')
+const isAdmin = isGlobalAdmin(useSessionUser())
 const isOwnProfile = computed(() => user.value === useSessionUser().name)
 const badges = useCall<Result, { user: string }>({
   url: '/api/v2/method/gameplan.badges.api.user_badges',

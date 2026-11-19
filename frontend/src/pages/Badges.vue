@@ -25,7 +25,8 @@
         <div
           v-for="badge in group.badges"
           :key="badge.name"
-          class="-mx-2 flex items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-surface-gray-2"
+          class="-mx-2 flex items-center gap-3 rounded-lg px-2 py-2.5"
+          :class="{ 'hover:bg-surface-gray-2': isAdmin }"
         >
           <BadgeMedallion
             :family="badge.family"
@@ -33,8 +34,10 @@
             :title="badge.title"
             :description="badge.description"
           />
-          <router-link
-            :to="{ name: 'Badge', params: { badgeId: badge.name } }"
+          <!-- Who holds a badge is for admins, so the row is a link with a count only for them. -->
+          <component
+            :is="isAdmin ? 'router-link' : 'div'"
+            v-bind="isAdmin ? { to: { name: 'Badge', params: { badgeId: badge.name } } } : {}"
             class="flex min-w-0 flex-1 items-center gap-3 rounded focus-visible:focus-ring"
           >
             <div class="min-w-0 flex-1">
@@ -48,10 +51,10 @@
               </div>
               <p class="text-p-sm text-ink-gray-6">{{ badge.description }}</p>
             </div>
-            <span class="shrink-0 text-p-sm text-ink-gray-6">
+            <span v-if="isAdmin" class="shrink-0 text-p-sm text-ink-gray-6">
               {{ badge.holders }} {{ badge.holders === 1 ? 'person' : 'people' }}
             </span>
-          </router-link>
+          </component>
         </div>
       </section>
     </template>
@@ -72,9 +75,13 @@ import BadgeMedallion from '@/components/Badges/BadgeMedallion.vue'
 import EmptyStateBox from '@/components/EmptyStateBox.vue'
 import LoadError from '@/components/LoadError.vue'
 import { BADGE_GROUPS, type ListedBadge } from '@/data/badges'
+import { useSessionUser } from '@/data/users'
 import { errorText } from '@/utils'
+import { isGlobalAdmin } from '@/utils/permissions'
 
 usePageMeta(() => ({ title: 'Badges' }))
+
+const isAdmin = isGlobalAdmin(useSessionUser())
 
 const badges = useCall<{ enabled: 0 | 1; badges: ListedBadge[] }>({
   url: '/api/v2/method/gameplan.badges.api.list_badges',

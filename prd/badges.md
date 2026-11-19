@@ -79,8 +79,8 @@ A new "Badge" notification for each grant. Grants from the first full pass and f
 
 ## Interface
 
-- **Badges page** at `/g/badges`: every enabled badge by group, with its tier, how many people hold it, and whether you hold it.
-- **Badge page**: the badge's description, and who earned it, newest first. Per-post badges link to the post.
+- **Badges page** at `/g/badges`: every enabled badge by group, with its tier and whether you hold it. Admins also see how many people hold each badge, and each row opens its badge page. For everyone else the rows are plain and show no count.
+- **Badge page**: the badge's description, and who earned it, newest first. Per-post badges link to the post. Admins only. Everyone else is sent back to the Badges page, and the API refuses them.
 - **Profile**: a Badges tab with every badge the member holds, and up to 3 favourites the member picks. The favourites show as coins on the profile's name card, for everyone who can see the profile.
 - **Hover card**: the member's favourites, as coins with no names. The tooltip on each names it.
 - **Site administration**: turn badges on and off, turn single badges on and off, and grant or revoke a badge by hand with a reason. Each manual change goes to the member's account history. A revoked grant stays as a hidden row, so the next automatic check does not grant it again. Only badges earned once can be granted by hand.
@@ -129,7 +129,7 @@ Runs in `migrate_from_discourse`, after trust levels, posts, and likes.
 
 ## API
 
-Whitelisted methods for the badges page, a badge's holders, a member's badges, setting favourites, and manual grants and revokes. Each gets a one-line docstring, and the guide in `gameplan/mcp.py` names the ones assistants should use.
+Whitelisted methods for the badges page, a badge's holders (admins only), a member's badges, setting favourites, and manual grants and revokes. Each gets a one-line docstring, and the guide in `gameplan/mcp.py` names the ones assistants should use.
 
 ## Plan
 

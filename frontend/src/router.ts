@@ -274,6 +274,8 @@ const routes: RouteRecordRaw[] = [
     path: '/badges/:badgeId',
     component: () => import('@/pages/Badge.vue'),
     props: true,
+    // Who holds a badge is for admins.
+    beforeEnter: () => isGlobalAdmin(useSessionUser()) || { name: 'Badges' },
   },
   {
     name: 'MySubmissions',
