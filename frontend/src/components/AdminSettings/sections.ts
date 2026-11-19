@@ -130,8 +130,7 @@ export const adminSections: AdminSection[] = [
             type: 'text',
             default: '',
             placeholder: 'team@example.com',
-            description:
-              "Where people reach the team running this site, like when they can't sign in or want to appeal a ban. Shown on the sign-in page and to suspended accounts.",
+            description: 'Where people reach you for sign-in help or ban appeals',
             wide: true,
           },
         ],
