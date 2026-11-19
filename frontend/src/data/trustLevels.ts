@@ -86,7 +86,7 @@ export const SETTING_GROUPS: { title: string; sections: SettingSection[] }[] = [
           'Regular only counts recent activity, and members lose it if they stop meeting it',
         fields: [
           ['regular_window', 'Days to look back'],
-          ['regular_grace_days', 'Days safe after earning it'],
+          ['regular_grace_days', 'Grace period, days'],
         ],
       },
       {
@@ -95,7 +95,7 @@ export const SETTING_GROUPS: { title: string; sections: SettingSection[] }[] = [
           'A share of the discussions started in that time, with a cap so busy sites stay reachable',
         fields: [
           ['regular_days', 'Days visited'],
-          ['regular_entered_percent', 'New discussions opened, %'],
+          ['regular_entered_percent', 'Discussions opened, %'],
           ['regular_entered_max', 'Never more than'],
         ],
       },
@@ -114,7 +114,7 @@ export const SETTING_GROUPS: { title: string; sections: SettingSection[] }[] = [
         description: 'Posts removed by moderators are counted over the days above',
         fields: [
           ['regular_max_removed', 'Posts removed, at most'],
-          ['regular_restriction_days', 'Days with no ban, suspension or silence'],
+          ['regular_restriction_days', 'Days with no restriction'],
         ],
       },
     ],

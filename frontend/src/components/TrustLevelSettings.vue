@@ -34,7 +34,7 @@
             <p v-if="part.description" class="mt-1 text-p-sm text-ink-gray-6">
               {{ part.description }}
             </p>
-            <div class="mt-3 grid grid-cols-[repeat(auto-fill,9.5rem)] items-end gap-x-10 gap-y-5">
+            <div class="mt-3 grid grid-cols-[repeat(auto-fill,11rem)] items-end gap-x-10 gap-y-5">
               <AdminSettingField
                 v-for="[field] in part.fields"
                 :id="`admin-setting-${trustPrefix}${field}`"
