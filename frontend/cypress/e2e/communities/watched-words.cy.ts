@@ -29,15 +29,15 @@ describe('Watched words', () => {
       cy.contains('[role="menuitem"]', 'Download sample CSV').should('be.visible')
       cy.get('body').type('{esc}')
       cy.request(
-        '/api/method/gameplan.watched_words.download?community=' +
-          ids.community +
-          '&action=Block&sample=1',
+        '/api/method/gameplan.watched_words.download?community=' + ids.community + '&sample=1',
       )
         .its('headers.content-type')
         .should('include', 'text/csv')
       cy.get('input[type=file]').selectFile(
         {
-          contents: Cypress.Buffer.from('spamword\n"buy, now",,true\nSPAMWORD\n'),
+          contents: Cypress.Buffer.from(
+            'word,rule,case_sensitive\nspamword,Block,no\n"buy, now",Block,yes\nSPAMWORD,Block,no\n',
+          ),
           fileName: 'words.csv',
           mimeType: 'text/csv',
         },
@@ -55,6 +55,8 @@ describe('Watched words', () => {
       cy.contains('Watched words imported').should('be.visible')
       cy.get('input[aria-label="Word or phrase"]').type('forbiddenphrase')
       cy.contains('button', /^Add$/).click()
+      // The rule picker changes a word's rule in place, in the one list.
+      cy.get('[aria-label="Rule for forbiddenphrase"]').should('contain.text', 'Block')
       cy.contains('span', 'forbiddenphrase').should('be.visible')
       cy.contains('button', /^Test rules$/).click()
       cy.get('[role=dialog] textarea').type('SPAMWORD')
@@ -63,11 +65,14 @@ describe('Watched words', () => {
         .click()
       cy.get('[role=dialog]').contains('div', 'Block').should('contain.text', 'spamword')
       cy.get('body').type('{esc}')
-      cy.request(
-        '/api/method/gameplan.watched_words.download?community=' + ids.community + '&action=Block',
-      ).then(({ body }) => {
-        expect(body).to.include('spamword').and.include('forbiddenphrase')
-      })
+      cy.request('/api/method/gameplan.watched_words.download?community=' + ids.community).then(
+        ({ body }) => {
+          expect(body)
+            .to.include('word,rule,case_sensitive')
+            .and.include('spamword,Block,no')
+            .and.include('forbiddenphrase')
+        },
+      )
     })
   })
 

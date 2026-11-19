@@ -9,7 +9,7 @@ from gameplan.watched_word_edits import original
 from gameplan.watched_word_edits import submit as edit
 from gameplan.watched_word_matching import censor, matches, pattern
 from gameplan.watched_word_payload import clean
-from gameplan.watched_words import add, remove, rules, upload
+from gameplan.watched_words import CSV_SAMPLE, add, remove, rules, set_action, upload
 
 
 class TestWatchedWords(GameplanTestCase):
@@ -153,17 +153,90 @@ class TestWatchedWords(GameplanTestCase):
 			file = frappe.get_doc(
 				doctype="File", file_name="words.csv", content='spam\n"buy, now",,true\nSPAM\n', is_private=1
 			).save(ignore_permissions=True)
-			preview = upload(self.community.name, "Block", file.name)
+			preview = upload(self.community.name, file.name, action="Block")
 			self.assertEqual((preview["added"], preview["duplicates"]), (2, 1))
 			self.assertEqual(frappe.db.count("GP Watched Word"), 0)
-			upload(self.community.name, "Block", file.name, preview["expected"])
+			upload(self.community.name, file.name, preview["expected"], action="Block")
 			self.assertEqual(len(rules(self.community.name, "Block")["items"]), 2)
 			bad = frappe.get_doc(
 				doctype="File", file_name="bad.csv", content="valid\ninvalid,,maybe", is_private=1
 			).save(ignore_permissions=True)
 			with self.assertRaises(frappe.ValidationError):
-				upload(self.community.name, "Block", bad.name)
+				upload(self.community.name, bad.name, action="Block")
 			self.assertEqual(len(rules(self.community.name, "Block")["items"]), 2)
+
+	def test_csv_rows_name_their_own_rule_and_the_header_is_skipped(self):
+		with self.as_user(self.member):
+			content = (
+				"word,rule,case_sensitive\n"
+				"darn,censor,no\n"
+				'"buy, now",Block,yes\n'
+				"free money,Require approval,\n"
+				"Acme,Flag,true\n"
+				"DARN,Censor,no\n"
+			)
+			file = frappe.get_doc(
+				doctype="File", file_name="rules.csv", content=content, is_private=1
+			).save(ignore_permissions=True)
+			preview = upload(self.community.name, file.name)
+			self.assertEqual((preview["added"], preview["duplicates"]), (4, 1))
+			self.assertIn("darn · Censor", preview["words"])
+			upload(self.community.name, file.name, preview["expected"])
+			rows = {row.word: (row.action, row.case_sensitive) for row in rules(self.community.name)["items"]}
+			self.assertEqual(
+				rows,
+				{
+					"darn": ("Censor", 0),
+					"buy, now": ("Block", 1),
+					"free money": ("Require approval", 0),
+					"Acme": ("Flag", 1),
+				},
+			)
+			self.assertEqual([r.word for r in rules(self.community.name, "Flag")["items"]], ["Acme"])
+			self.assertEqual([r.word for r in rules(self.community.name, query="MONEY")["items"]], ["free money"])
+
+	def test_csv_without_a_rule_is_refused_unless_a_default_is_given(self):
+		with self.as_user(self.member):
+			file = frappe.get_doc(
+				doctype="File", file_name="norule.csv", content="darn\n", is_private=1
+			).save(ignore_permissions=True)
+			with self.assertRaisesRegex(frappe.ValidationError, "Row 1: rule must be"):
+				upload(self.community.name, file.name)
+			odd = frappe.get_doc(
+				doctype="File", file_name="odd.csv", content="darn,Ban,no\n", is_private=1
+			).save(ignore_permissions=True)
+			with self.assertRaisesRegex(frappe.ValidationError, "Row 1: rule must be"):
+				upload(self.community.name, odd.name)
+
+	def test_the_sample_csv_imports_cleanly_with_every_rule(self):
+		with self.as_user(self.member):
+			content = "\n".join(["word,rule,case_sensitive", *[",".join(row) for row in CSV_SAMPLE]])
+			file = frappe.get_doc(
+				doctype="File", file_name="sample.csv", content=content, is_private=1
+			).save(ignore_permissions=True)
+			preview = upload(self.community.name, file.name)
+			self.assertEqual(preview["added"], len(CSV_SAMPLE))
+			self.assertEqual({row[1] for row in CSV_SAMPLE}, {"Block", "Censor", "Require approval", "Flag"})
+
+	def test_a_word_can_change_its_rule_unless_it_already_has_that_one(self):
+		with self.as_user(self.member):
+			add(self.community.name, "Block", "darn")
+			add(self.community.name, "Censor", "heck")
+			darn = rules(self.community.name, "Block")["items"][0]
+			self.assertTrue(set_action(self.community.name, darn.name, "Censor")["changed"])
+			self.assertEqual(
+				{row.word: row.action for row in rules(self.community.name)["items"]},
+				{"darn": "Censor", "heck": "Censor"},
+			)
+			add(self.community.name, "Block", "heck")
+			heck = rules(self.community.name, "Block")["items"][0]
+			with self.assertRaises(frappe.ValidationError):
+				set_action(self.community.name, heck.name, "Censor")
+			with self.assertRaises(frappe.ValidationError):
+				set_action(self.community.name, heck.name, "Ban")
+			self.assertFalse(set_action(self.community.name, heck.name, "Block")["changed"])
+		with self.as_user(self.second_member), self.assertRaises(frappe.PermissionError):
+			set_action(self.community.name, heck.name, "Flag")
 
 	def test_reply_edit_approval_preserves_identity(self):
 		reply = create_comment(self.post, content="<p>Original reply</p>", owner=self.outsider)
@@ -228,13 +301,13 @@ class TestWatchedWords(GameplanTestCase):
 			file = frappe.get_doc(
 				doctype="File", file_name="preview.csv", content="first", is_private=1
 			).save(ignore_permissions=True)
-			preview = upload(self.community.name, "Block", file.name)
+			preview = upload(self.community.name, file.name, action="Block")
 			add(self.community.name, "Block", "second")
 			with self.assertRaises(frappe.TimestampMismatchError):
-				upload(self.community.name, "Block", file.name, preview["expected"])
+				upload(self.community.name, file.name, preview["expected"], action="Block")
 			self.assertEqual([row.word for row in rules(self.community.name, "Block")["items"]], ["second"])
 		with self.as_user("Administrator"), self.assertRaises(frappe.PermissionError):
-			upload(self.community.name, "Block", file.name)
+			upload(self.community.name, file.name, action="Block")
 
 	def test_censor_handles_activity_titles_and_aliased_content(self):
 		self.rule("Censor", "sensitive")
@@ -258,9 +331,9 @@ class TestWatchedWords(GameplanTestCase):
 				content="\n".join(f"word{i}" for i in range(2000)),
 				is_private=1,
 			).save(ignore_permissions=True)
-			preview = upload(self.community.name, "Block", file.name)
+			preview = upload(self.community.name, file.name, action="Block")
 			self.assertEqual(preview["added"], 2000)
-			upload(self.community.name, "Block", file.name, preview["expected"])
+			upload(self.community.name, file.name, preview["expected"], action="Block")
 			self.assertEqual(frappe.db.count("GP Watched Word", {"community": self.community.name}), 2000)
 			with self.assertRaises(frappe.ValidationError):
 				add(self.community.name, "Block", "overflow")

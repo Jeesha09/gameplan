@@ -1,4 +1,5 @@
 import hashlib
+from collections import Counter
 
 import frappe
 from frappe.utils import cint
@@ -9,6 +10,18 @@ from gameplan.permissions import require_can_manage_community
 from gameplan.watched_word_matching import matches
 
 ACTIONS = ("Block", "Censor", "Require approval", "Flag")
+MAX_RULES_PER_ACTION = 2000
+CSV_HEADER = ["word", "rule", "case_sensitive"]
+# What a CSV may say in the case_sensitive column. Blank means no.
+CSV_YES = {"yes", "true", "1"}
+CSV_NO = {"", "no", "false", "0"}
+# Rows of the sample file, one for each rule, so the file shows what each column takes.
+CSV_SAMPLE = [
+	["darn", "Censor", "no"],
+	["buy now*", "Block", "no"],
+	["free money", "Require approval", "no"],
+	["Acme", "Flag", "yes"],
+]
 
 
 def validate_rule(doc):
@@ -41,15 +54,21 @@ def normalize_rule(doc):
 
 
 @frappe.whitelist(methods=["GET", "POST"])
-def rules(community: str, action: str, start: int = 0):
-	"""List one Community's watched words for its admins."""
+def rules(community: str, action: str = "", query: str = "", start: int = 0):
+	"""List one Community's watched words for its admins, all rules or one, newest first."""
 	require_can_manage_community(community)
-	if action not in ACTIONS:
-		frappe.throw("Choose a watched-word action")
+	filters = {"community": community}
+	if action:
+		if action not in ACTIONS:
+			frappe.throw("Choose a watched-word action")
+		filters["action"] = action
+	query = (query or "").strip()
+	if query:
+		filters["word"] = ["like", f"%{query}%"]
 	rows = frappe.get_all(
 		"GP Watched Word",
-		filters={"community": community, "action": action},
-		fields=["name", "word", "case_sensitive"],
+		filters=filters,
+		fields=["name", "word", "action", "case_sensitive"],
 		order_by="creation desc, name desc",
 		limit_start=page_start(start),
 		limit_page_length=41,
@@ -84,35 +103,111 @@ def remove(community: str, name: str):
 	frappe.local.request_cache.clear()
 
 
-@frappe.whitelist(methods=["GET"])
-def download(community: str, action: str, sample: bool = False):
-	"""Download watched words or an import sample in Discourse's CSV format."""
+@frappe.whitelist(methods=["POST"])
+def set_action(community: str, name: str, action: str):
+	"""Change the rule one watched word uses, within the admin's Community."""
 	require_can_manage_community(community)
-	if action not in ACTIONS:
+	doc = frappe.get_doc("GP Watched Word", name)
+	if doc.community != community:
+		frappe.throw("This rule is unavailable", frappe.PermissionError)
+	if doc.action == action:
+		return {"changed": False}
+	doc.action = action
+	# Checks the action, and works out the key the word has under it.
+	normalize_rule(doc)
+	frappe.db.get_value("GP Team", community, "name", for_update=True)
+	if frappe.db.exists("GP Watched Word", {"rule_key": doc.rule_key}):
+		frappe.throw(f"“{doc.word}” already has the {action} rule")
+	if frappe.db.count("GP Watched Word", {"community": community, "action": action}) >= MAX_RULES_PER_ACTION:
+		frappe.throw("A Community can have at most 2,000 rules per action")
+	doc.save(ignore_permissions=True)
+	frappe.local.request_cache.clear()
+	return {"changed": True}
+
+
+@frappe.whitelist(methods=["GET"])
+def download(community: str, action: str = "", sample: bool = False):
+	"""Download the watched words, or a sample, as a CSV with a header row.
+
+	The columns are word, rule and case_sensitive. Every rule is in one file unless `action`
+	names one.
+	"""
+	require_can_manage_community(community)
+	if action and action not in ACTIONS:
 		frappe.throw("Choose a watched-word action")
-	rows = (
-		[["example phrase", "", "false"]]
-		if sample
-		else [
-			[row.word, "", "true" if row.case_sensitive else "false"]
+	if sample:
+		rows = CSV_SAMPLE
+	else:
+		filters = {"community": community}
+		if action:
+			filters["action"] = action
+		rows = [
+			[row.word, row.action, "yes" if row.case_sensitive else "no"]
 			for row in frappe.get_all(
 				"GP Watched Word",
-				filters={"community": community, "action": action},
-				fields=["word", "case_sensitive"],
-				order_by="word asc",
-				limit=2000,
+				filters=filters,
+				fields=["word", "action", "case_sensitive"],
+				order_by="action asc, word asc",
+				limit=MAX_RULES_PER_ACTION * len(ACTIONS),
 			)
 		]
-	)
-	build_csv_response(rows, "watched-words")
+	build_csv_response([CSV_HEADER, *rows], "watched-words")
 
 
 @frappe.whitelist(methods=["POST"])
-def upload(community: str, action: str, file: str, expected: str = ""):
-	"""Preview a private CSV, or atomically import it after its preview is confirmed."""
+def upload(community: str, file: str, expected: str = "", action: str = ""):
+	"""Preview a private CSV, or atomically import it after its preview is confirmed.
+
+	Each row is word, rule, case_sensitive, and a first row of those names is skipped. A row with
+	no rule gets `action`, when one is given.
+	"""
 	require_can_manage_community(community)
-	if action not in ACTIONS:
+	if action and action not in ACTIONS:
 		frappe.throw("Choose a watched-word action")
+	rows = read_upload(file)
+	frappe.db.get_value("GP Team", community, "name", for_update=True)
+	existing = frappe.get_all(
+		"GP Watched Word",
+		filters={"community": community},
+		fields=["rule_key", "action"],
+		limit=MAX_RULES_PER_ACTION * len(ACTIONS),
+	)
+	pending, duplicates, seen = [], 0, {row.rule_key for row in existing}
+	for number, row in rows:
+		doc = rule_from_row(community, action, number, row)
+		if doc.rule_key in seen:
+			duplicates += 1
+		else:
+			seen.add(doc.rule_key)
+			pending.append(doc)
+	totals = Counter(row.action for row in existing) + Counter(doc.action for doc in pending)
+	for name, total in totals.items():
+		if total > MAX_RULES_PER_ACTION:
+			frappe.throw(f"This import would exceed 2,000 {name} rules")
+	digest = hashlib.sha256(frappe.as_json([community, sorted(seen)]).encode()).hexdigest()
+	if expected:
+		if expected != digest:
+			frappe.throw(
+				"The file or rules changed. Preview the import again.", frappe.TimestampMismatchError
+			)
+		from frappe.model.document import bulk_insert
+
+		# Every row and the Community limit were validated under the same parent lock.
+		for doc in pending:
+			doc.name = frappe.generate_hash(length=10)
+		bulk_insert("GP Watched Word", pending)
+		frappe.local.request_cache.clear()
+	return {
+		"expected": digest,
+		"added": len(pending),
+		"duplicates": duplicates,
+		"words": [f"{doc.word} · {doc.action}" for doc in pending[:40]],
+		"applied": bool(expected),
+	}
+
+
+def read_upload(file):
+	"""The numbered data rows of one of the user's own private CSV uploads."""
 	file_doc = frappe.get_doc("File", file)
 	file_doc.check_permission("read")
 	if (
@@ -135,65 +230,42 @@ def upload(community: str, action: str, file: str, expected: str = ""):
 		rows = read_csv_content(content)
 	except Exception:
 		frappe.throw("Upload a valid comma-separated CSV")
-	if len(rows) > 2000:
-		frappe.throw("Upload at most 2,000 CSV rows")
-	frappe.db.get_value("GP Team", community, "name", for_update=True)
-	existing = set(
-		frappe.get_all(
-			"GP Watched Word",
-			filters={"community": community, "action": action},
-			pluck="rule_key",
-			limit=2000,
-		)
-	)
-	pending, duplicates, seen = [], 0, set(existing)
-	for number, row in enumerate(rows, 1):
-		if not row or not any(row):
-			continue
-		if (
-			len(row) > 3
-			or not row[0]
-			or (len(row) > 2 and row[2] and row[2].lower() not in {"true", "false"})
-		):
-			frappe.throw(f"Row {number}: expected word/phrase, unused column, optional true/false")
-		doc = frappe.get_doc(
-			doctype="GP Watched Word",
-			community=community,
-			action=action,
-			word=row[0],
-			case_sensitive=len(row) > 2 and str(row[2]).lower() == "true",
-		)
-		try:
-			normalize_rule(doc)
-		except frappe.ValidationError as error:
-			frappe.throw(f"Row {number}: {error}")
-		if doc.rule_key in seen:
-			duplicates += 1
-		else:
-			seen.add(doc.rule_key)
-			pending.append(doc)
-	if len(existing) + len(pending) > 2000:
-		frappe.throw("This import would exceed 2,000 rules for this action")
-	digest = hashlib.sha256(frappe.as_json([community, action, sorted(seen)]).encode()).hexdigest()
-	if expected:
-		if expected != digest:
-			frappe.throw(
-				"The file or rules changed. Preview the import again.", frappe.TimestampMismatchError
-			)
-		from frappe.model.document import bulk_insert
+	if len(rows) > MAX_RULES_PER_ACTION * len(ACTIONS):
+		frappe.throw("Upload at most 8,000 CSV rows")
+	numbered = [(number, row) for number, row in enumerate(rows, 1) if row and any(row)]
+	if numbered and is_header(numbered[0][1]):
+		numbered = numbered[1:]
+	return numbered
 
-		# Every row and the Community limit were validated under the same parent lock.
-		for doc in pending:
-			doc.name = frappe.generate_hash(length=10)
-		bulk_insert("GP Watched Word", pending)
-		frappe.local.request_cache.clear()
-	return {
-		"expected": digest,
-		"added": len(pending),
-		"duplicates": duplicates,
-		"words": [doc.word for doc in pending[:40]],
-		"applied": bool(expected),
-	}
+
+def is_header(row):
+	return [cell.strip().lower() for cell in row[:2]] == CSV_HEADER[:2]
+
+
+def rule_from_row(community, default_action, number, row):
+	"""One validated, unsaved rule from a CSV row of word, rule and case_sensitive."""
+	if len(row) > 3 or not (row[0] or "").strip():
+		frappe.throw(f"Row {number}: expected word, rule, case_sensitive")
+	# An empty cell can come back as None.
+	rule = ((row[1] if len(row) > 1 else "") or "").strip()
+	chosen = {name.casefold(): name for name in ACTIONS}.get(rule.casefold()) if rule else default_action
+	if not chosen:
+		frappe.throw(f"Row {number}: rule must be Block, Censor, Require approval or Flag")
+	case = ((row[2] if len(row) > 2 else "") or "").strip().lower()
+	if case not in CSV_YES | CSV_NO:
+		frappe.throw(f"Row {number}: case_sensitive must be yes or no")
+	doc = frappe.get_doc(
+		doctype="GP Watched Word",
+		community=community,
+		action=chosen,
+		word=row[0],
+		case_sensitive=case in CSV_YES,
+	)
+	try:
+		normalize_rule(doc)
+	except frappe.ValidationError as error:
+		frappe.throw(f"Row {number}: {error}")
+	return doc
 
 
 @frappe.whitelist(methods=["POST"])
