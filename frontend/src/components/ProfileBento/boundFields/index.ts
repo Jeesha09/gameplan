@@ -1,5 +1,4 @@
 import type { Component } from 'vue'
-import ProfileBoundBadgesField from './ProfileBoundBadgesField.vue'
 import ProfileBoundImageField from './ProfileBoundImageField.vue'
 import ProfileBoundNameField from './ProfileBoundNameField.vue'
 import ProfileBoundRichTextField from './ProfileBoundRichTextField.vue'
@@ -19,5 +18,4 @@ export const profileBoundFieldEditors: Record<ProfileBoundEditor, Component> = {
   text: ProfileBoundTextField,
   richText: ProfileBoundRichTextField,
   image: ProfileBoundImageField,
-  badges: ProfileBoundBadgesField,
 }

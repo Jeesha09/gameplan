@@ -331,24 +331,6 @@ class TestReading(BadgeTestCase):
 			with self.assertRaises(frappe.ValidationError):
 				set_favorites(["welcome", "reader", "helper", "admired"])
 
-	def test_the_profile_has_a_badges_card_only_while_there_is_a_badge_to_show(self):
-		from gameplan.gameplan.doctype.gp_user_profile.gp_user_profile import (
-			get_profile_bento_default_cards,
-		)
-
-		profile = frappe.get_doc("GP User Profile", {"user": self.member.name})
-		frappe.db.delete("GP User Badge", {"user": self.member.name})
-
-		def card_ids():
-			with self.as_user(self.second_member):
-				return [card["id"] for card in get_profile_bento_default_cards(profile)]
-
-		self.assertNotIn("badges", card_ids())
-		check_user(self.member.name)
-		self.assertIn("badges", card_ids())
-		self.turn_on(0)
-		self.assertNotIn("badges", card_ids())
-
 	def test_a_revoked_badge_is_hidden_logged_and_not_earned_again(self):
 		with self.as_user(self.member), self.assertRaises(frappe.PermissionError):
 			revoke_badge(self.member.name, "welcome", "Spam likes")

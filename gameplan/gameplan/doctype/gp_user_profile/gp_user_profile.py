@@ -41,7 +41,6 @@ PROFILE_BENTO_BOUND_FIELDS = {
 	"image": {"id": "avatar", "size": "1x1", "title": "Avatar", "kind": "image"},
 	"full_name": {"id": "full-name", "size": "1x1", "title": "Full name", "kind": "text"},
 	"bio": {"id": "bio", "size": "2x1", "title": "Bio", "kind": "text"},
-	"badges": {"id": "badges", "size": "4x1", "title": "Badges", "kind": "badges"},
 	"readme": {"id": "about", "size": "4x2", "title": "About", "kind": "html"},
 }
 
@@ -564,38 +563,12 @@ def resolve_profile_bound_value(profile, field):
 		full_name = profile.full_name or frappe.db.get_value("User", profile.user, "full_name")
 		return full_name or profile.user or None
 
-	if field == "badges":
-		return held_badge_count(profile.user)
-
 	value = profile.get(field)
 	if field == "readme":
 		return value if html_has_content(value) else None
 	if isinstance(value, str):
 		value = value.strip()
 	return value or None
-
-
-def held_badge_count(user):
-	"""How many badges `user` holds, as text, or None when there are none to show.
-
-	The card has no value of its own. The page draws the badges from `user_badges`, and
-	this only decides whether the card is there. Guests cannot read badges.
-	"""
-	from gameplan.badges import is_enabled
-
-	if frappe.session.user == "Guest" or not is_enabled():
-		return None
-	Grant, Badge = frappe.qb.DocType("GP User Badge"), frappe.qb.DocType("GP Badge")
-	held = (
-		frappe.qb.from_(Grant)
-		.join(Badge)
-		.on(Badge.name == Grant.badge)
-		.select(Grant.badge)
-		.distinct()
-		.where((Grant.user == user) & (Grant.revoked == 0) & (Badge.enabled == 1))
-		.run()
-	)
-	return str(len(held)) if held else None
 
 
 def html_has_content(value):

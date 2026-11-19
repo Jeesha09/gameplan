@@ -104,34 +104,23 @@
       </template>
     </div>
 
-    <!-- Coins on a shelf: the title and how many on top, then one row of badges. -->
-    <div
-      v-else-if="showBadgesLayout"
-      class="flex flex-col justify-between gap-3 bg-gradient-to-b from-surface-gray-1/70 to-transparent p-3 sm:p-4 dark:from-surface-gray-2/40"
-      :class="flow ? 'min-h-[6.5rem]' : 'h-full'"
-      data-profile-badges-card
-    >
-      <div class="flex items-baseline gap-2 text-xs font-medium text-ink-gray-5 sm:text-sm">
-        <span>{{ card.title }}</span>
-        <span class="tabular-nums text-ink-gray-4">{{ card.text }} earned</span>
-      </div>
-      <div class="relative pb-2">
-        <ProfileBadgesShelf />
-        <div
-          class="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-outline-gray-2 via-outline-gray-3 to-outline-gray-2"
-          aria-hidden="true"
-        />
-      </div>
-    </div>
-
     <div
       v-else-if="showTextLayout"
       class="flex flex-col justify-between p-3 sm:p-4"
       :class="flow ? 'min-h-[6.5rem]' : 'h-full'"
     >
       <div class="flex items-center gap-1.5 pb-2 text-xs font-medium text-ink-gray-5 sm:text-sm">
+        <!-- Wraps rather than truncates when the ribbons leave it little room. -->
         <span class="min-w-0">{{ card.title }}</span>
         <span v-if="card.url" class="lucide-arrow-up-right size-3.5" aria-hidden="true" />
+        <!-- Favourite badges hang from the card's top edge, so the row's padding is pulled
+             back out. A zero-height box keeps them from making the row taller, and the
+             margin keeps them clear of the owner's edit button in the corner. -->
+        <ProfileBadgeRibbons
+          v-if="showBadgeRibbons"
+          class="-mt-3 ml-auto h-0 shrink-0 self-start sm:-mt-4"
+          :class="{ 'mr-8': canEdit }"
+        />
       </div>
       <p :class="textClass">{{ textCardBody }}</p>
     </div>
@@ -263,7 +252,7 @@ import {
 } from './profileBentoLayout'
 import { Button, Spinner } from 'frappe-ui'
 import ImageUploader from '@/components/ImageUploader.vue'
-import ProfileBadgesShelf from '@/components/Badges/ProfileBadgesShelf.vue'
+import ProfileBadgeRibbons from '@/components/Badges/ProfileBadgeRibbons.vue'
 import { useProfileImageReposition } from './useProfileImageReposition'
 
 const props = defineProps<{
@@ -329,6 +318,10 @@ const overlayButtonClass =
 
 const cardElement = useTemplateRef<HTMLElement>('cardElement')
 
+/** Only on the profile page itself: the customize page edits the layout, not the badges. */
+const showBadgeRibbons = computed(
+  () => props.card.field === 'full_name' && !props.editor && !props.interactive,
+)
 const htmlStack = ref<HTMLElement | null>(null)
 
 /**
@@ -424,24 +417,13 @@ const showHtmlLayout = computed(() => {
   return props.card.type !== 'Blank' && props.card.format === 'html'
 })
 
-const showBadgesLayout = computed(() => {
-  if (showBoundEmptyPlaceholder.value) return false
-  return props.card.type !== 'Blank' && props.card.format === 'badges'
-})
-
 const showImageLayout = computed(() => {
-  if (showHtmlLayout.value || showBadgesLayout.value || showBoundEmptyPlaceholder.value)
-    return false
+  if (showHtmlLayout.value || showBoundEmptyPlaceholder.value) return false
   return props.card.type === 'Image' || Boolean(imageUrl.value)
 })
 
 const showTextLayout = computed(() => {
-  return (
-    !showImageLayout.value &&
-    !showHtmlLayout.value &&
-    !showBadgesLayout.value &&
-    !showBoundEmptyPlaceholder.value
-  )
+  return !showImageLayout.value && !showHtmlLayout.value && !showBoundEmptyPlaceholder.value
 })
 
 const rootStyle = computed(() => {

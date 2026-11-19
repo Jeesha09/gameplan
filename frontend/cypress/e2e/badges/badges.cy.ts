@@ -1,5 +1,5 @@
 // Badges in the app (prd/badges.md): the Badges page, a badge's holders, the profile tab with
-// favourites, the badges card on the profile, the medallion's click, and Site administration.
+// favourites, the ribbons on the name card, the medallion's click, and Site administration.
 // The rules are specced on the backend (gameplan/tests/features/test_badges.py); this walks
 // what people see.
 import { resetData } from '../../support/seed'
@@ -78,15 +78,23 @@ describe('Badges', () => {
     cy.get('button[aria-label="Unstar Welcome"]').should('be.visible')
   })
 
-  it('shows the badges on a card of the profile for everyone who opens it', () => {
+  it('hangs favourites from the name card for everyone who opens the profile', () => {
+    cy.loginAs('member')
+    cy.intercept('POST', '**/gameplan.badges.api.set_favorites').as('favorites')
+    cy.visit(`/g/people/${profile}/badges`)
+    cy.get('button[aria-label="Star Welcome"]').click()
+    cy.wait('@favorites')
+
     cy.switchUser('secondMember')
     cy.visit(`/g/people/${profile}`)
-    cy.get('[data-profile-badges-card]').should('contain', 'earned')
-    cy.get('[data-profile-badges-card] button[aria-label="Welcome, Bronze badge"]')
-      .as('coin')
+    cy.get('[data-profile-badge-ribbons] a[aria-label="Welcome, Bronze badge"]')
+      .as('ribbon')
       .trigger('mouseenter')
-    cy.get('@coin').trigger('pointermove', { pointerType: 'mouse' })
+    cy.get('@ribbon').should('have.class', 'badge-ribbon--playing')
+    cy.get('@ribbon').trigger('pointermove', { pointerType: 'mouse' })
     cy.contains('[role="tooltip"]', 'Earned')
+    cy.get('@ribbon').click()
+    cy.location('pathname').should('eq', '/g/badges/welcome')
   })
 
   it('lets a global admin turn a badge off', () => {
