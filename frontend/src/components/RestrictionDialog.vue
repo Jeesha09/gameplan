@@ -1,76 +1,54 @@
 <template>
   <Dialog v-model:open="open" :title="title" :dismissible="!saving">
-    <p class="mb-4 text-base text-ink-gray-6">
-      {{ user.full_name || user.user }} ·
-      {{
-        community
-          ? 'Participation in this Community'
-          : kind === 'Silence'
-            ? 'Participation in every Community'
-            : 'Entire Frappe site, including all installed apps and API access'
-      }}
-    </p>
-    <template v-if="!community && !lifting">
+    <div class="flex flex-col gap-5">
+      <slot name="person" />
+      <p v-if="user.user && !$slots.person" class="text-base text-ink-gray-6">
+        {{ user.full_name || user.user }}
+      </p>
       <Select
+        v-if="!community && !lifting"
         v-model="kind"
         label="Restriction"
+        :description="kind === 'Silence' ? 'Can read, but can\'t post' : 'Can\'t sign in at all'"
         :options="[
           { label: 'Silence', value: 'Silence' },
           { label: 'Suspend', value: 'Suspend' },
         ]"
         :disabled="saving"
       />
-      <p class="mb-3 mt-2 text-p-sm text-ink-gray-6">
-        Silence: can sign in and read, but can't post anywhere. Suspend: can't sign in or use the
-        site at all.
-      </p>
-    </template>
-    <Select
-      v-if="!lifting"
-      v-model="duration"
-      label="Duration"
-      :options="durations"
-      :disabled="saving"
-    />
-    <DateTimePicker
-      v-if="!lifting && duration === 'custom'"
-      v-model="custom"
-      class="mt-3"
-      label="Expires at"
-      :disabled="saving"
-    />
-    <p v-if="!lifting" class="mt-2 text-p-sm text-ink-gray-6">
-      Times shown in {{ timezone }}. One day means 24 hours.
-      <span v-if="user.expires_at">Current expiry: {{ expiryLabel(user.expires_at) }}.</span>
-    </p>
-    <p v-if="!lifting && duration === 'custom' && custom" class="mt-2 text-p-sm text-ink-gray-6">
-      Selected expiry: {{ dayjsLocal(custom).format('D MMM YYYY, h:mm A [UTC]Z') }}
-    </p>
-    <Textarea
-      v-model="reason"
-      class="mt-4"
-      label="Reason (shared with this person)"
-      :maxlength="500"
-      :disabled="saving"
-      required
-    />
-    <Checkbox
-      v-if="!lifting"
-      v-model="cleanup"
-      class="mt-3"
-      label="Also remove all their posts"
-      :disabled="saving"
-    />
-    <ErrorMessage
-      v-if="error"
-      class="mt-3"
-      :message="extractServerMessage(error) || 'Could not update the restriction'"
-    />
+      <div v-if="!lifting" class="flex flex-col gap-3">
+        <Select v-model="duration" label="Duration" :options="durations" :disabled="saving" />
+        <p v-if="user.expires_at && duration === 'keep'" class="text-p-sm text-ink-gray-6">
+          Ends {{ expiryLabel(user.expires_at) }}
+        </p>
+        <template v-if="duration === 'custom'">
+          <DateTimePicker v-model="custom" label="Ends at" :disabled="saving" />
+          <p class="text-p-sm text-ink-gray-6">Times are in {{ timezone }}</p>
+        </template>
+      </div>
+      <Textarea
+        v-model="reason"
+        label="Reason (shared with this person)"
+        :maxlength="500"
+        :disabled="saving"
+        required
+      />
+      <Checkbox
+        v-if="!lifting"
+        v-model="cleanup"
+        label="Also remove all their posts"
+        :disabled="saving"
+      />
+      <ErrorMessage
+        v-if="error"
+        :message="extractServerMessage(error) || 'Could not update the restriction'"
+      />
+    </div>
     <template #actions>
       <Button
         variant="solid"
         :loading="saving"
-        :disabled="!reason.trim() || (!lifting && duration === 'custom' && !custom)"
+        :disabled="!user.user || !reason.trim() || (!lifting && duration === 'custom' && !custom)"
         @click="save"
         >{{ lifting ? 'Lift restriction' : 'Save restriction' }}</Button
       >

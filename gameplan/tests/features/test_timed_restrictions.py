@@ -7,7 +7,13 @@ from frappe.tests.test_api import FrappeAPITestCase
 from frappe.utils import now_datetime
 
 from gameplan.community_bans import is_banned, set_ban
-from gameplan.restriction_queries import account_history, account_suspensions, candidates, my_bans
+from gameplan.restriction_queries import (
+	account_history,
+	account_suspensions,
+	candidates,
+	my_bans,
+	restriction_history,
+)
 from gameplan.restrictions import (
 	active,
 	expire_due,
@@ -116,6 +122,7 @@ class TestTimedRestrictions(GameplanTestCase):
 				self.suspend,
 				account_suspensions,
 				candidates,
+				restriction_history,
 				lambda: account_history(self.outsider.name),
 			):
 				with self.assertRaises(frappe.PermissionError):
@@ -159,6 +166,23 @@ class TestTimedRestrictions(GameplanTestCase):
 			self.assertEqual(account_suspensions()["items"][0].user, self.outsider.name)
 			self.assertNotIn(self.outsider.name, [row.name for row in candidates()["items"]])
 		self.assertEqual(account_history(self.outsider.name)["items"][0].action, "Suspend")
+
+	def test_search_filters_the_active_list(self):
+		self.suspend()
+		self.assertEqual(
+			[row.user for row in account_suspensions(query=self.outsider.name[:6])["items"]],
+			[self.outsider.name],
+		)
+		self.assertEqual(account_suspensions(query="nobody-matches-this")["items"], [])
+
+	def test_site_history_lists_every_restriction_change(self):
+		self.suspend()
+		set_restriction(self.outsider.name, 0, "Appeal accepted")
+		self.ban()
+		rows = restriction_history()["items"]
+		self.assertEqual([row.action for row in rows[:2]], ["Lift Suspension", "Suspend"])
+		self.assertEqual(rows[0].full_name, self.outsider.full_name)
+		self.assertEqual(restriction_history(query="nobody-matches-this")["items"], [])
 
 	def test_email_is_enqueued_only_after_commit(self):
 		with patch("frappe.enqueue") as enqueue:

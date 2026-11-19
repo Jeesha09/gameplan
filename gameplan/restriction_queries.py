@@ -13,10 +13,30 @@ def require_scope(community=""):
 		frappe.throw("You cannot view these restrictions", frappe.PermissionError)
 
 
-def active_rows(community="", start=0, after=""):
+RESTRICTION_ACTIONS = (
+	"Suspend",
+	"Suspension Changed",
+	"Lift Suspension",
+	"Silence",
+	"Silence Changed",
+	"Lift Silence",
+	"Restriction Expired",
+)
+
+
+def matching(query):
+	query = (query or "").strip()
+	if len(query) > 100:
+		frappe.throw("Search text must be at most 100 characters")
+	if not query:
+		return ""
+	return "%" + query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+
+
+def active_rows(community="", start=0, after="", query=""):
 	Restriction = frappe.qb.DocType("GP User Restriction")
 	User = frappe.qb.DocType("User")
-	query = (
+	rows_query = (
 		frappe.qb.from_(Restriction)
 		.join(User)
 		.on(User.name == Restriction.user)
@@ -31,9 +51,12 @@ def active_rows(community="", start=0, after=""):
 		)
 		.where((Restriction.community == community) & active_condition(Restriction))
 	)
+	pattern = matching(query)
+	if pattern:
+		rows_query = rows_query.where(User.name.like(pattern) | User.full_name.like(pattern))
 	if after:
-		query = query.where(Restriction.user > after)
-	rows = query.orderby(Restriction.user).offset(page_start(start)).limit(41).run(as_dict=True)
+		rows_query = rows_query.where(Restriction.user > after)
+	rows = rows_query.orderby(Restriction.user).offset(page_start(start)).limit(41).run(as_dict=True)
 	for row in rows:
 		row.expires_at = iso_expiry(row.expires_at)
 		row.modified = str(row.modified)
@@ -41,10 +64,10 @@ def active_rows(community="", start=0, after=""):
 
 
 @frappe.whitelist(methods=["GET", "POST"])
-def account_suspensions(after: str = ""):
+def account_suspensions(after: str = "", query: str = ""):
 	"""List a cursor-paged set of active whole-site silences and suspensions for global admins."""
 	require_scope()
-	rows = active_rows(after=after)
+	rows = active_rows(after=after, query=query)
 	return {
 		"items": rows[:40],
 		"has_more": len(rows) > 40,
@@ -116,13 +139,7 @@ def account_history(user: str, before: str = ""):
 			& (Log.community == "")
 			& Log.action.isin(
 				[
-					"Suspend",
-					"Suspension Changed",
-					"Lift Suspension",
-					"Silence",
-					"Silence Changed",
-					"Lift Silence",
-					"Restriction Expired",
+					*RESTRICTION_ACTIONS,
 					*LEVEL_ACTIONS,
 					"Badge Granted",
 					"Badge Revoked",
@@ -147,6 +164,60 @@ def account_history(user: str, before: str = ""):
 		row.expires_at = iso_expiry(row.expires_at)
 		row.previous_expires_at = iso_expiry(row.previous_expires_at)
 
+	return {
+		"items": rows[:40],
+		"has_more": len(rows) > 40,
+		"next_cursor": rows[39].name if len(rows) > 40 else "",
+	}
+
+
+def after_log(query, Log, before):
+	if not before:
+		return query
+	cursor = frappe.db.get_value("GP Moderation Log", before, ["creation", "name"], as_dict=True)
+	if not cursor:
+		frappe.throw("Refresh the history list")
+	return query.where(
+		(Log.creation < cursor.creation) | ((Log.creation == cursor.creation) & (Log.name < cursor.name))
+	)
+
+
+@frappe.whitelist(methods=["GET", "POST"])
+def restriction_history(query: str = "", before: str = ""):
+	"""List every whole-site silence and suspension change, newest first. Global admins only."""
+	require_scope()
+	Log, User = frappe.qb.DocType("GP Moderation Log"), frappe.qb.DocType("User")
+	rows_query = (
+		frappe.qb.from_(Log)
+		.left_join(User)
+		.on(User.name == Log.user)
+		.select(
+			Log.name,
+			Log.user,
+			Log.action,
+			Log.owner,
+			Log.creation,
+			Log.reason,
+			Log.previous_expires_at,
+			Log.expires_at,
+			User.full_name,
+			User.user_image,
+		)
+		.where((Log.community == "") & Log.action.isin(RESTRICTION_ACTIONS))
+	)
+	pattern = matching(query)
+	if pattern:
+		rows_query = rows_query.where(Log.user.like(pattern) | User.full_name.like(pattern))
+	rows = (
+		after_log(rows_query, Log, before)
+		.orderby(Log.creation, order=frappe.qb.desc)
+		.orderby(Log.name, order=frappe.qb.desc)
+		.limit(41)
+		.run(as_dict=True)
+	)
+	for row in rows:
+		row.expires_at = iso_expiry(row.expires_at)
+		row.previous_expires_at = iso_expiry(row.previous_expires_at)
 	return {
 		"items": rows[:40],
 		"has_more": len(rows) > 40,
