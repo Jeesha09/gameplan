@@ -145,7 +145,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   Avatar,
   Badge,
@@ -174,7 +174,21 @@ const error = ref<unknown>(null),
   chosen = ref(''),
   query = ref(''),
   cleanupOpen = ref(false)
-const options = ref<{ label: string; value: string; image?: string }[]>([])
+type Option = { label: string; value: string; image?: string }
+const found = ref<Option[]>([])
+// The picked account stays in the list after a search clears it. Without it the box has no label
+// for the value and shows the raw email.
+const picked = ref<Option | null>(null)
+const options = computed(() =>
+  picked.value && !found.value.some((option) => option.value === picked.value?.value)
+    ? [picked.value, ...found.value]
+    : found.value,
+)
+watch(chosen, (value) => {
+  picked.value = value
+    ? (found.value.find((option) => option.value === value) ?? picked.value)
+    : null
+})
 const cursor = ref(''),
   nextCursor = ref(''),
   cursors = ref<string[]>([]),
@@ -214,7 +228,7 @@ watch([query, pickerOpen], () => {
   clearTimeout(timer)
   searching.value = false
   candidateViewport = null
-  options.value = []
+  found.value = []
   candidateCursor.value = ''
   if (pickerOpen.value && query.value.trim().length !== 1)
     timer = setTimeout(() => search('', request), query.value ? 250 : 0)
@@ -234,7 +248,7 @@ async function search(after = '', request = searchRequest) {
       value: u.name,
       image: u.user_image,
     }))
-    options.value = after ? [...options.value, ...result] : result
+    found.value = after ? [...found.value, ...result] : result
     candidateCursor.value = data.next_cursor
     if (viewport) {
       // Remove after upgrading to a release containing frappe/frappe-ui#1341.
