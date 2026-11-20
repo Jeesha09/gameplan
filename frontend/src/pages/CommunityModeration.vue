@@ -21,7 +21,21 @@
                   :icon="option.icon"
                   :active="!siteWide && tab === option.value"
                   @click="selectSection(option.value)"
-                />
+                >
+                  <template v-if="badgeFor(option.value)" #suffix>
+                    <span
+                      v-if="typeof badgeFor(option.value) === 'number'"
+                      class="mr-2 text-xs text-ink-gray-5"
+                    >
+                      {{ badgeFor(option.value) }}
+                    </span>
+                    <span
+                      v-else
+                      class="mr-2 size-1.5 rounded-full bg-surface-gray-7"
+                      aria-label="New activity"
+                    />
+                  </template>
+                </SidebarItem>
               </div>
               <slot name="administration" />
             </ScrollArea>
@@ -317,6 +331,13 @@ import ModerationPager from '@/components/moderation/ModerationPager.vue'
 import ModerationRow from '@/components/moderation/ModerationRow.vue'
 import CommentEditor from '@/components/editor/CommentEditor.vue'
 import { useCommunity } from '@/data/communities'
+import {
+  loadCommunityActivity,
+  markModerationTabSeen,
+  reloadModerationAttention,
+  type ModerationActivity,
+  type SeenTab,
+} from '@/data/moderationActivity'
 import { useSessionUser, useUser } from '@/data/users'
 import { canModerateCommunity, canManageCommunity } from '@/utils/permissions'
 import { reloadDiscussionLists, useDiscussion } from '@/data/discussions'
@@ -357,6 +378,29 @@ const tab = computed({
     router.replace({ query: { ...route.query, tab: value } })
   },
 })
+const activity = ref<ModerationActivity | null>(null)
+let activityRequest = 0
+function badgeFor(section: string): number | boolean {
+  const value = activity.value?.[section as keyof ModerationActivity]
+  if (typeof value === 'number') return value > 0 ? value : false
+  return Boolean(value) && !(!props.siteWide && tab.value === section)
+}
+async function refreshActivity() {
+  if (!canModerate.value) return
+  const current = ++activityRequest
+  const community = props.communityId
+  try {
+    if (!props.siteWide && ['removed', 'bans', 'history'].includes(tab.value)) {
+      await markModerationTabSeen(community, tab.value as SeenTab)
+    }
+    const result = await loadCommunityActivity(community)
+    if (current === activityRequest) activity.value = result
+  } catch {
+    if (current === activityRequest) activity.value = null
+  }
+  reloadModerationAttention()
+}
+watch([() => props.communityId, tab, canModerate], refreshActivity, { immediate: true })
 const doctype = ref('GP Discussion')
 const discussionType = useDoctype('GP Discussion')
 const commentType = useDoctype('GP Comment')

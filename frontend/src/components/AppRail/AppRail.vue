@@ -22,7 +22,7 @@
         variant="ghost"
         :active="item.isActive"
         :badge="item.unreadCount"
-        :badge-style="badgeStyle"
+        :badge-style="item.badgeStyle ?? badgeStyle"
         @click="goTo(item)"
       />
     </div>
@@ -108,7 +108,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useEventListener, useResizeObserver } from '@vueuse/core'
+import { useEventListener, useResizeObserver, useWindowFocus } from '@vueuse/core'
 import { SidebarRail, SidebarRailItem } from 'frappe-ui'
 import type { RouteLocationRaw } from 'vue-router'
 import { communityState } from '@/data/communityState'
@@ -119,6 +119,7 @@ import { activeCommunities, communities } from '@/data/communities'
 import { canModerateCommunity, isGlobalAdmin } from '@/utils/permissions'
 import type { Community } from '@/data/communities'
 import { draftCount } from '@/data/drafts'
+import { moderationAttention, reloadModerationAttention } from '@/data/moderationActivity'
 import { messagesEnabled, unreadConversations } from '@/data/messages'
 import { siteSettings } from '@/data/siteSettings'
 import { unreadNotifications } from '@/data/notifications'
@@ -141,6 +142,7 @@ interface RailShortcut {
   /** Second tooltip line, for a count the icon can't show. */
   description?: string
   unreadCount?: number
+  badgeStyle?: 'count' | 'dot'
 }
 
 const router = useRouter()
@@ -181,13 +183,16 @@ const shortcuts = computed<RailShortcut[]>(() => [
         },
       ]
     : []),
-  ...(communities.data?.some((community) => canModerateCommunity(community, sessionUser))
+  ...(canModerateAny.value
     ? [
         {
           label: 'Moderation',
           icon: 'lucide-shield-check',
           isActive: isRoute('Moderation'),
           route: { name: 'Moderation' },
+          unreadCount: moderationAttention.value ? 1 : 0,
+          badgeStyle: 'dot' as const,
+          description: moderationAttention.value ? 'Needs your attention' : undefined,
         },
       ]
     : []),
@@ -303,5 +308,15 @@ function updateCommunityScrollState() {
 onMounted(() => nextTick(updateCommunityScrollState))
 useEventListener(communityScrollEl, 'scroll', updateCommunityScrollState, { passive: true })
 useResizeObserver(communityScrollEl, updateCommunityScrollState)
+const canModerateAny = computed(() =>
+  Boolean(communities.data?.some((community) => canModerateCommunity(community, sessionUser))),
+)
+const windowFocused = useWindowFocus()
+watch(
+  [canModerateAny, windowFocused],
+  ([canModerate, focused]) => canModerate && focused && reloadModerationAttention(),
+  { immediate: true },
+)
+
 watch(activeCommunities, () => nextTick(updateCommunityScrollState), { flush: 'post' })
 </script>
