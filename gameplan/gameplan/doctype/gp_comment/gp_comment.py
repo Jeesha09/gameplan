@@ -19,7 +19,7 @@ from gameplan.mixins.moderation import Moderatable
 from gameplan.mixins.reactions import HasReactions
 from gameplan.mixins.tags import HasTags
 from gameplan.notifications.resolver import notify_comment, subscribe_on_participation
-from gameplan.permissions import comment_query_conditions, content_has_permission
+from gameplan.permissions import can_reply_when_closed, comment_query_conditions, content_has_permission
 from gameplan.public_payload import for_viewer
 from gameplan.utils import get_document_revisions, remove_empty_trailing_paragraphs
 from gameplan.utils.document import with_stored_document
@@ -52,7 +52,7 @@ class GPComment(Moderatable, HasAttachments, HasBacklinks, HasMentions, HasReact
 
 		reference_doc = frappe.get_doc(self.reference_doctype, self.reference_name)
 		if reference_doc.meta.has_field("closed_at"):
-			if reference_doc.closed_at:
+			if reference_doc.closed_at and not can_reply_when_closed(self.owner, reference_doc):
 				frappe.throw("Cannot add comment to a closed discussion")
 
 	def after_insert(self):

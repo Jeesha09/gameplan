@@ -183,7 +183,7 @@ import { useDraftSync } from '@/data/useDraftSync'
 import { refuseOffline } from '@/data/offline/requests'
 import { useUser, useSessionUser } from '@/data/users'
 import type { Space } from '@/data/spaces'
-import { canDeleteContent, canEditContent, canModerateSpace } from '@/utils/permissions'
+import { canDeleteContent, canModerateSpace, postActions } from '@/utils/permissions'
 import { postedPollInContent } from '@/components/PollBlock/poll-draft'
 import { captureError } from '@/utils/errorReporting'
 import { isAnonymousVisitor } from '@/utils/publicAccess'
@@ -460,7 +460,7 @@ const dropdownOptions = computed(() => [
       !props.comment.hidden_at &&
       !props.comment.spam_removed_at &&
       !props.readOnlyMode &&
-      canEditContent(props.comment, props.space, useSessionUser()),
+      postActions(props.comment, props.space, useSessionUser()).includes('edit'),
   },
   {
     label: 'Revisions',

@@ -361,6 +361,14 @@ export const adminSections: AdminSection[] = [
           postingLimit('max_images', 'Images per post', 'caps_enabled'),
           postingLimit('max_attachments', 'Files and videos per post', 'caps_enabled'),
           postingLimit('max_mentions', 'Mentions per post', 'caps_enabled'),
+          {
+            key: 'restrict_content_management',
+            label: "Only trusted members manage other people's posts",
+            type: 'switch',
+            default: false,
+            description:
+              'For forums. Authors edit and close their own posts, Regulars can retitle and move, and Leaders and Community staff can edit, close and pin any post. Off, every member can do all of this',
+          },
         ],
       },
       {
@@ -470,7 +478,8 @@ export const adminSections: AdminSection[] = [
     id: 'trust-levels',
     label: 'Trust levels',
     icon: 'lucide-signal',
-    keywords: 'trust levels new basic contributor regular leader limits first day links images mentions',
+    keywords:
+      'trust levels new basic contributor regular leader limits first day links images mentions',
     groups: [
       {
         settings: [

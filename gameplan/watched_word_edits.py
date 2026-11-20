@@ -4,7 +4,7 @@ import frappe
 
 from gameplan.approval_files import published_content
 from gameplan.approvals import hold
-from gameplan.permissions import can_edit_content, can_moderate_space, get_content_project
+from gameplan.permissions import can_edit_content, can_moderate_space, can_retitle, get_content_project
 from gameplan.watched_word_actions import check_block, requires_approval
 
 
@@ -19,7 +19,7 @@ def target(doctype, name):
 	if content_is_removed(doc) or doc.get("deleted_at"):
 		frappe.throw("Restore this content before editing it", frappe.PermissionError)
 	check_if_space_is_archived(doc, action="edit", content_type="posts")
-	if not can_edit_content(frappe.session.user, doc):
+	if not can_edit_content(frappe.session.user, doc) and not can_retitle(frappe.session.user, doc):
 		frappe.throw("You cannot edit this post", frappe.PermissionError)
 	return doc
 
@@ -55,7 +55,10 @@ def submit(doctype: str, name: str, expected_modified: str, content: str, title:
 	if not isinstance(content, str) or not content.strip():
 		frappe.throw("Add content before submitting")
 	proposed = frappe.get_doc(doc.as_dict())
-	proposed.content = content
+	# A Regular in forum mode may retitle someone else's discussion but not rewrite it (D136).
+	body = can_edit_content(frappe.session.user, doc)
+	if body:
+		proposed.content = content
 	if doctype == "GP Discussion":
 		if not title.strip():
 			frappe.throw("Add a discussion title")
@@ -71,7 +74,8 @@ def submit(doctype: str, name: str, expected_modified: str, content: str, title:
 			+ hashlib.sha256(frappe.as_json([name, expected_modified, title, content]).encode()).hexdigest()
 		)
 		return hold(proposed, key, draft, edit=doc)
-	doc.content = proposed.content
+	if body:
+		doc.content = proposed.content
 	if doctype == "GP Discussion":
 		doc.title = proposed.title
 	doc.save()

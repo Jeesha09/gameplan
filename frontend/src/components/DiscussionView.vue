@@ -214,7 +214,7 @@
               :content="
                 editingPost && postDraftData ? postDraftData.content : discussion.doc.content
               "
-              :editable="editingPost && !isPostDraftLoading"
+              :editable="editingPost && !isPostDraftLoading && canEditDiscussion"
               :quote-source-id="`discussion:${discussion.doc.name}`"
               :author="discussion.doc.owner"
               @change="onPostEditorChange"
@@ -275,8 +275,10 @@
           :read-only-mode="
             readOnlyMode || Boolean(discussion.doc?.hidden_at || discussion.doc?.spam_removed_at)
           "
-          :closed="Boolean(discussion.doc.closed_at)"
-          :can-reopen="canEditDiscussion"
+          :closed="
+            Boolean(discussion.doc.closed_at) && !canReplyWhenClosed(space, useSessionUser())
+          "
+          :can-reopen="canCloseDiscussion"
           :reopening="discussion.reopenDiscussion.loading"
           @reopen="reopenDiscussion"
           :hide-new-comment="editingPost"
@@ -518,9 +520,9 @@ import { useSessionUser } from '@/data/users'
 import {
   canDeleteContent,
   canModerateSpace,
-  canEditContent,
   canHighlightComment,
-  canMoveOrPinContent,
+  canReplyWhenClosed,
+  postActions,
   canMoveContentToSpace,
 } from '@/utils/permissions'
 import { captureError } from '@/utils/errorReporting'
@@ -1010,17 +1012,14 @@ const spaceOptions = useGroupedSpaceOptions({
     canMoveContentToSpace(space.value, target, useSessionUser()),
 })
 
-// Edit and close/re-open change the post itself, so they follow the same business
-// rule as editing: hidden from guests on posts they don't own. Mirrors backend
-// can_edit_content (see utils/permissions.ts).
-const canEditDiscussion = computed(() =>
-  canEditContent(discussion.doc, space.value, useSessionUser()),
-)
-// Pin and move are narrower than edit: a guest may edit their own post but may not
-// move it to another space or pin it.
-const canMoveOrPinDiscussion = computed(() =>
-  canMoveOrPinContent(discussion.doc, space.value, useSessionUser()),
-)
+// What the signed-in member may do to this discussion: edit, retitle (and move), close, pin.
+// Mirrors backend post_actions (see utils/permissions.ts). A guest never moves or pins, and in
+// forum mode only trusted members act on other people's posts (D136).
+const actions = computed(() => postActions(discussion.doc, space.value, useSessionUser()))
+const canEditDiscussion = computed(() => actions.value.includes('edit'))
+const canRetitleDiscussion = computed(() => actions.value.includes('retitle'))
+const canCloseDiscussion = computed(() => actions.value.includes('close'))
+const canPinDiscussion = computed(() => actions.value.includes('pin'))
 const canHighlightComments = computed(() => canHighlightComment(discussion.doc, useSessionUser()))
 const highlightedReply = computed(() => discussion.doc?.highlighted_reply ?? null)
 const highlightCard = useTemplateRef<HTMLElement>('highlightCard')
@@ -1182,7 +1181,8 @@ const actionGroups = computed<DiscussionAction[][]>(() => [
       label: 'Edit',
       icon: 'lucide-edit',
       onClick: startEditingPost,
-      condition: () => canEditDiscussion.value && !editingPost.value,
+      condition: () =>
+        (canEditDiscussion.value || canRetitleDiscussion.value) && !editingPost.value,
       hideInHeader: true,
     },
     { label: 'Copy link', icon: 'lucide-link', onClick: copyLink },
@@ -1197,13 +1197,13 @@ const actionGroups = computed<DiscussionAction[][]>(() => [
           label: 'Unpin discussion…',
           icon: 'lucide-arrow-down-left',
           onClick: confirmUnpin,
-          condition: () => canMoveOrPinDiscussion.value,
+          condition: () => canPinDiscussion.value,
         }
       : {
           label: 'Pin discussion…',
           icon: 'lucide-arrow-up-left',
           onClick: () => (pinDialog.show = true),
-          condition: () => canMoveOrPinDiscussion.value,
+          condition: () => canPinDiscussion.value,
         },
   ],
   [
@@ -1228,7 +1228,7 @@ const actionGroups = computed<DiscussionAction[][]>(() => [
       label: 'Move to…',
       icon: 'lucide-folder-input',
       onClick: () => (discussionMoveDialog.show = true),
-      condition: () => canMoveOrPinDiscussion.value,
+      condition: () => canRetitleDiscussion.value,
     },
   ],
   // Moderation, for the Space's moderators.
@@ -1274,13 +1274,13 @@ const actionGroups = computed<DiscussionAction[][]>(() => [
           label: 'Re-open discussion…',
           icon: 'lucide-unlock',
           onClick: confirmReopen,
-          condition: () => canEditDiscussion.value,
+          condition: () => canCloseDiscussion.value,
         }
       : {
           label: 'Close discussion…',
           icon: 'lucide-lock',
           onClick: confirmClose,
-          condition: () => canEditDiscussion.value,
+          condition: () => canCloseDiscussion.value,
         },
     {
       label: 'Delete…',

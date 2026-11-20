@@ -18,6 +18,7 @@ GP_FIELDS = (
 	"min_title_length",
 	"max_title_length",
 	"min_post_length",
+	"restrict_content_management",
 	"tags_enabled",
 	"tag_create_role",
 	"polls_enabled",
@@ -29,6 +30,7 @@ GP_FIELDS = (
 )
 WEBSITE_FIELDS = {"logo": "app_logo", "favicon": "favicon"}
 CHECKS = {
+	"restrict_content_management",
 	"tags_enabled",
 	"polls_enabled",
 	"direct_messages_enabled",
@@ -250,7 +252,17 @@ def boot_settings():
 		"min_title_length": cint(doc.min_title_length),
 		"max_title_length": cint(doc.max_title_length),
 		"min_post_length": cint(doc.min_post_length),
+		"restrict_content_management": feature_enabled("restrict_content_management"),
+		"trust_level": session_trust_level(),
 	}
+
+
+def session_trust_level():
+	"""The signed-in member's level for hiding post actions in forum mode, or -1 without one."""
+	from gameplan.permissions import trust_level
+
+	user = frappe.session.user
+	return -1 if gameplan.is_anonymous(user) else trust_level(user)
 
 
 def has_community_role(role, team, user=None):

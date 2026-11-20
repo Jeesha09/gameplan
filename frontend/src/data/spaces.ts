@@ -8,6 +8,7 @@ import {
   canMoveContentToSpace,
   isCommunityBanned,
   isGuest,
+  postActions,
 } from '@/utils/permissions'
 import { readOnlyMode } from './readOnlyMode'
 import { isMemberAccess } from '@/utils/visibility'
@@ -127,7 +128,13 @@ export function useSpacePermissions(spaceId: MaybeRefOrGetter<string | undefined
   // enough on its own — every member can read a public space they do not manage.
   const canEditSettings = computed(() => canEditSpace.value && canManageAccess.value)
   const canChangeMembership = computed(() => canEditSpace.value && !isGuestUser.value)
-  const canMoveDiscussions = computed(() => canEditSpace.value && !isGuestUser.value)
+  // In forum mode only Regulars and up, and Community staff, move other people's posts (D136).
+  const canMoveDiscussions = computed(
+    () =>
+      canEditSpace.value &&
+      !isGuestUser.value &&
+      postActions({ owner: null }, space.value, sessionUser).includes('retitle'),
+  )
   return {
     space,
     isArchived,

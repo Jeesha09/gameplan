@@ -11,8 +11,8 @@ Trust levels mirror Discourse. Each person has one site-wide level. Members earn
 | 0 New | Joining | Approval in Communities that hold New posts. The New limits: 3 discussions and 10 replies on the first day, 3 replies in a row in someone else's discussion, and per post 2 links, 5 images or videos, no files, 2 mentions, no @everyone. | 1 |
 | 1 Basic | 5 discussions entered, visits on 2 days, 1 accepted post | The New limits end, apart from 6 discussions and 30 replies on the first day. The site content caps apply. | 1 |
 | 2 Contributor | Visits on 15 days, 1 reaction given, 1 received, replies in 3 discussions, 20 discussions entered | Twice the posting-rate limits | 2 |
-| 3 Regular | In the last 100 days: visits on 50 days, replies in 10 discussions, 25% of new discussions entered (at most 500), 30 reactions given, 20 received from at least 5 people, at most 5 posts removed by moderators. No ban, suspension, or silence in the last 180 days. | Skips the content caps | 3 |
-| 4 Leader | A global admin only | Nothing beyond report weight (D132) | 3 |
+| 3 Regular | In the last 100 days: visits on 50 days, replies in 10 discussions, 25% of new discussions entered (at most 500), 30 reactions given, 20 received from at least 5 people, at most 5 posts removed by moderators. No ban, suspension, or silence in the last 180 days. | Skips the content caps. In forum mode, retitles and moves any discussion (D136). | 3 |
+| 4 Leader | A global admin only | In forum mode, edits, closes and pins any post (D136) | 3 |
 
 Global admins edit every number in Site administration. Each has a fixed range.
 
@@ -102,4 +102,15 @@ Members get an in-app notification for each promotion, and when they drop from R
 
 ## Leader
 
-Every member who can see a Space can already edit, close, reopen, pin, and move its discussions (`can_edit_content`). That rule stays, so Leader carries only report weight 3 (D132).
+By default, every member who can see a Space can edit, close, reopen, pin and move its discussions (`can_edit_content`). That suits a team using Gameplan internally.
+
+A forum turns on "Only trusted members manage other people's posts" in Posting rules (D136). Then, for discussions, replies and polls:
+
+| Action on someone else's post | Who |
+| --- | --- |
+| Edit the body | Leader, Community staff, global admins |
+| Change the title, or move it to another Space | Regular, Leader, staff, admins |
+| Close, reopen, pin, unpin | Leader, staff, admins |
+| Reply in a closed discussion | Leader, staff, admins |
+
+Authors still edit, retitle, move, close and reopen their own posts. Pages and tasks stay editable by every member. Delete rules do not change. While levels are off, only authors, staff and admins take these actions.

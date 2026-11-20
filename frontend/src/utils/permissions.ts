@@ -1,6 +1,7 @@
 import type { Community } from '@/data/communities'
 import { getCommunity } from '@/data/communities'
 import type { Space } from '@/data/spaces'
+import { siteSettings } from '@/data/siteSettings'
 import { isMemberAccess, VISIBILITY_ANONYMOUS } from '@/utils/visibility'
 
 type PermissionUser = {
@@ -168,21 +169,46 @@ export function canEditContent(
   return content.owner === user.name
 }
 
-export function canHighlightComment(discussion: ContentDoc, user: PermissionUser) {
-  return Boolean(discussion && user.name && discussion.owner === user.name)
-}
+export type PostAction = 'edit' | 'retitle' | 'close' | 'pin'
+
+const REGULAR = 3
+const LEADER = 4
 
 /**
- * Mirror of backend `GUEST_LOCKED_FIELDS` (gameplan/permissions.py): moving a post
- * to another space and pinning it are structural actions. Editors may take them,
- * except guests, who may not take them even on their own posts.
+ * What the signed-in member may do to a discussion, reply or poll. Mirror of backend
+ * `post_actions` (gameplan/permissions.py, D136). With forum mode off, everyone who may edit
+ * content in a Space may also retitle, move, close and pin it, except guests, who never move
+ * or pin. With it on, authors edit and close their own posts, Regulars retitle and move, and
+ * Leaders, Community staff and global admins do everything. `retitle` covers moving.
  */
-export function canMoveOrPinContent(
+export function postActions(
   content: ContentDoc,
   space: Space | null | undefined,
   user: PermissionUser,
-) {
-  if (isCommunityBanned(space?.team, user)) return false
-  if (isGuest(user)) return false
-  return canEditContent(content, space, user)
+): PostAction[] {
+  if (!content || !user.name || isCommunityBanned(space?.team, user)) return []
+  if (!siteSettings.restrict_content_management || !space) {
+    if (!canEditContent(content, space, user)) return []
+    return isGuest(user) ? ['edit', 'close'] : ['edit', 'retitle', 'close', 'pin']
+  }
+  if (managesPosts(space, user)) return ['edit', 'retitle', 'close', 'pin']
+  if (content.owner === user.name)
+    return isGuest(user) ? ['edit', 'close'] : ['edit', 'retitle', 'close']
+  if (!isGuest(user) && siteSettings.trust_level >= REGULAR) return ['retitle']
+  return []
+}
+
+/** In forum mode, Leaders, Community staff and global admins manage everyone's posts. */
+export function managesPosts(space: Space | null | undefined, user: PermissionUser) {
+  if (!user.name || isGuest(user)) return false
+  return isGlobalAdmin(user) || canModerateSpace(space, user) || siteSettings.trust_level >= LEADER
+}
+
+/** Forum mode lets the people who manage posts reply in a closed discussion. */
+export function canReplyWhenClosed(space: Space | null | undefined, user: PermissionUser) {
+  return siteSettings.restrict_content_management && managesPosts(space, user)
+}
+
+export function canHighlightComment(discussion: ContentDoc, user: PermissionUser) {
+  return Boolean(discussion && user.name && discussion.owner === user.name)
 }

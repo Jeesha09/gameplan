@@ -17,6 +17,7 @@
   "min_title_length",
   "max_title_length",
   "min_post_length",
+  "restrict_content_management",
   "features_section",
   "tags_enabled",
   "tag_create_role",
@@ -138,13 +139,20 @@
    "fieldname": "unsplash_access_key",
    "fieldtype": "Password",
    "label": "Unsplash access key"
+  },
+  {
+   "default": "0",
+   "description": "Others can still reply and react. Authors edit and close their own posts, Regulars retitle and move, and Leaders and Community staff edit, close and pin any post.",
+   "fieldname": "restrict_content_management",
+   "fieldtype": "Check",
+   "label": "Only trusted members manage other people's posts"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 0,
  "issingle": 1,
  "links": [],
- "modified": "2026-11-18 10:00:00.000000",
+ "modified": "2026-11-20 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gameplan",
  "name": "GP Settings",

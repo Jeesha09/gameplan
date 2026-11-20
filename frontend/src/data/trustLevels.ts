@@ -9,8 +9,8 @@ export const levelDescriptions: Record<LevelNumber, string> = {
   0: 'Posts wait for approval where a Community requires it. New-account limits apply on the first day, on replies in a row, and on links, media, files and mentions in each post.',
   1: 'The New limits end, apart from a higher limit on the first day. The site per-post limits apply.',
   2: 'Can post twice as often.',
-  3: 'Posts skip the per-post limits. Kept while the member stays active.',
-  4: 'Set by a global admin. Same as Regular, and never rechecked.',
+  3: 'Posts skip the per-post limits. Kept while the member stays active. Where only trusted members manage posts, can retitle and move any discussion.',
+  4: 'Set by a global admin, and never rechecked. Where only trusted members manage posts, can also edit, close and pin any post.',
 }
 
 export type Requirement = { key: string; required: number; actual: number; met: boolean }

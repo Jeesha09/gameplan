@@ -505,6 +505,10 @@ def can_write_content(user, doc):
 		return False
 	if not _guest_locked_fields_unchanged(user, doc):
 		return False
+	if is_managed_post(doc) and get_content_project(doc):
+		# Forum mode: anyone who can reach the post may interact, and may change only the
+		# fields their post actions cover (D136).
+		return can_interact_with_content(user, doc) and _post_fields_allowed(user, doc)
 	if can_edit_content(user, doc):
 		return True
 	if not can_interact_with_content(user, doc):
@@ -641,11 +645,102 @@ def can_edit_content(user, doc):
 		return get_doc_value(doc, "owner") == user
 	# Gameplan is community-driven: content inside a space is owned by the
 	# community, so any member who can access the space may edit it (and run
-	# lifecycle actions like pin/close). Personal content with no space stays
-	# editable only by its owner.
+	# lifecycle actions like pin/close). Forum mode narrows that for discussions,
+	# replies and polls (D136). Personal content with no space stays editable only
+	# by its owner.
 	if get_content_project(doc):
-		return True
+		return not is_managed_post(doc) or "edit" in post_actions(user, doc)
 	return get_doc_value(doc, "owner") == user
+
+
+# Forum mode (D136) ----------------------------------------------------------------------------
+# While "Only trusted members manage other people's posts" is on, a discussion, reply or poll in
+# a space follows Discourse: the author edits and closes their own post, Regulars retitle and
+# move, and Leaders, Community staff and global admins do everything. Pages and tasks stay
+# editable by every member.
+
+MANAGED_DOCTYPES = {"GP Discussion", "GP Comment", "GP Poll"}
+POST_ACTIONS = {"edit", "retitle", "close", "pin"}
+# Discussion fields each action covers. Every other field is the post itself, under "edit".
+DISCUSSION_ACTION_FIELDS = {
+	"retitle": {"title", "project", "team"},
+	"close": {"closed_at", "closed_by"},
+	"pin": {"pinned_at", "pinned_by", "pin_scope"},
+}
+
+
+def forum_mode() -> bool:
+	from gameplan.site_settings import feature_enabled
+
+	return feature_enabled("restrict_content_management")
+
+
+def is_managed_post(doc) -> bool:
+	return getattr(doc, "doctype", None) in MANAGED_DOCTYPES and forum_mode()
+
+
+def post_actions(user, doc) -> set:
+	"""What `user` may change on a post in forum mode: edit, retitle, close, pin."""
+	if manages_posts(user, doc):
+		return set(POST_ACTIONS)
+	if get_doc_value(doc, "owner") == user:
+		return {"edit", "retitle", "close"}
+	from gameplan.trust_levels import REGULAR
+
+	if not gameplan.is_guest(user) and trust_level(user) >= REGULAR:
+		return {"retitle"}
+	return set()
+
+
+def manages_posts(user, doc) -> bool:
+	"""Global admins, the Community's staff and Leaders manage everyone's posts in forum mode."""
+	if gameplan.is_anonymous(user) or gameplan.is_guest(user):
+		return False
+	if is_global_admin(user):
+		return True
+	from gameplan.trust_levels import LEADER
+
+	project = get_content_project(doc)
+	if project and can_moderate_space(user, project):
+		return True
+	return trust_level(user) >= LEADER
+
+
+def can_retitle(user, doc) -> bool:
+	"""In forum mode, whether `user` may change a discussion's title or Space without editing its body."""
+	return (
+		getattr(doc, "doctype", None) == "GP Discussion"
+		and is_managed_post(doc)
+		and can_interact_with_content(user, doc)
+		and "retitle" in post_actions(user, doc)
+	)
+
+
+def can_reply_when_closed(user, discussion) -> bool:
+	"""In forum mode, Leaders, Community staff and global admins may reply in a closed discussion."""
+	return forum_mode() and manages_posts(user, discussion)
+
+
+def trust_level(user) -> int:
+	"""The member's level, or -1 while levels are off or for someone without one."""
+	from gameplan.trust_levels import level_of
+
+	level = level_of(user)
+	return -1 if level is None else level
+
+
+def _post_fields_allowed(user, doc):
+	"""Whether `doc`'s pending changes stay within the forum actions `user` may take."""
+	actions = post_actions(user, doc)
+	groups = DISCUSSION_ACTION_FIELDS if doc.doctype == "GP Discussion" else {}
+	locked = set()
+	if "edit" not in actions:
+		grouped = set().union(*groups.values()) if groups else set()
+		locked = {df.fieldname for df in doc.meta.fields} - grouped
+	for action, fields in groups.items():
+		if action not in actions:
+			locked |= fields
+	return not _fields_changed(doc, locked)
 
 
 def is_delete_cascade(doc):

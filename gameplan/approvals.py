@@ -9,7 +9,7 @@ from gameplan.approval_policy import needs_approval, publishing_submission
 from gameplan.community_bans import can_moderate_community, require_participation
 from gameplan.mixins.archivable import check_if_space_is_archived
 from gameplan.paging import page_start
-from gameplan.permissions import can_moderate_space, moderatable_project_names
+from gameplan.permissions import can_moderate_space, can_reply_when_closed, moderatable_project_names
 from gameplan.reporting import checked_note
 
 
@@ -297,7 +297,8 @@ def validate_destination(doc):
 	if team and frappe.db.get_value("GP Team", team, "archived_at"):
 		frappe.throw("This Community is archived")
 	if doc.doctype == "GP Comment":
-		if parent.closed_at or parent.hidden_at or parent.spam_removed_at:
+		closed = parent.closed_at and not can_reply_when_closed(frappe.session.user, parent)
+		if closed or parent.hidden_at or parent.spam_removed_at:
 			frappe.throw("This discussion is unavailable for new replies")
 
 

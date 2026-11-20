@@ -14,6 +14,9 @@ export interface SiteSettings {
   min_title_length: number
   max_title_length: number
   min_post_length: number
+  restrict_content_management: boolean
+  /** The signed-in member's trust level, or -1 while levels are off or without one. */
+  trust_level: number
 }
 
 export const siteSettings = reactive<SiteSettings>({
@@ -30,6 +33,8 @@ export const siteSettings = reactive<SiteSettings>({
   min_title_length: 0,
   max_title_length: 0,
   min_post_length: 0,
+  restrict_content_management: false,
+  trust_level: -1,
 })
 
 export function loadSiteSettings() {
