@@ -11,7 +11,30 @@
           ><span class="lucide-x size-4 text-ink-gray-9"
         /></Button>
       </header>
-      <div class="flex min-h-0 flex-1 flex-col md:flex-row">
+      <div v-if="$slots.report" class="flex min-h-0 flex-1 flex-col">
+        <div
+          class="grid shrink-0 grid-cols-1 border-b border-outline-gray-2 bg-surface-gray-1 md:h-1/3 md:grid-cols-2"
+        >
+          <ScrollArea
+            class="max-h-[30vh] md:h-full md:max-h-none"
+            viewport-class="max-h-[30vh] p-5 md:h-full md:max-h-none"
+          >
+            <slot name="report" />
+          </ScrollArea>
+          <ScrollArea
+            class="max-h-[30vh] border-t border-outline-gray-2 md:h-full md:max-h-none md:border-l md:border-t-0"
+            viewport-class="max-h-[30vh] p-5 md:h-full md:max-h-none"
+          >
+            <slot name="decision" />
+          </ScrollArea>
+        </div>
+        <main class="min-h-0 min-w-0 flex-1" data-testid="review-content">
+          <ScrollArea ref="content" class="h-full min-h-0" viewport-class="h-full p-5 sm:p-6">
+            <slot />
+          </ScrollArea>
+        </main>
+      </div>
+      <div v-else class="flex min-h-0 flex-1 flex-col md:flex-row">
         <aside
           v-if="$slots.sidebar"
           class="max-h-[35vh] shrink-0 border-b border-outline-gray-2 bg-surface-gray-1 md:max-h-none md:w-80 md:border-b-0 md:border-r"

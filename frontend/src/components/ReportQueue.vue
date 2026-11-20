@@ -130,15 +130,51 @@
     :busy="resolving"
     :content-key="`${view}-${selectedReport}-${details?.current.version}`"
   >
-    <template v-if="details" #sidebar>
-      <div class="space-y-5">
+    <template v-if="details" #report>
+      <div class="space-y-4">
+        <Select
+          v-if="details.reports.length > 1"
+          v-model="selectedReport"
+          :options="reportOptions"
+          aria-label="Report"
+          @update:model-value="view = 'current'"
+        />
+        <section v-if="activeReport" class="space-y-2" aria-label="Reporter feedback">
+          <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <p class="text-lg-semibold">{{ activeReport.reason }}</p>
+            <p class="text-p-sm text-ink-gray-6">
+              {{
+                activeReport.automatic_rule
+                  ? 'Automatic watched-word rule'
+                  : `Reported by ${useUser(activeReport.owner).full_name}`
+              }}
+              ·
+              <time>{{ dayjsLocal(activeReport.creation).format('D MMM YYYY [at] h:mm A') }}</time>
+              <template v-if="showWeights">
+                ·
+                {{
+                  activeReport.weight
+                    ? `Weight ${activeReport.weight}`
+                    : 'Does not count toward auto-hide'
+                }}
+              </template>
+            </p>
+          </div>
+          <p class="whitespace-pre-wrap break-words text-p-base text-ink-gray-8">
+            {{ activeReport.note || 'No additional note.' }}
+          </p>
+        </section>
+        <div v-if="reportStart || details.has_more" class="flex flex-wrap gap-2">
+          <Button v-if="reportStart" @click="reportPage(-40)">Previous reports</Button>
+          <Button v-if="details.has_more" @click="reportPage(40)">More reports</Button>
+        </div>
         <section
           v-if="showWeights"
           class="space-y-1"
           aria-label="Report weight"
           data-testid="report-weight"
         >
-          <p class="text-base-semibold">
+          <p class="text-base-medium">
             Report weight {{ details.review.report_weight || 0 }} of
             {{ details.auto_hide.threshold }}
           </p>
@@ -152,75 +188,31 @@
             <template v-else>Spam and Abuse reports add their reporter's weight.</template>
           </p>
         </section>
+      </div>
+    </template>
+    <template v-if="details" #decision>
+      <div v-if="details.review.status === 'Pending'" class="space-y-4">
         <Select
-          v-if="details.reports.length > 1"
-          v-model="selectedReport"
-          label="Report"
-          :options="reportOptions"
-          @update:model-value="view = 'current'"
+          v-model="decision"
+          label="Decision"
+          side="bottom"
+          :disabled="resolving || evidenceLoading"
+          :options="decisionOptions"
         />
-        <section
-          v-if="activeReport"
-          class="rounded-5 border border-outline-gray-3 bg-surface-gray-2 p-4"
-          aria-label="Reporter feedback"
-        >
-          <p class="text-base-semibold">{{ activeReport.reason }}</p>
-          <p class="mt-2 text-base text-ink-gray-7">
-            {{
-              activeReport.automatic_rule
-                ? 'Automatic watched-word rule'
-                : useUser(activeReport.owner).full_name
-            }}
-          </p>
-          <p v-if="showWeights" class="mt-1 text-p-sm text-ink-gray-6">
-            {{
-              activeReport.weight
-                ? `Weight ${activeReport.weight}`
-                : 'Does not count toward auto-hide'
-            }}
-          </p>
-          <time class="mt-1 block text-p-sm text-ink-gray-6">{{
-            dayjsLocal(activeReport.creation).format('D MMM YYYY [at] h:mm A')
-          }}</time>
-          <p class="mt-4 whitespace-pre-wrap break-words text-base text-ink-gray-9">
-            {{ activeReport.note || 'No additional note.' }}
-          </p>
-          <Button
-            class="mt-4"
-            :loading="evidenceLoading"
-            :disabled="resolving"
-            @click="view === 'reported' ? (view = 'current') : loadReview(activeReport.name)"
-            >{{ view === 'reported' ? 'View current version' : 'View reported version' }}</Button
-          >
-        </section>
-        <div v-if="reportStart || details.has_more" class="flex gap-2">
-          <Button v-if="reportStart" @click="reportPage(-40)">Previous reports</Button>
-          <Button v-if="details.has_more" @click="reportPage(40)">More reports</Button>
-        </div>
-        <template v-if="details.review.status === 'Pending'">
-          <Select
-            v-model="decision"
-            label="Decision"
-            :disabled="resolving || evidenceLoading"
-            :options="['Dismiss', 'Uphold', 'Hide', 'Delete Spam']"
-          />
-          <p class="text-p-sm text-ink-gray-6">
-            {{ (details.current.auto_hidden ? autoHiddenHelp : decisionHelp)[decision] }}
-          </p>
-          <Textarea
-            v-model="note"
-            label="Decision note"
-            :maxlength="500"
-            required
-            :disabled="resolving"
-          />
-        </template>
-        <div v-else class="space-y-2 text-base">
-          <p class="font-medium">
-            {{ details.review.decision }} by {{ useUser(details.review.decided_by).full_name }}
-          </p>
-          <p class="whitespace-pre-wrap text-ink-gray-7">{{ details.review.decision_note }}</p>
-        </div>
+        <Textarea
+          v-model="note"
+          label="Decision note"
+          :maxlength="500"
+          :rows="3"
+          required
+          :disabled="resolving"
+        />
+      </div>
+      <div v-else class="space-y-2 text-base">
+        <p class="font-medium">
+          {{ details.review.decision }} by {{ useUser(details.review.decided_by).full_name }}
+        </p>
+        <p class="whitespace-pre-wrap text-ink-gray-7">{{ details.review.decision_note }}</p>
       </div>
     </template>
     <template v-if="details">
@@ -237,6 +229,13 @@
           {{ useUser(details.current.owner).full_name }}
         </p>
         <div class="flex gap-2">
+          <Button
+            v-if="activeReport"
+            :loading="evidenceLoading"
+            :disabled="resolving"
+            @click="view === 'reported' ? (view = 'current') : loadReview(activeReport.name)"
+            >{{ view === 'reported' ? 'View current version' : 'View reported version' }}</Button
+          >
           <Button
             :route="{
               name: 'Discussion',
@@ -389,6 +388,11 @@ const autoHiddenHelp: Record<string, string> = {
   Hide: 'Keep the post hidden. Moderators can restore it later.',
   'Delete Spam': 'Remove this post as spam. Moderators can restore it later.',
 }
+const decisionOptions = computed(() =>
+  Object.entries(details.value?.current.auto_hidden ? autoHiddenHelp : decisionHelp).map(
+    ([value, description]) => ({ label: value, value, description }),
+  ),
+)
 type AutoHideSettings = {
   enabled: number
   threshold: number
