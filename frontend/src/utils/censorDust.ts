@@ -113,8 +113,9 @@ function layout(dust: Dust) {
 function spawn(dust: Dust, at: number, age = 0) {
   const p = dust.particles
   const angle = Math.random() * Math.PI * 2
-  const speed = 3 + Math.random() * 12
-  const lifetime = 0.6 + Math.random() * 1.8
+  // Slow, long-lived particles: the word shimmers instead of swarming.
+  const speed = 1 + Math.random() * 3
+  const lifetime = 1.5 + Math.random() * 2.5
   p[at] = Math.random() * dust.width
   p[at + 1] = Math.random() * dust.height
   p[at + 2] = Math.cos(angle) * speed
