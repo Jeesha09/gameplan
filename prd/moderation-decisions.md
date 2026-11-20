@@ -377,3 +377,15 @@ Implementation notes:
 - Silence is stored in the site row of `GP User Restriction` with `kind = Silence`. The Community ban check treats an active site silence as a ban in every Community, so every existing participation check applies it.
 - The frontend receives a site silence as a ban row with an empty Community.
 - Only a suspension blocks sign-in, ends sessions, and disconnects realtime.
+
+## Moderation activity badges — November 20, 2026
+
+Confirmed by Jeesha; not yet reviewed by Ebrahim:
+- The Moderation tabs show what needs attention. Approvals and Reports show the number still pending. Removed content, Community bans and History show a dot when someone else changed them since you last opened that tab. Watched words shows nothing.
+- Opening a tab clears its dot. Pending counts clear only when the queue is empty.
+- The Moderation icon in the app rail shows a dot, never a number, when any Community you moderate has something pending or new.
+
+Implementation notes:
+- `gameplan.moderation_activity.activity` returns the counts and dots for one Community, or one attention flag across every Community the caller moderates. `mark_seen` records when a tab was opened.
+- "Last opened" is stored per user with Frappe user defaults, so it follows the person across devices without a new doctype.
+- Activity is read from `GP Moderation Log`, using the same Community scope as History.

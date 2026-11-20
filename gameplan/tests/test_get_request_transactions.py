@@ -99,6 +99,7 @@ READ_ONLY_ENDPOINTS = frozenset(
 		"gameplan.posting_limits.settings",
 		"gameplan.moderation_history.ban_users",
 		"gameplan.moderation.removed_content",
+		"gameplan.moderation_activity.activity",
 		"gameplan.watched_words.rules",
 		"gameplan.watched_words.download",
 		"gameplan.watched_word_edits.original",

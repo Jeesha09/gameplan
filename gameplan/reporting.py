@@ -116,14 +116,7 @@ def submit(doctype: str, name: str, reason: str, note: str = ""):
 	return {"name": report.name}
 
 
-@frappe.whitelist(methods=["GET", "POST"])
-def queue(community: str, status: str = "Pending", start: int = 0, sort_by: str = "recent"):
-	if not can_moderate_community(community):
-		frappe.throw("Only Community moderators can review reports", frappe.PermissionError)
-	if status not in ("Pending", "Resolved"):
-		frappe.throw("Unsupported review status")
-	if sort_by not in ("recent", "most_reported"):
-		frappe.throw("Unsupported report sort")
+def community_reviews(community):
 	Project, Discussion, Comment, Review = [
 		frappe.qb.DocType(dt) for dt in ("GP Project", "GP Discussion", "GP Comment", "GP Review")
 	]
@@ -136,12 +129,26 @@ def queue(community: str, status: str = "Pending", start: int = 0, sort_by: str 
 		.select(Comment.name)
 		.where((Comment.reference_doctype == "GP Discussion") & Comment.reference_name.isin(discussions))
 	)
-	visible = Criterion.any(
+	return Criterion.any(
 		[
 			(Review.reference_doctype == "GP Discussion") & Review.reference_name.isin(discussions),
 			(Review.reference_doctype == "GP Comment") & Review.reference_name.isin(replies),
 		]
 	)
+
+
+@frappe.whitelist(methods=["GET", "POST"])
+def queue(community: str, status: str = "Pending", start: int = 0, sort_by: str = "recent"):
+	if not can_moderate_community(community):
+		frappe.throw("Only Community moderators can review reports", frappe.PermissionError)
+	if status not in ("Pending", "Resolved"):
+		frappe.throw("Unsupported review status")
+	if sort_by not in ("recent", "most_reported"):
+		frappe.throw("Unsupported report sort")
+	Project, Discussion, Comment, Review = [
+		frappe.qb.DocType(dt) for dt in ("GP Project", "GP Discussion", "GP Comment", "GP Review")
+	]
+	visible = community_reviews(community)
 	rows_query = (
 		frappe.qb.from_(Review)
 		.select(

@@ -52,14 +52,11 @@ def ban_users(community: str, query: str = "", after: str = ""):
 	}
 
 
-@frappe.whitelist(methods=["GET", "POST"])
-def history(community: str, kind: str = "all", target: str = "", start: int = 0):
-	if not can_moderate_community(community):
-		frappe.throw("Only Community moderators can perform this action", frappe.PermissionError)
-	if not isinstance(kind, str) or kind not in {"all", "discussion", "reply", "user"}:
-		frappe.throw("Unsupported history target")
-	if not isinstance(target, str) or (target and kind == "all"):
-		frappe.throw("Choose a target type before filtering history")
+POST_ACTIONS = ["Hide", "Restore", "Delete Spam", "Auto Hide"]
+USER_ACTIONS = ["Ban", "Unban", "Ban Changed", "Restriction Expired", "Author Cleanup", "Undo Cleanup"]
+
+
+def history_sources(community):
 	projects = moderatable_project_names(community)
 	Discussion = frappe.qb.DocType("GP Discussion")
 	Comment = frappe.qb.DocType("GP Comment")
@@ -70,22 +67,28 @@ def history(community: str, kind: str = "all", target: str = "", start: int = 0)
 		.select(Comment.name)
 		.where((Comment.reference_doctype == "GP Discussion") & Comment.reference_name.isin(discussions))
 	)
-	post_actions = Log.action.isin(["Hide", "Restore", "Delete Spam", "Auto Hide"])
-	sources = {
+	post_actions = Log.action.isin(POST_ACTIONS)
+	return {
 		"discussion": (
 			Log.discussion.isin(discussions)
 			& (post_actions | Log.action.isin(["Slow Mode Changed", "Slow Mode Expired"])),
 			Log.discussion,
 		),
 		"reply": (Log.comment.isin(replies) & post_actions, Log.comment),
-		"user": (
-			(Log.community == community)
-			& Log.action.isin(
-				["Ban", "Unban", "Ban Changed", "Restriction Expired", "Author Cleanup", "Undo Cleanup"]
-			),
-			Log.user,
-		),
+		"user": ((Log.community == community) & Log.action.isin(USER_ACTIONS), Log.user),
 	}
+
+
+@frappe.whitelist(methods=["GET", "POST"])
+def history(community: str, kind: str = "all", target: str = "", start: int = 0):
+	if not can_moderate_community(community):
+		frappe.throw("Only Community moderators can perform this action", frappe.PermissionError)
+	if not isinstance(kind, str) or kind not in {"all", "discussion", "reply", "user"}:
+		frappe.throw("Unsupported history target")
+	if not isinstance(target, str) or (target and kind == "all"):
+		frappe.throw("Choose a target type before filtering history")
+	Log = frappe.qb.DocType("GP Moderation Log")
+	sources = history_sources(community)
 	if kind == "all":
 		criterion = Criterion.any(source[0] for source in sources.values())
 	else:
