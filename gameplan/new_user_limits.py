@@ -185,7 +185,7 @@ def check_replies_in_discussion(user, doc, limits):
 	if not limit:
 		refuse("New accounts cannot reply in other people's discussions.")
 	refuse(
-		f"New accounts can post {limit} {'reply' if limit == 1 else 'replies'} in a row in a"
+		f"New accounts can post {limit} consecutive {'reply' if limit == 1 else 'replies'} in a"
 		" discussion. You can reply again after someone else does."
 	)
 

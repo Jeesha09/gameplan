@@ -6,7 +6,7 @@ export const LEVEL_NAMES = ['New', 'Basic', 'Contributor', 'Regular', 'Leader'] 
 export type LevelNumber = 0 | 1 | 2 | 3 | 4
 
 export const levelDescriptions: Record<LevelNumber, string> = {
-  0: 'Posts wait for approval where a Community requires it. New-account limits apply on the first day, on replies in a row, and on links, media, files and mentions in each post.',
+  0: 'Posts wait for approval where a Community requires it. New-account limits apply on the first day, on consecutive replies, and on links, media, files and mentions in each post.',
   1: 'The New limits end, apart from a higher limit on the first day. The site per-post limits apply.',
   2: 'Can post twice as often.',
   3: 'Posts skip the per-post limits. Kept while the member stays active. Where only trusted members manage posts, can retitle and move any discussion.',
@@ -49,10 +49,10 @@ export const SETTING_GROUPS: { title: string; sections: SettingSection[] }[] = [
         ],
       },
       {
-        title: 'Replies in a row',
+        title: 'Consecutive replies',
         description:
-          "Replies in someone else's discussion before another person replies. Their own discussions have no limit",
-        fields: [['new_replies_per_discussion', 'Replies']],
+          "Maximum replies a new member can post in a discussion before someone else responds. Discussions they created have no limit",
+        fields: [['new_replies_per_discussion', 'Maximum replies']],
       },
       {
         title: 'Each post',

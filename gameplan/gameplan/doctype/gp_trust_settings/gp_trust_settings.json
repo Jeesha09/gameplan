@@ -217,7 +217,7 @@
   {
    "fieldname": "new_replies_per_discussion",
    "fieldtype": "Int",
-   "label": "New: replies in a discussion before someone answers",
+   "label": "New: maximum consecutive replies in a discussion",
    "default": "3",
    "non_negative": 1
   },
