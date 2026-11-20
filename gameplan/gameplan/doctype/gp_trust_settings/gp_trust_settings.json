@@ -27,7 +27,18 @@
   "regular_received_users",
   "regular_max_removed",
   "regular_restriction_days",
-  "regular_grace_days"
+  "regular_grace_days",
+  "new_limits_section",
+  "new_first_day_discussions",
+  "new_first_day_replies",
+  "new_replies_per_discussion",
+  "new_max_links",
+  "new_max_media",
+  "new_max_attachments",
+  "new_max_mentions",
+  "basic_limits_section",
+  "basic_first_day_discussions",
+  "basic_first_day_replies"
  ],
  "fields": [
   {
@@ -183,11 +194,84 @@
    "fieldtype": "Int",
    "label": "Grace period in days",
    "non_negative": 1
+  },
+  {
+   "fieldname": "new_limits_section",
+   "fieldtype": "Section Break",
+   "label": "New limits"
+  },
+  {
+   "fieldname": "new_first_day_discussions",
+   "fieldtype": "Int",
+   "label": "New: discussions on the first day",
+   "default": "3",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "new_first_day_replies",
+   "fieldtype": "Int",
+   "label": "New: replies on the first day",
+   "default": "10",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "new_replies_per_discussion",
+   "fieldtype": "Int",
+   "label": "New: replies in a discussion before someone answers",
+   "default": "3",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "new_max_links",
+   "fieldtype": "Int",
+   "label": "New: links per post",
+   "default": "2",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "new_max_media",
+   "fieldtype": "Int",
+   "label": "New: images, videos and audio per post",
+   "default": "5",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "new_max_attachments",
+   "fieldtype": "Int",
+   "label": "New: files per post",
+   "default": "0",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "new_max_mentions",
+   "fieldtype": "Int",
+   "label": "New: mentions per post",
+   "default": "2",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "basic_limits_section",
+   "fieldtype": "Section Break",
+   "label": "Basic limits"
+  },
+  {
+   "fieldname": "basic_first_day_discussions",
+   "fieldtype": "Int",
+   "label": "Basic: discussions on the first day",
+   "default": "6",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "basic_first_day_replies",
+   "fieldtype": "Int",
+   "label": "Basic: replies on the first day",
+   "default": "30",
+   "non_negative": 1
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-12 14:00:00.000000",
+ "modified": "2026-11-20 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Gameplan",
  "name": "GP Trust Settings",

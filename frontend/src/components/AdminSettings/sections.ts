@@ -430,7 +430,7 @@ export const adminSections: AdminSection[] = [
             options: [
               'All members',
               'Basic trust level and up',
-              'Member trust level and up',
+              'Contributor trust level and up',
               'Community staff and up',
             ],
             parent: 'direct_messages_enabled',
@@ -470,7 +470,7 @@ export const adminSections: AdminSection[] = [
     id: 'trust-levels',
     label: 'Trust levels',
     icon: 'lucide-signal',
-    keywords: 'trust levels new basic member regular leader',
+    keywords: 'trust levels new basic contributor regular leader limits first day links images mentions',
     groups: [
       {
         settings: [
@@ -491,7 +491,8 @@ export const adminSections: AdminSection[] = [
                   label,
                   type: 'number',
                   default: 0,
-                  parent: `${trustPrefix}enabled`,
+                  // The New limits still apply to Guests in public Spaces while levels are off.
+                  parent: group.title === 'New' ? undefined : `${trustPrefix}enabled`,
                   inline: true,
                 }),
               ),

@@ -13,8 +13,8 @@ from gameplan.tests.base import GameplanTestCase
 from gameplan.tests.fixtures import create_comment, create_community, create_discussion, create_space
 from gameplan.trust_levels import (
 	BASIC,
-	LEADER,
 	CONTRIBUTOR,
+	LEADER,
 	NEW,
 	REGULAR,
 	add_visit_days,
@@ -424,6 +424,32 @@ class TestPrivileges(TrustLevelTestCase):
 			frappe.get_doc(
 				doctype="GP Discussion", title="Links", project=self.space.name, content=links
 			).insert()
+
+	def test_basic_gets_its_own_first_day_quota_counting_posts_made_while_new(self):
+		self.turn_on(new_first_day_discussions=1, basic_first_day_discussions=2)
+		for user in (self.member, self.second_member):
+			frappe.db.set_value("User", user.name, "creation", frappe.utils.now_datetime())
+
+		def post(user):
+			with self.as_user(user):
+				return frappe.get_doc(
+					doctype="GP Discussion", title="Day one", project=self.space.name, content="<p>Hi</p>"
+				).insert()
+
+		post(self.member)
+		with self.assertRaisesRegex(NewUserLimitError, "New accounts can post 1 discussion"):
+			post(self.member)
+		with self.as_user(self.admin):
+			set_level(self.member.name, BASIC, "Known")
+		post(self.member)
+		with self.assertRaisesRegex(NewUserLimitError, "Accounts at Basic can post 2 discussions"):
+			post(self.member)
+		with self.as_user(self.admin):
+			set_level(self.member.name, CONTRIBUTOR, "Known")
+		post(self.member)
+		# Community staff are exempt in their own Communities.
+		for _ in range(3):
+			post(self.second_member)
 
 	def test_regulars_skip_the_content_caps(self):
 		with self.as_user(self.admin):

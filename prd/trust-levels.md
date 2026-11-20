@@ -8,13 +8,40 @@ Trust levels mirror Discourse. Each person has one site-wide level. Members earn
 
 | Level | Earned by | Unlocks | Report weight |
 | --- | --- | --- | --- |
-| 0 New | Joining | Approval in Communities that hold New posts. The new-user limits: 3 discussions and 10 replies on the first day, 1 image, 2 links, no files, 2 mentions, no @everyone. | 1 |
-| 1 Basic | 5 discussions entered, visits on 2 days, 1 accepted post | The new-user limits end. The site content caps apply. | 1 |
+| 0 New | Joining | Approval in Communities that hold New posts. The New limits: 3 discussions and 10 replies on the first day, 3 replies in a row in someone else's discussion, and per post 2 links, 5 images or videos, no files, 2 mentions, no @everyone. | 1 |
+| 1 Basic | 5 discussions entered, visits on 2 days, 1 accepted post | The New limits end, apart from 6 discussions and 30 replies on the first day. The site content caps apply. | 1 |
 | 2 Contributor | Visits on 15 days, 1 reaction given, 1 received, replies in 3 discussions, 20 discussions entered | Twice the posting-rate limits | 2 |
 | 3 Regular | In the last 100 days: visits on 50 days, replies in 10 discussions, 25% of new discussions entered (at most 500), 30 reactions given, 20 received from at least 5 people, at most 5 posts removed by moderators. No ban, suspension, or silence in the last 180 days. | Skips the content caps | 3 |
 | 4 Leader | A global admin only | Nothing beyond report weight (D132) | 3 |
 
 Global admins edit every number in Site administration. Each has a fixed range.
+
+## New and Basic limits
+
+Each limit matches a Discourse setting (D134). Global admins set them on the trust levels page.
+
+| Limit | Default | Discourse setting |
+| --- | --- | --- |
+| New: discussions on the first day | 3 | `max_topics_in_first_day` |
+| New: replies on the first day, polls included | 10 | `max_replies_in_first_day` |
+| New: replies in a row in someone else's discussion | 3 | `newuser_max_replies_per_topic` |
+| New: links per post | 2 | `newuser_max_links` |
+| New: images, videos and audio per post | 5 | `newuser_max_embedded_media` |
+| New: files per post | 0 | `newuser_max_attachments` |
+| New: mentions per post | 2 | `newuser_max_mentions_per_post` |
+| Basic: discussions on the first day | 6 | `tl1_max_topics_in_first_day` |
+| Basic: replies on the first day | 30 | `tl1_max_replies_in_first_day` |
+
+- The first day is the 24 hours after the account is created. The counter carries over from New to Basic.
+- A reply in a row counts until someone else replies in that discussion. A member's own discussions have no limit.
+- 0 means none allowed. Basic's first-day quotas cannot be lower than New's.
+- The New limits also apply to Guests in public Spaces, whatever their level, and while levels are off.
+
+When limits overlap (D135):
+
+1. Global admins, and Community staff in their own Communities, skip every limit.
+2. Every other limit that applies is checked on its own. The strictest wins, and no setting loosens another. The New limits stack with the site posting rate, the site content caps and slow mode.
+3. The error names the limit that refused the post.
 
 ## Who has a level
 

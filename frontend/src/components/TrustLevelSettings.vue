@@ -8,8 +8,8 @@
       data-testid="trust-levels-switch"
     />
   </div>
-  <div v-if="draft[toggle.key]" class="mt-6">
-    <Tabs v-model="level">
+  <div class="mt-6">
+    <Tabs v-if="enabled" v-model="level">
       <TabList variant="underline">
         <TabTrigger
           v-for="(name, index) in LEVEL_NAMES"
@@ -19,38 +19,42 @@
         />
       </TabList>
     </Tabs>
-    <div class="pt-5">
+    <h2 v-else class="text-lg-semibold text-ink-gray-8">New account limits</h2>
+    <div :class="enabled ? 'pt-5' : 'pt-1'">
       <p class="text-p-base text-ink-gray-6">
-        <template v-if="level === '0'">Everyone starts at New when they join. </template>
-        <template v-else-if="level === '4'">
-          Leader is never earned. A global admin assigns it by hand from Manage users.
+        <template v-if="!enabled">
+          Trust levels are off. These limits still apply to Guests posting in public Spaces.
         </template>
-        {{ levelDescriptions[Number(level) as LevelNumber] }}
+        <template v-else>
+          <template v-if="shown === 0">Everyone starts at New when they join. </template>
+          <template v-else-if="shown === 4">
+            Leader is never earned. A global admin assigns it by hand from Manage users.
+          </template>
+          {{ levelDescriptions[shown] }}
+        </template>
       </p>
-      <template v-if="group">
-        <div class="mt-3 divide-y divide-outline-gray-1">
-          <section v-for="part in group.sections" :key="part.title" class="py-5">
-            <h3 class="text-base-medium text-ink-gray-8">{{ part.title }}</h3>
-            <p v-if="part.description" class="mt-1 text-p-sm text-ink-gray-6">
-              {{ part.description }}
-            </p>
-            <div class="mt-3 grid grid-cols-[repeat(auto-fill,11rem)] items-end gap-x-10 gap-y-5">
-              <AdminSettingField
-                v-for="[field] in part.fields"
-                :id="`admin-setting-${trustPrefix}${field}`"
-                :key="field"
-                v-model="draft[trustPrefix + field]"
-                :setting="settingFor(field)"
-                :unsaved="unsaved.includes(trustPrefix + field)"
-                field
-                type="number"
-                :min="ranges[field]?.[0]"
-                :max="ranges[field]?.[1]"
-              />
-            </div>
-          </section>
-        </div>
-      </template>
+      <div v-if="group" class="mt-3 divide-y divide-outline-gray-1">
+        <section v-for="part in group.sections" :key="part.title" class="py-5">
+          <h3 class="text-base-medium text-ink-gray-8">{{ part.title }}</h3>
+          <p v-if="part.description" class="mt-1 text-p-sm text-ink-gray-6">
+            {{ part.description }}
+          </p>
+          <div class="mt-3 grid grid-cols-[repeat(auto-fill,11rem)] items-end gap-x-10 gap-y-5">
+            <AdminSettingField
+              v-for="[field] in part.fields"
+              :id="`admin-setting-${trustPrefix}${field}`"
+              :key="field"
+              v-model="draft[trustPrefix + field]"
+              :setting="settingFor(field)"
+              :unsaved="unsaved.includes(trustPrefix + field)"
+              field
+              type="number"
+              :min="ranges[field]?.[0]"
+              :max="ranges[field]?.[1]"
+            />
+          </div>
+        </section>
+      </div>
     </div>
   </div>
 </template>
@@ -74,10 +78,11 @@ const props = defineProps<{
 }>()
 
 const toggle = computed(() => props.settings.find((s) => s.key === `${trustPrefix}enabled`)!)
+const enabled = computed(() => Boolean(draft[toggle.value.key]))
 const level = ref('1')
-const group = computed(() =>
-  SETTING_GROUPS.find((item) => item.title === LEVEL_NAMES[Number(level.value)]),
-)
+// With levels off only the New limits apply, and only to Guests in public Spaces.
+const shown = computed(() => (enabled.value ? Number(level.value) : 0) as LevelNumber)
+const group = computed(() => SETTING_GROUPS.find((item) => item.title === LEVEL_NAMES[shown.value]))
 
 function settingFor(field: string) {
   return props.settings.find((s) => s.key === trustPrefix + field)!

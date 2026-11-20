@@ -9,12 +9,7 @@ from unittest.mock import patch
 import frappe
 from frappe.utils import now_datetime
 
-from gameplan.new_user_limits import (
-	MAX_DISCUSSIONS_IN_FIRST_DAY,
-	MAX_REPLIES_IN_FIRST_DAY,
-	POST_FIELDS,
-	NewUserLimitError,
-)
+from gameplan.new_user_limits import POST_FIELDS, NewUserLimitError
 from gameplan.permissions import GUEST_CREATABLE_DOCTYPES
 from gameplan.public_access import PUBLIC_ACCESS_CONFIG_KEY
 from gameplan.tests.base import GameplanTestCase
@@ -25,9 +20,15 @@ from gameplan.tests.fixtures import (
 	create_space,
 	grant_guest_access,
 )
+from gameplan.trust_levels import LIMITS
 from gameplan.visibility import VISIBILITY_ANONYMOUS
 
+MAX_DISCUSSIONS_IN_FIRST_DAY = LIMITS["new_first_day_discussions"][0]
+MAX_REPLIES_IN_FIRST_DAY = LIMITS["new_first_day_replies"][0]
+MAX_MEDIA = LIMITS["new_max_media"][0]
+
 IMAGE = '<img src="/files/a.png">'
+VIDEO = '<video src="/files/clip.mp4"></video>'
 EMOJI = '<img data-emoji="" src="/files/party.png" alt="party">'
 LINK = '<a href="https://example.org/{n}">link</a>'
 FILE = '<a href="/private/files/report.pdf">report.pdf</a>'
@@ -45,6 +46,12 @@ class NewUserLimitsTestCase(GameplanTestCase):
 		grant_guest_access(self.guest, self.invited_space)
 		self.thread = create_discussion("Limits Thread", self.public_space, owner=self.member)
 		self.account_age(hours=1)
+		self.addCleanup(frappe.clear_cache, doctype="GP Trust Settings")
+
+	def set_limits(self, **values):
+		for field, value in values.items():
+			frappe.db.set_single_value("GP Trust Settings", field, value)
+		frappe.clear_cache(doctype="GP Trust Settings")
 
 	def account_age(self, hours):
 		created = now_datetime() - timedelta(hours=hours)
@@ -59,12 +66,12 @@ class NewUserLimitsTestCase(GameplanTestCase):
 				content=content,
 			).insert()
 
-	def reply(self, content="<p>Hi</p>", *, user=None):
+	def reply(self, content="<p>Hi</p>", *, user=None, thread=None):
 		with self.as_user(user or self.guest.name):
 			return frappe.get_doc(
 				doctype="GP Comment",
 				reference_doctype="GP Discussion",
-				reference_name=self.thread.name,
+				reference_name=(thread or self.thread).name,
 				content=content,
 			).insert()
 
@@ -79,6 +86,22 @@ class NewUserLimitsTestCase(GameplanTestCase):
 
 
 class TestFirstDay(NewUserLimitsTestCase):
+	def setUp(self):
+		super().setUp()
+		# These tests post many replies in one discussion: only the first-day quota is under test.
+		self.set_limits(new_replies_per_discussion=1000)
+
+	def test_configured_quotas_apply(self):
+		self.set_limits(new_first_day_discussions=1)
+		self.post()
+		with self.assertRaisesRegex(NewUserLimitError, "can post 1 discussion on"):
+			self.post()
+
+	def test_a_zero_quota_allows_none(self):
+		self.set_limits(new_first_day_replies=0)
+		with self.assertRaisesRegex(NewUserLimitError, "cannot post replies"):
+			self.reply()
+
 	def test_posting_counters_cannot_be_reset_by_deleting_the_profile(self):
 		self.post()
 		profile = frappe.db.get_value("GP User Profile", {"user": self.guest.name}, "name")
@@ -132,7 +155,7 @@ class TestFirstDay(NewUserLimitsTestCase):
 
 	def test_a_refused_post_does_not_use_the_posting_allowance(self):
 		with self.assertRaises(NewUserLimitError):
-			self.post(IMAGE * 2)
+			self.post(IMAGE * (MAX_MEDIA + 1))
 		for _ in range(MAX_DISCUSSIONS_IN_FIRST_DAY):
 			self.post()
 
@@ -162,9 +185,10 @@ class TestPerPost(NewUserLimitsTestCase):
 		with self.assertRaises(NewUserLimitError):
 			self.reply(content)
 
-	def test_one_image_custom_emoji_aside(self):
-		self.reply(IMAGE + EMOJI + EMOJI)
-		self.assert_refused(IMAGE * 2)
+	def test_images_and_videos_share_the_media_limit_custom_emoji_aside(self):
+		self.reply(IMAGE * MAX_MEDIA + EMOJI + EMOJI)
+		self.assert_refused(IMAGE * (MAX_MEDIA + 1))
+		self.assert_refused(IMAGE * MAX_MEDIA + VIDEO)
 
 	def test_two_links_embeds_included(self):
 		self.reply(LINK.format(n=1) + LINK.format(n=2))
@@ -173,9 +197,29 @@ class TestPerPost(NewUserLimitsTestCase):
 			LINK.format(n=1) + LINK.format(n=2) + '<iframe src="https://www.youtube.com/embed/x"></iframe>'
 		)
 
-	def test_no_attachments(self):
+	def test_no_files_but_videos_are_media(self):
 		self.assert_refused(FILE)
-		self.assert_refused('<video src="/files/clip.mp4"></video>')
+		self.reply("<p>Clip</p>" + VIDEO)
+
+	def test_configured_limits_apply(self):
+		self.set_limits(new_max_links=1, new_max_attachments=1)
+		self.reply(LINK.format(n=1) + FILE)
+		with self.assertRaisesRegex(NewUserLimitError, "can add 1 link per post"):
+			self.reply(LINK.format(n=1) + LINK.format(n=2))
+
+	def test_a_zero_limit_allows_none(self):
+		self.set_limits(new_max_mentions=0)
+		with self.assertRaisesRegex(NewUserLimitError, "cannot add mentions"):
+			self.reply(MENTION.format(n=1))
+
+	def test_the_site_content_caps_also_apply_and_the_lower_wins(self):
+		from gameplan.posting_limits import save_settings
+
+		self.addCleanup(frappe.clear_cache, doctype="GP Posting Settings")
+		with self.as_user(self.admin):
+			save_settings(0, 0, 0, 0, 0, caps_enabled=1, max_images=2)
+		with self.assertRaisesRegex(frappe.ValidationError, "up to 2 images"):
+			self.reply(IMAGE * 3)
 
 	def test_two_mentions_and_never_everyone(self):
 		self.reply(MENTION.format(n=1) + MENTION.format(n=2))
@@ -184,13 +228,57 @@ class TestPerPost(NewUserLimitsTestCase):
 
 	def test_a_discussion_body_is_checked_too(self):
 		with self.assertRaises(NewUserLimitError):
-			self.post(IMAGE * 2)
+			self.post(IMAGE * (MAX_MEDIA + 1))
 
 	def test_an_edit_is_checked_too(self):
 		comment = self.reply()
 		with self.as_user(self.guest.name), self.assertRaises(NewUserLimitError):
-			comment.content = IMAGE * 2
+			comment.content = IMAGE * (MAX_MEDIA + 1)
 			comment.save()
+
+
+class TestRepliesInARow(NewUserLimitsTestCase):
+	def test_wait_for_someone_else_to_reply(self):
+		limit = LIMITS["new_replies_per_discussion"][0]
+		for _ in range(limit):
+			self.reply()
+		with self.assertRaisesRegex(NewUserLimitError, "after someone else does"):
+			self.reply()
+		self.reply(user=self.member.name)
+		self.reply()
+
+	def test_no_limit_in_their_own_discussion(self):
+		own = self.post()
+		for _ in range(LIMITS["new_replies_per_discussion"][0] + 1):
+			self.reply(thread=own)
+
+	def test_a_zero_limit_allows_no_replies_in_other_discussions(self):
+		self.set_limits(new_replies_per_discussion=0)
+		with self.assertRaisesRegex(NewUserLimitError, "cannot reply"):
+			self.reply()
+
+
+class TestSettings(NewUserLimitsTestCase):
+	def test_the_patch_stores_defaults_without_overwriting_saved_values(self):
+		from gameplan.gameplan.doctype.gp_trust_settings.patches.set_new_user_limit_defaults import execute
+
+		frappe.db.delete("Singles", {"doctype": "GP Trust Settings", "field": ["in", list(LIMITS)]})
+		frappe.db.set_single_value("GP Trust Settings", "new_max_links", 7)
+		execute()
+		self.assertEqual(frappe.db.get_single_value("GP Trust Settings", "new_max_links"), 7)
+		self.assertEqual(frappe.db.get_single_value("GP Trust Settings", "new_max_media"), MAX_MEDIA)
+
+	def test_basic_first_day_quotas_cannot_be_lower_than_new(self):
+		from gameplan.trust_levels import save_settings
+
+		with self.as_user(self.admin), self.assertRaisesRegex(frappe.ValidationError, "fewer than"):
+			save_settings(0, new_first_day_replies=10, basic_first_day_replies=9)
+
+	def test_limits_are_validated_against_their_range(self):
+		from gameplan.trust_levels import save_settings
+
+		with self.as_user(self.admin), self.assertRaises(frappe.ValidationError):
+			save_settings(0, new_max_links=101)
 
 
 class TestEditWindow(NewUserLimitsTestCase):

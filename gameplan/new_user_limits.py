@@ -1,12 +1,14 @@
 # Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and Contributors
 # MIT License. See license.txt
 
-"""Discourse-style posting safeguards for public-only Gameplan Guests and New members.
+"""Discourse-style posting safeguards for public-only Gameplan Guests, New and Basic members.
 
-Apply first-day quotas and per-post limits. Public-only Guests also get a 24-hour own-post edit
-window. While trust levels are on, members and invited Guests at New get the same quotas and
-per-post limits outside the Communities they help run (D116). Others are exempt. Validation hooks
-cover every save route.
+Public-only Guests and New members outside the Communities they help run (D116) get first-day
+quotas, a cap on replies in someone else's discussion, and per-post limits. Public-only Guests
+also get a 24-hour own-post edit window. Basic members get only higher first-day quotas. Global
+admins set every number on the trust levels page (D134). Each limit is checked on its own, so
+these stack with the site posting rate and content caps and the strictest wins (D135).
+Validation hooks cover every save route.
 """
 
 from datetime import timedelta
@@ -19,12 +21,7 @@ import gameplan
 
 FIRST_DAY = timedelta(hours=24)
 EDIT_WINDOW = timedelta(hours=24)
-MAX_DISCUSSIONS_IN_FIRST_DAY = 3
-MAX_REPLIES_IN_FIRST_DAY = 10
-MAX_IMAGES_PER_POST = 1
-MAX_LINKS_PER_POST = 2
-MAX_ATTACHMENTS_PER_POST = 0
-MAX_MENTIONS_PER_POST = 2
+NEW, BASIC = "New", "Basic"
 
 # The doctypes a Gameplan Guest may create (permissions.GUEST_CREATABLE_DOCTYPES), and the
 # fields whose change is an edit of the post. Reactions and votes are not edits.
@@ -38,6 +35,13 @@ POST_COUNTER_FIELDS = {
 	"GP Comment": "first_day_replies",
 	"GP Poll": "first_day_replies",
 }
+# count_post_contents key, setting, singular, plural.
+PER_POST_LIMITS = (
+	("links", "new_max_links", "link", "links"),
+	("media", "new_max_media", "image or video", "images or videos"),
+	("files", "new_max_attachments", "file", "files"),
+	("mentions", "new_max_mentions", "mention", "mentions"),
+)
 EVERYONE_MENTION = "_everyone_"
 
 
@@ -48,12 +52,17 @@ class NewUserLimitError(frappe.ValidationError):
 def check_new_user_limits(doc, method=None):
 	"""`validate` for every doctype a Gameplan Guest may create."""
 	user = frappe.session.user
-	counted = doc.is_new() and (gameplan.is_guest(user) or is_new_level(user))
-	posted = first_day_post_count(user, doc.doctype) if counted else None
-	if not is_limited(user, doc):
+	posted = first_day_post_count(user, doc.doctype) if doc.is_new() and is_counted(user) else None
+	tier = limited_as(user, doc)
+	if not tier:
+		return
+	limits = settings()
+	if doc.is_new():
+		check_first_day(posted, doc, tier, limits)
+	if tier != NEW:
 		return
 	if doc.is_new():
-		check_first_day(posted, doc)
+		check_replies_in_discussion(user, doc, limits)
 	elif (
 		gameplan.is_guest(user)
 		and (doc.owner or frappe.db.get_value(doc.doctype, doc.name, "owner")) == user
@@ -61,18 +70,57 @@ def check_new_user_limits(doc, method=None):
 	):
 		check_edit_window(doc)
 	if doc.is_new() or post_changed(doc):
-		check_post(doc.get("content") if doc.meta.has_field("content") else None)
+		check_post(doc.get("content") if doc.meta.has_field("content") else None, limits)
 
 
-def is_new_level(user) -> bool:
-	from gameplan.trust_levels import NEW, level_of
+def settings():
+	from gameplan.trust_levels import config
 
-	return level_of(user) == NEW
+	return config()
 
 
-def is_limited(user, doc) -> bool:
-	"""Whether `user` reaches `doc`'s space only because it is public, or is New outside its staff."""
+def level(user):
+	from gameplan.trust_levels import level_of
+
+	return level_of(user)
+
+
+def is_counted(user) -> bool:
+	"""Whose first-day posts are counted: the counter carries over from New to Basic."""
+	from gameplan.trust_levels import BASIC as BASIC_LEVEL
+
+	if gameplan.is_guest(user):
+		return True
+	found = level(user)
+	return found is not None and found <= BASIC_LEVEL
+
+
+def limited_as(user, doc):
+	"""Which limits `user` gets on `doc`: New, Basic, or None."""
+	from gameplan.trust_levels import BASIC as BASIC_LEVEL
+	from gameplan.trust_levels import NEW as NEW_LEVEL
+
+	# A public-only Guest gets the New limits whatever their level.
+	if is_public_only_guest(user, doc):
+		return NEW
+	found = level(user)
+	if found in (NEW_LEVEL, BASIC_LEVEL) and outside_staff(user, doc):
+		return NEW if found == NEW_LEVEL else BASIC
+	return None
+
+
+def outside_staff(user, doc) -> bool:
+	"""Whether `doc` is in a Community that `user` does not help run."""
 	from gameplan.community_bans import can_moderate_community
+	from gameplan.permissions import get_content_project
+
+	project = get_content_project(doc)
+	community = project and frappe.db.get_value("GP Project", project, "team")
+	return bool(community) and not can_moderate_community(community, user)
+
+
+def is_public_only_guest(user, doc) -> bool:
+	"""Whether `user` is a Guest who reaches `doc`'s space only because it is public."""
 	from gameplan.permissions import (
 		get_content_project,
 		get_project_info,
@@ -80,11 +128,6 @@ def is_limited(user, doc) -> bool:
 		is_publicly_readable_space,
 	)
 
-	if is_new_level(user):
-		project = get_content_project(doc)
-		community = project and frappe.db.get_value("GP Project", project, "team")
-		if community and not can_moderate_community(community, user):
-			return True
 	if not gameplan.is_guest(user):
 		return False
 	project = get_content_project(doc)
@@ -110,25 +153,63 @@ def first_day_post_count(user, doctype):
 def record_first_day_post(doc, method=None):
 	"""Count successful inserts, including posts later deleted or removed by a cascade."""
 	user = doc.owner
-	if not (gameplan.is_guest(user) or is_new_level(user)) or first_day_post_count(user, doc.doctype) is None:
+	if not is_counted(user) or first_day_post_count(user, doc.doctype) is None:
 		return
 	Profile = frappe.qb.DocType("GP User Profile")
 	field = getattr(Profile, POST_COUNTER_FIELDS[doc.doctype])
 	frappe.qb.update(Profile).set(field, field + 1).where(Profile.user == user).run()
 
 
-def check_first_day(posted, doc):
+def check_first_day(posted, doc, tier, limits):
 	if posted is None:
 		return
-	if doc.doctype == "GP Discussion":
-		limit, what = MAX_DISCUSSIONS_IN_FIRST_DAY, "discussions"
-	else:
-		limit, what = MAX_REPLIES_IN_FIRST_DAY, "replies"
-	if cint(posted) >= limit:
-		refuse(
-			f"New accounts can post {limit} {what} on their first day. You can post more once your"
-			" account is a day old."
-		)
+	what = "discussions" if doc.doctype == "GP Discussion" else "replies"
+	limit = limits[f"{tier.lower()}_first_day_{what}"]
+	if cint(posted) < limit:
+		return
+	who = "New accounts" if tier == NEW else "Accounts at Basic"
+	noun = {"discussions": "discussion", "replies": "reply"}[what] if limit == 1 else what
+	allowed = f"cannot post {what}" if not limit else f"can post {limit} {noun}"
+	refuse(f"{who} {allowed} on their first day. You can post more once your account is a day old.")
+
+
+def check_replies_in_discussion(user, doc, limits):
+	"""Discourse's newuser_max_replies_per_topic: wait for someone else to reply (D134)."""
+	if doc.doctype != "GP Comment" or doc.reference_doctype != "GP Discussion":
+		return
+	if frappe.db.get_value("GP Discussion", doc.reference_name, "owner") == user:
+		return
+	limit = limits.new_replies_per_discussion
+	if limit and replies_since_someone_else(user, doc.reference_name, limit) < limit:
+		return
+	if not limit:
+		refuse("New accounts cannot reply in other people's discussions.")
+	refuse(
+		f"New accounts can post {limit} {'reply' if limit == 1 else 'replies'} in a row in a"
+		" discussion. You can reply again after someone else does."
+	)
+
+
+def replies_since_someone_else(user, discussion, limit):
+	"""The member's replies after the last reply by anyone else, counted up to `limit`."""
+	Comment = frappe.qb.DocType("GP Comment")
+	in_discussion = (
+		(Comment.reference_doctype == "GP Discussion")
+		& (Comment.reference_name == discussion)
+		& Comment.deleted_at.isnull()
+	)
+	last_other = (
+		frappe.qb.from_(Comment)
+		.select(Comment.creation)
+		.where(in_discussion & (Comment.owner != user))
+		.orderby(Comment.creation, order=frappe.qb.desc)
+		.limit(1)
+		.run(pluck=True)
+	)
+	query = frappe.qb.from_(Comment).select(Comment.name).where(in_discussion & (Comment.owner == user))
+	if last_other:
+		query = query.where(Comment.creation > last_other[0])
+	return len(query.limit(limit).run())
 
 
 def check_edit_window(doc):
@@ -136,39 +217,42 @@ def check_edit_window(doc):
 		refuse("Posts from new accounts can be edited for 24 hours after posting.")
 
 
-def check_post(html):
-	"""Refuse a post body that goes over any per-post limit."""
+def check_post(html, limits):
+	"""Refuse a post body that goes over any New per-post limit."""
 	counts = count_post_contents(html)
 	if counts.everyone:
 		refuse("New accounts cannot mention everyone.")
-	for key, limit, singular, plural in (
-		("images", MAX_IMAGES_PER_POST, "image", "images"),
-		("links", MAX_LINKS_PER_POST, "link", "links"),
-		("mentions", MAX_MENTIONS_PER_POST, "mention", "mentions"),
-	):
-		if counts[key] > limit:
-			refuse(f"New accounts can add {limit} {singular if limit == 1 else plural} per post.")
-	if counts.attachments > MAX_ATTACHMENTS_PER_POST:
-		refuse("New accounts cannot attach files or videos.")
+	for key, field, singular, plural in PER_POST_LIMITS:
+		limit = limits[field]
+		if counts[key] <= limit:
+			continue
+		if not limit:
+			refuse(f"New accounts cannot add {plural} to a post.")
+		refuse(f"New accounts can add {limit} {singular if limit == 1 else plural} per post.")
 
 
 def count_post_contents(html) -> frappe._dict:
-	"""How many images, links, attachments and mentions a post body carries.
+	"""How many images, links, files, media and mentions a post body carries.
 
-	An uploaded image is an image; any other uploaded file, and any video, is an
-	attachment. A custom emoji is neither. An embedded iframe counts as a link, as a
-	Discourse onebox does.
+	The New limits follow Discourse: `media` is images, videos and audio, and `files` is other
+	uploaded files. The site content caps keep `images` and `attachments`, where an attachment is
+	an uploaded file, a video or audio. A custom emoji is neither. An embedded iframe counts as a
+	link, as a Discourse onebox does.
 	"""
 	from gameplan.utils import file_reference_from_url
 
 	soup = BeautifulSoup(html or "", "html.parser")
 	links = soup.find_all("a", href=True)
 	mentions = soup.find_all("span", attrs={"data-type": "mention"})
-	attachments = sum(bool(file_reference_from_url(link["href"])) for link in links)
+	files = sum(bool(file_reference_from_url(link["href"])) for link in links)
+	images = len(soup.select("img:not([data-emoji])"))
+	players = len(soup.find_all(["video", "audio"]))
 	return frappe._dict(
-		images=len(soup.select("img:not([data-emoji])")),
-		links=len(links) - attachments + len(soup.find_all("iframe")),
-		attachments=attachments + len(soup.find_all(["video", "audio"])),
+		images=images,
+		links=len(links) - files + len(soup.find_all("iframe")),
+		attachments=files + players,
+		files=files,
+		media=images + players,
 		mentions=sum(mention.get("data-id") != EVERYONE_MENTION for mention in mentions),
 		everyone=any(mention.get("data-id") == EVERYONE_MENTION for mention in mentions),
 	)

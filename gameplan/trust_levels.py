@@ -45,6 +45,20 @@ REQUIREMENTS = {
 	"regular_restriction_days": (180, 0, 3650),
 	"regular_grace_days": (14, 0, 365),
 }
+# Posting limits for New and Basic, as in Discourse's newuser_* and tl1_* settings (D134).
+# Zero means none allowed. Basic's first-day quotas may not be lower than New's (D135).
+LIMITS = {
+	"new_first_day_discussions": (3, 0, 1000),
+	"new_first_day_replies": (10, 0, 1000),
+	"new_replies_per_discussion": (3, 0, 1000),
+	"new_max_links": (2, 0, 100),
+	"new_max_media": (5, 0, 100),
+	"new_max_attachments": (0, 0, 100),
+	"new_max_mentions": (2, 0, 100),
+	"basic_first_day_discussions": (6, 0, 1000),
+	"basic_first_day_replies": (30, 0, 1000),
+}
+SETTINGS = {**REQUIREMENTS, **LIMITS}
 JOB_BATCH = 500
 COMMIT_EVERY = 50
 TIME_BUDGET = 240
@@ -60,9 +74,14 @@ def clock():
 
 def config():
 	doc = frappe.get_cached_doc("GP Trust Settings")
+	# A field added after the settings were saved has no stored value yet: use its default,
+	# since zero would refuse every post for the New limits.
 	return frappe._dict(
 		enabled=cint(doc.enabled),
-		**{field: cint(doc.get(field)) for field in REQUIREMENTS},
+		**{
+			field: default if doc.get(field) is None else cint(doc.get(field))
+			for field, (default, _, _) in SETTINGS.items()
+		},
 	)
 
 
@@ -497,18 +516,18 @@ def get_settings():
 	require_admin()
 	return {
 		**config(),
-		"defaults": {field: default for field, (default, _, _) in REQUIREMENTS.items()},
-		"ranges": {field: [smallest, largest] for field, (_, smallest, largest) in REQUIREMENTS.items()},
+		"defaults": {field: default for field, (default, _, _) in SETTINGS.items()},
+		"ranges": {field: [smallest, largest] for field, (_, smallest, largest) in SETTINGS.items()},
 	}
 
 
 @frappe.whitelist(methods=["POST"])
 def save_settings(enabled: int, **values):
-	"""Turn site-wide trust levels on or off and set every requirement. Global admins only."""
+	"""Turn site-wide trust levels on or off and set every requirement and limit. Global admins only."""
 	require_admin()
 	doc = frappe.get_doc("GP Trust Settings")
 	was_enabled = cint(doc.enabled)
-	for field, (_default, smallest, largest) in REQUIREMENTS.items():
+	for field, (_default, smallest, largest) in SETTINGS.items():
 		if field not in values:
 			continue
 		value = cint(values[field])
@@ -519,11 +538,27 @@ def save_settings(enabled: int, **values):
 		doc.set(field, value)
 	if cint(doc.regular_days) > cint(doc.regular_window):
 		frappe.throw(_("Days visited cannot be more than the Regular window"))
+	check_first_day_quotas(doc)
 	doc.enabled = 1 if cint(enabled) else 0
 	doc.save(ignore_permissions=True)
 	if doc.enabled and not was_enabled:
 		frappe.enqueue(backfill, queue="long", enqueue_after_commit=True)
 	return get_settings()
+
+
+def check_first_day_quotas(doc):
+	"""A promotion to Basic must never tighten a first-day quota (D135)."""
+	for what in ("discussions", "replies"):
+		new, basic = (
+			cint(doc.get(f"new_first_day_{what}")),
+			cint(doc.get(f"basic_first_day_{what}")),
+		)
+		if basic < new:
+			frappe.throw(
+				_("Basic can post {0} {1} on the first day, fewer than the {2} New can").format(
+					basic, _(what), new
+				)
+			)
 
 
 # Manual changes -------------------------------------------------------------------------------
@@ -761,7 +796,9 @@ def promote_regulars(after="", budget=TIME_BUDGET):
 			.on(Day.user == Level.user)
 			.select(Level.user)
 			.distinct()
-			.where((Level.level == CONTRIBUTOR) & (Level.locked == 0) & (Level.user > after) & (Day.day >= since))
+			.where(
+				(Level.level == CONTRIBUTOR) & (Level.locked == 0) & (Level.user > after) & (Day.day >= since)
+			)
 			.orderby(Level.user)
 			.limit(JOB_BATCH)
 			.run(pluck=True)

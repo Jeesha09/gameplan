@@ -6,8 +6,8 @@ export const LEVEL_NAMES = ['New', 'Basic', 'Contributor', 'Regular', 'Leader'] 
 export type LevelNumber = 0 | 1 | 2 | 3 | 4
 
 export const levelDescriptions: Record<LevelNumber, string> = {
-  0: 'Posts wait for approval where a Community requires it. New-user limits apply.',
-  1: 'New-user limits no longer apply. The site per-post limits do.',
+  0: 'Posts wait for approval where a Community requires it. New-account limits apply on the first day, on replies in a row, and on links, media, files and mentions in each post.',
+  1: 'The New limits end, apart from a higher limit on the first day. The site per-post limits apply.',
   2: 'Can post twice as often.',
   3: 'Posts skip the per-post limits. Kept while the member stays active.',
   4: 'Set by a global admin. Same as Regular, and never rechecked.',
@@ -38,6 +38,36 @@ export type SettingSection = { title: string; description?: string; fields: [str
 
 export const SETTING_GROUPS: { title: string; sections: SettingSection[] }[] = [
   {
+    title: 'New',
+    sections: [
+      {
+        title: 'First day limits',
+        description: 'In the 24 hours after the account is created. Polls count as replies',
+        fields: [
+          ['new_first_day_discussions', 'Discussions'],
+          ['new_first_day_replies', 'Replies'],
+        ],
+      },
+      {
+        title: 'Replies in a row',
+        description:
+          "Replies in someone else's discussion before another person replies. Their own discussions have no limit",
+        fields: [['new_replies_per_discussion', 'Replies']],
+      },
+      {
+        title: 'Each post',
+        description:
+          '0 means none allowed. The site per-post limits also apply, and the lower number wins',
+        fields: [
+          ['new_max_links', 'Links'],
+          ['new_max_media', 'Images and videos'],
+          ['new_max_attachments', 'Files'],
+          ['new_max_mentions', 'Mentions'],
+        ],
+      },
+    ],
+  },
+  {
     title: 'Basic',
     sections: [
       {
@@ -52,6 +82,15 @@ export const SETTING_GROUPS: { title: string; sections: SettingSection[] }[] = [
         title: 'Posting',
         description: 'Discussions and replies that were published and not removed',
         fields: [['basic_accepted', 'Posts published']],
+      },
+      {
+        title: 'First day limits',
+        description:
+          'In the 24 hours after the account is created, counting what they posted while New. Cannot be lower than New',
+        fields: [
+          ['basic_first_day_discussions', 'Discussions'],
+          ['basic_first_day_replies', 'Replies'],
+        ],
       },
     ],
   },

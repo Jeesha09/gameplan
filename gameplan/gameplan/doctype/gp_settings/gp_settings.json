@@ -119,7 +119,7 @@
    "fieldname": "direct_message_role",
    "fieldtype": "Select",
    "label": "Who can start a conversation",
-   "options": "All members\nBasic trust level and up\nMember trust level and up\nCommunity staff and up"
+   "options": "All members\nBasic trust level and up\nContributor trust level and up\nCommunity staff and up"
   },
   {
    "default": "All members",

@@ -24,9 +24,15 @@ def execute():
 	frappe.clear_cache(doctype=SETTINGS)
 
 	frappe.db.set_value(
-		"GP Team", {"approval_min_level": "Member"}, "approval_min_level", "Contributor", update_modified=False
+		"GP Team",
+		{"approval_min_level": "Member"},
+		"approval_min_level",
+		"Contributor",
+		update_modified=False,
 	)
 	for field in ("previous_level", "level"):
 		frappe.db.set_value(
 			"GP Moderation Log", {field: "Member"}, field, "Contributor", update_modified=False
 		)
+	if frappe.db.get_single_value("GP Settings", "direct_message_role") == "Member trust level and up":
+		frappe.db.set_single_value("GP Settings", "direct_message_role", "Contributor trust level and up")
